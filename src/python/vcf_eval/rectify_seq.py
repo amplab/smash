@@ -194,14 +194,14 @@ def _get_chopped_variant(variants, loc, higher):
   if vars_near_bound[0] is None:
     return None
 
-  dist = loc-vars_near_bound[0].pos
+  dist = loc-vars_near_bound[0]
 
   offset = 0
   while dist <= WINDOW_VARIANT_LOOKBACK_SIZE : # up this if we expect variants further away to exceed the boundary (?)
       if vars_near_bound[offset]:
+          dist = loc-vars_near_bound[offset]
           vars_near_bound.append(getNear(vars_near_bound[offset]-1))
           offset += 1
-          dist = loc-vars_near_bound[offset]
       else:
           break
 
