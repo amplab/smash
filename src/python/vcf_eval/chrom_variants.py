@@ -43,7 +43,7 @@ def is_sv(record,maxSize):
     @return:
     """
     refSize = len(record.REF)
-    altSizes = map(len,filter(lambda a: not isinstance(a, vcf.model._SV), record.ALT))
+    altSizes = map(len,filter(lambda a: not isinstance(a, vcf.model._SV) and a is not None, record.ALT))
     symbolic = any(map(lambda t: "<" in t,str(record.ALT)))
     if ( refSize > maxSize ):
         return True

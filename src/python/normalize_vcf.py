@@ -46,6 +46,8 @@ def find_redundancy(strings):
     return redundancy
 
 def genotype(vcfrecord):
+    if not vcfrecord.samples:
+        return "."
     return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
 
 def write(record, pos, ref, alts, writer):
