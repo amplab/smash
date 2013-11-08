@@ -138,6 +138,9 @@ def _parse_args():
     parser.add_option("--sv_err",dest="sv_err_rate",type=float,default=0.0,help="The error rate of SVs in the ground truth data")
     parser.add_option("-w","--rescue_window_size",dest="window",type=int,default=50,help="The size of the window for rescuing")
     parser.add_option("--err_vcf",dest="err_vcf",action="store",help="An optional output VCF to hold detected false-negatives and false-positives")
+    parser.add_option("--rescue_vcf",dest="rescue_vcf",action="store",help="An optional output VCF which stores all the \"pred.vcf\" records " +
+                        "evaluated by SMaSH. In addition, at positions where one or many variants were confirmed by the rescuing procedure, "+
+                        "the original records are replaced by those in the true.vcf (eliminating the need for further rescuing).")
     options,args = parser.parse_args()
     if len(args) < 2:
       parser.error("Must specify input VCFs")
@@ -167,13 +170,14 @@ window = options.window if ref else None
 true_var = Variants(true_vcf, MAX_INDEL_LEN)
 pred_var = Variants(pred_vcf, MAX_INDEL_LEN)
 known_fp_var = Variants(known_fp_vcf,MAX_INDEL_LEN,knownFP=True) if known_fp_vcf else None
+rescue_vcf = open(options.rescue_vcf,'w') if options.rescue_vcf != None else None
 
 # Estimated total number of errors in validation data for SNPs, indels and SVs.
 snp_err = true_var.var_num(VARIANT_TYPE.SNP) * snp_err_rate
 indel_err = (true_var.var_num(VARIANT_TYPE.INDEL_INS) + true_var.var_num(VARIANT_TYPE.INDEL_DEL) + true_var.var_num(VARIANT_TYPE.INDEL_OTH)) * indel_err_rate
 sv_err = (true_var.var_num(VARIANT_TYPE.SV_INS) + true_var.var_num(VARIANT_TYPE.SV_DEL) + true_var.var_num(VARIANT_TYPE.SV_OTH)) * sv_err_rate
 
-overall_statistics,errors = evaluate_variants(true_var,pred_var,sv_eps,sv_eps,ref,window,known_fp_var)
+overall_statistics,errors = evaluate_variants(true_var,pred_var,sv_eps,sv_eps,ref,window,known_fp_var,rescue_vcf)
 print_snp_stats(overall_statistics(VARIANT_TYPE.SNP), snp_err)
 
 def print_sv(var_type, description):

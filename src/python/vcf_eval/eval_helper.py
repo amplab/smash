@@ -19,7 +19,7 @@ def _genotype_concordance_dict():
                 gcDict[vtype][gtype1][gtype2] = 0
     return gcDict
 
-def rescue_mission(false_negatives,false_positives,loc,ref,window):
+def rescue_mission(false_negatives,false_positives,loc,ref,window,rescue_vcf):
   # the rescue mission attempts to rescue a variant at a specific location in
   # the false negative track.    # note that if a variant is missed (false_negative) due to representation
   # then there will be a nearby false_positive. Thus it suffices to only
@@ -41,12 +41,21 @@ def rescue_mission(false_negatives,false_positives,loc,ref,window):
   # now the whole truth window becomes true positives
   # and the whole predicted window is removed from false positives
 
+  # get the info for the rescue vcf (if it exists)
+  if rescue_vcf != None:
+      info = "type=TP_rescued;was=" + ",".join(map(lambda v: str(v.pos), rescuer.predictWindowQueue[rescuer.windowsRescued[1]]))
+  else:
+      info = None
+
   for variant in rescuer.truthWindowQueue[rescuer.windowsRescued[0]]:
+    safeWrite(variant._vcf_entry(false_negatives.chrom,info),rescue_vcf)
     false_negatives._remove_variant(variant.pos)
     num_new_tp[variant.var_type] += 1
+
   for variant in rescuer.predictWindowQueue[rescuer.windowsRescued[1]]:
     false_positives._remove_variant(variant.pos)
     num_fp_removed[variant.var_type] += 1
+
   return num_new_tp,num_fp_removed
 
 def var_match_at_loc(true_variants,pred_variants,loc):
@@ -127,7 +136,7 @@ class ChromVariantStats:
 
     return clone
 
-  def rectify(self, ref, window):
+  def rectify(self, ref, window, rescue_vcf):
     """Rescue variants from VCF ambiguity.
 
     Given reference genome and window of sequence comparison,
@@ -147,7 +156,7 @@ class ChromVariantStats:
 
     for loc in locs_to_rescue:
         if ( loc in self.false_negatives.all_variants ): # if the element is still in the set of false negatives
-            new_tp,rm_fp = rescue_mission(self.false_negatives,self.false_positives,loc,ref,window)
+            new_tp,rm_fp = rescue_mission(self.false_negatives,self.false_positives,loc,ref,window,rescue_vcf)
             for t in VARIANT_TYPE:
               # seemingly odd accounting. The number of predicted variants *changes* as a result of rescuing.
               # e.g. 2 predicted FPs are in fact 1 FN. So
@@ -187,7 +196,11 @@ class ChromVariantStats:
     stats['known_fp'] = self.known_fp[var_type] if self.calls_at_known_fp else 0
     return stats
 
-def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,window):
+def safeWrite(variant,vcf):
+    if vcf != None:
+        vcf.write(variant + "\n")
+
+def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,window,rescue_vcf):
     true_loc = set(true_var.all_locations)
     pred_loc = set(pred_var.all_locations)
     genotype_concordance = _genotype_concordance_dict()
@@ -204,6 +217,8 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
       if ( vartype.startswith("SV") ): # ignore SVs here
         continue
       match = var_match_at_loc(true_var, pred_var, loc)
+      if match :
+          safeWrite(pred_var.all_variants[loc]._vcf_entry(pred_var.chrom,"type=TP_Match"),rescue_vcf)
       destination = intersect_good if match else intersect_bad
       destination.append(loc)
       if not match:
@@ -224,6 +239,7 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
         if match:
          calls_at_known_fp[vartype] += 1
          known_fp_calls_positions.append(loc)
+         safeWrite(pred_var.all_variants[loc]._vcf_entry(pred_var.chrom,"type=knownFP_Match"),rescue_vcf)
         all_known_fp[vartype] += 1
 
     # structural variants are a special case if not matching exactly
@@ -233,6 +249,7 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
         continue
       match = structural_match(true_var.all_variants[loc],pred_var,sv_eps,sv_eps_bp)
       if match and match in false_positives:   # don't double count
+        safeWrite(true_var.all_variants[loc]._vcf_entry(true_var.chrom,"type=TP_SV_partial_overlap;was=%d" % (match)),rescue_vcf)
         intersect_good.append(loc)
         false_positives.remove(match)
         false_negatives.remove(loc)
@@ -246,12 +263,17 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
                                       intersect_good, false_positives,
                                       false_negatives,genotype_concordance)
     if ( window and ref):
-      variant_stats.rectify(ref, window)
+      variant_stats.rectify(ref, window, rescue_vcf)
 
     if ( known_fp ):
       variant_stats.known_fp = all_known_fp
       variant_stats.calls_at_known_fp = calls_at_known_fp
       variant_stats.known_fp_variants = variant_stats._extract(variant_stats.pred_var,known_fp_calls_positions,None)
+
+    #now we can write out all the false positives
+    if rescue_vcf != None:
+      for fp_loc in false_positives:
+        rescue_vcf.write(pred_var.all_variants[fp_loc]._vcf_entry(pred_var.chrom,"type=FP")+"\n")
 
     variant_stats.intersect_bad = intersect_bad_dict
     #stats = variant_stats.to_dict()

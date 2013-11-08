@@ -89,9 +89,9 @@ def _eval_aggregate(true_variants, pred_variants, known_fp, evaluate):
     dicts.append(evaluate(chrom_true, chrom_pred,chrom_known_fp))
   return _aggregate(dicts)  
 
-def evaluate_variants(true_variants,pred_variants,eps,eps_bp,ref,window,known_fp):
+def evaluate_variants(true_variants,pred_variants,eps,eps_bp,ref,window,known_fp,rescue_vcf):
     def evaluate(true,pred,known_fp):
-      return chrom_evaluate_variants(true,pred,known_fp,eps,eps_bp,ref,window)
+      return chrom_evaluate_variants(true,pred,known_fp,eps,eps_bp,ref,window,rescue_vcf)
     return _eval_aggregate(true_variants,pred_variants,known_fp,evaluate)
 
 def output_errors(err_aggregate,contig_ordering,outVCF):
