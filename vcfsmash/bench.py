@@ -239,20 +239,21 @@ class VariantComparator:
         self.snp_stats = self.stat_reporter(VARIANT_TYPE.SNP)
         self.small_ins_stats = self.stat_reporter(VARIANT_TYPE.INDEL_INS)
         self.small_del_stats = self.stat_reporter(VARIANT_TYPE.INDEL_DEL)
-        self.small_oth_stats = (
-                self.true_vars.var_num(VARIANT_TYPE.INDEL_OTH),
-                self.pred_vars.var_num(VARIANT_TYPE.INDEL_OTH)
-        )
+        self.small_oth_stats = {
+                'num_true': self.true_vars.var_num(VARIANT_TYPE.INDEL_OTH),
+                'num_pred': self.pred_vars.var_num(VARIANT_TYPE.INDEL_OTH)
+        }
         self.large_ins_stats = self.stat_reporter(VARIANT_TYPE.SV_INS)
         self.large_del_stats = self.stat_reporter(VARIANT_TYPE.SV_DEL)
-        self.large_oth_stats = (
-                self.true_vars.var_num(VARIANT_TYPE.SV_OTH),
-                self.pred_vars.var_num(VARIANT_TYPE.SV_OTH)
-        )
+        self.large_oth_stats = {
+                'num_true': self.true_vars.var_num(VARIANT_TYPE.SV_OTH),
+                'num_pred': self.pred_vars.var_num(VARIANT_TYPE.SV_OTH)
+        }
         if err_output_file:
             ref_keys = self.reference.keys() if self.reference else None
             with open(err_output_file, 'w') as err_file:
                 output_errors(self.errors, ref_keys, err_file)
+
 
     def print_stats(self, writer=print):
         indel_err = self.indel_err_rate
@@ -263,14 +264,14 @@ class VariantComparator:
                 writer=writer)
         print_sv_stats('Small Deletions', self.small_del_stats, indel_err,
                 writer=writer)
-        print_other_results('Small Others', self.small_oth_stats[0],
-                self.small_oth_stats[1], writer=writer)
+        print_other_results('Small Others', self.small_oth_stats['num_true'],
+                self.small_oth_stats['num_pred'], writer=writer)
         print_sv_stats('Large Insertions', self.large_ins_stats, sv_err,
                 writer=writer)
         print_sv_stats('Large Deletions', self.large_del_stats, sv_err,
                 writer=writer)
-        print_other_results('Large Others', self.large_oth_stats[0],
-                self.large_oth_stats[1], writer=writer)
+        print_other_results('Large Others', self.large_oth_stats['num_true'],
+                self.large_oth_stats['num_pred'], writer=writer)
 
 def main(params):
     args = parse_args(params)
