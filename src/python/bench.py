@@ -22,13 +22,14 @@ WARNING: error rates are applied separately to insertions and deletions.
 
 from __future__ import division
 
-from sys import argv
+import os
 import vcf
+import sys
+import argparse
 
 from parsers.genome import Genome
 from vcf_eval.variants import Variants,evaluate_variants,output_errors
 from vcf_eval.chrom_variants import VARIANT_TYPE
-from optparse import OptionParser
 
 MAX_INDEL_LEN = 50
 """Largest size a variant can be while still being considered an indel.
@@ -40,14 +41,12 @@ Source: Alkan et al., "Genome structural variation discovery and genotyping".
 def nonzero_float(n):
   return float(n) if n != 0 else 1.0
 
-
 def interval(lower, upper):
   """Format a confidence interval, given lower and upper bounds."""
   assert lower <= upper
   mid = (lower + upper) / 2
   radius = upper - mid
   return "%.1f +/- %.4f" % (mid * 100.0, radius * 100.0)
-
 
 def bound_recall(tp, fn, e):
   """Bound recall, given numbers of TP, FN, and validation errors.
@@ -70,9 +69,8 @@ def bound_precision(tp, fp, e):
   if not p or e > p:
     return 0, 0
   return (tp - e) / p, (tp + e) / p
-  
 
-def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_prec, err):
+def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_prec, err, known_fp_vars=False):
   print "\n-----------"
   print "SNP Results"
   print "-----------"
@@ -81,7 +79,7 @@ def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, k
   assert tp + num_fn <= num_true
   assert tp + num_fp <= num_pred
   print "\t# precision =", interval(*bound_precision(tp, num_fp, err))
-  if known_fp_var:
+  if known_fp_vars:
       print("\t# precision (known FP) = %.1f" % (100*known_fp_prec) )
   print "\t# recall =", interval(*bound_recall(tp, num_fn, err))
   print "\t# allele mismatch = %d" % num_ib
@@ -91,11 +89,11 @@ def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, k
   print "\tpercent correct = %.1f" % (100 * num_ig / nonzero_float(num_true))
   print "\tnon reference discrepancy = %1f" % (100*nrd)
 
-def print_snp_stats(stats, err):
+def print_snp_stats(stats, err, known_fp_vars=False):
   print_snp_results(stats['num_true'], stats['num_pred'],
                     stats['false_positives'], stats['false_negatives'],
                     stats['intersect_bad'], stats['good_predictions'],ratio(stats['nrd_wrong'],stats['nrd_total']),
-                    1-ratio(stats['known_fp_calls'],stats['known_fp']),err)
+                    1-ratio(stats['known_fp_calls'],stats['known_fp']),err, known_fp_vars)
 
 def ratio(a,b,sig=5):
     if b == 0:
@@ -104,13 +102,13 @@ def ratio(a,b,sig=5):
         return 0.0
     return float(int(10**sig*(float(a)/b)))/10**sig
 
-def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_prec, err):
+def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_prec, err, known_fp_vars=False):
   print "\n\n------------------------"
   print "%s Results" % var_type_str
   print "------------------------"
   print "# True = %d; # Predicted = %d" % (num_true, num_pred)
   print "\t# precision =", interval(*bound_precision(num_gp, num_fp, err))
-  if known_fp_var:
+  if known_fp_vars:
         print("\t# precision (known FP) = %.1f" % (100*known_fp_prec) )
   print "\t# recall =", interval(*bound_recall(num_true - num_fn, num_fn, err))
   #print "\t# multiple matches = %d" % num_mm
@@ -131,77 +129,124 @@ def print_sv_stats(description, stats, err):
                    #stats['mult_matches'],
                    0, stats['good_predictions'], ratio(stats['nrd_wrong'],stats['nrd_total']),
                    1-ratio(stats['known_fp_calls'],stats['known_fp']), err)
-  
+
 def print_sv_other_results(var_type_str, num_true, num_pred):
   print "\n\n------------------------"
   print "%s Statistics" % var_type_str
   print "------------------------"
-  print "# True = %d; # Predicted = %d" % (num_true, num_pred) 
+  print "# True = %d; # Predicted = %d" % (num_true, num_pred)
 
 
-def _parse_args():
-    usage = "usage: %prog [options] true.vcf pred.vcf (ref.fa)"
-    parser = OptionParser(usage)
-    parser.add_option("--fp",dest="knownFP",action="store",help="An optional VCF of known false-positives")
-    parser.add_option("--sv_bp",dest="sv_eps",action="store",type=int,help="The maximum distance between SV breakpoints for them to be considered the same event",default=100)
-    parser.add_option("--snp_err",dest="snp_err_rate",type=float,default=0.0,help="The error rate of SNPs in the ground truth data")
-    parser.add_option("--indel_err",dest="indel_err_rate",type=float,default=0.0,help="The error rate of INDELs in the ground truth data")
-    parser.add_option("--sv_err",dest="sv_err_rate",type=float,default=0.0,help="The error rate of SVs in the ground truth data")
-    parser.add_option("-w","--rescue_window_size",dest="window",type=int,default=50,help="The size of the window for rescuing")
-    parser.add_option("--err_vcf",dest="err_vcf",action="store",help="An optional output VCF to hold detected false-negatives and false-positives")
-    options,args = parser.parse_args()
-    if len(args) < 2:
-      parser.error("Must specify input VCFs")
-    return (options,args)
 
-#------------
-# MAIN SCRIPT
-#------------
+def parse_args(params):
 
+    def is_valid_file(parser, arg):
+        if not os.path.exists(arg):
+            parser.error('The file {} does not exist!'.format(arg))
+        else:
+            return arg
 
-# Read command line args and parse VCF files
-options,args = _parse_args()
+    parser = argparse.ArgumentParser(description="""
+        SMaSH benchmark toolkit for variant calling.
+        See smash.cs.berkeley.edu for more information, including usage
+        """)
 
-# Read command line args and parse VCF files
-true_vcf = vcf.Reader(open(args[0], 'r'))
-pred_vcf = vcf.Reader(open(args[1], 'r'))
-known_fp_vcf = vcf.Reader(open(options.knownFP,'r')) if options.knownFP else None
+    parser.add_argument('true_vcf', type=lambda fn: is_valid_file(parser, fn))
+    parser.add_argument('predicted_vcf', type=lambda fn: is_valid_file(parser, fn))
+    parser.add_argument('reference', type=lambda fn: is_valid_file(parser, fn),
+            nargs='?')
 
-sv_eps, snp_err_rate, indel_err_rate, sv_err_rate = options.sv_eps, options.snp_err_rate, options.indel_err_rate, options.sv_err_rate
+    parser.add_argument("--fp",dest="knownFP",action="store",
+            help="An optional VCF of known false-positives")
+    parser.add_argument("--sv_bp",dest="sv_eps",action="store",type=int,
+            default=100,
+            help="""The maximum distance between SV breakpoints for them
+                    to be considered the same event""")
+    parser.add_argument("--snp_err",dest="snp_err_rate",type=float,default=0.0,
+            help="The error rate of SNPs in the ground truth data")
+    parser.add_argument("--indel_err",dest="indel_err_rate",type=float,
+            default=0.0,
+            help="The error rate of indels in the ground truth data")
+    parser.add_argument("--sv_err",dest="sv_err_rate",type=float,default=0.0,
+            help="The error rate of SVs in the ground truth data")
+    parser.add_argument("-w","--rescue_window_size",dest="window",type=int,
+            default=50,help="The size of the window for rescuing")
+    parser.add_argument("--err_vcf",dest="err_vcf",action="store",
+            help="""An optional output VCF to hold detected
+            false-negatives and false-positives""")
+    args = parser.parse_args(params)
+    return args
 
-def stdAbbrev(ctig):
-    return ctig.split()[0]
+def main(params):
+    args = parse_args(params)
 
-ref = Genome(args[2],stdAbbrev) if len(args) >= 3 else None
-window = options.window if ref else None
+    with open(args.true_vcf) as f:
+        true_vcf = vcf.Reader(f)
+        true_vars = Variants(true_vcf, MAX_INDEL_LEN)
+    with open(args.predicted_vcf) as f:
+        pred_vcf = vcf.Reader(f)
+        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
 
-true_var = Variants(true_vcf, MAX_INDEL_LEN)
-pred_var = Variants(pred_vcf, MAX_INDEL_LEN)
-known_fp_var = Variants(known_fp_vcf,MAX_INDEL_LEN,knownFP=True) if known_fp_vcf else None
+    if args.reference:
+        ref = Genome(args[2],abbreviate= lambda ctig: ctig.split()[0])
+        window = args.window
+    else:
+        ref = None
+        window = None
 
-# Estimated total number of errors in validation data for SNPs, indels and SVs.
-snp_err = true_var.var_num(VARIANT_TYPE.SNP) * snp_err_rate
-indel_err = (true_var.var_num(VARIANT_TYPE.INDEL_INS) + true_var.var_num(VARIANT_TYPE.INDEL_DEL) + true_var.var_num(VARIANT_TYPE.INDEL_OTH)) * indel_err_rate
-sv_err = (true_var.var_num(VARIANT_TYPE.SV_INS) + true_var.var_num(VARIANT_TYPE.SV_DEL) + true_var.var_num(VARIANT_TYPE.SV_OTH)) * sv_err_rate
+    if args.knownFP:
+        with open(args.knownFP) as f:
+            known_fp_vcf = vcf.Reader(f)
+            known_fp_vars = Variants(known_fp_vcf,
+                    MAX_INDEL_LEN, knownFp=True)
+    else:
+        known_fp_vars = None
 
-overall_statistics,errors = evaluate_variants(true_var,pred_var,sv_eps,sv_eps,ref,window,known_fp_var)
-print_snp_stats(overall_statistics(VARIANT_TYPE.SNP), snp_err)
+    # Estimated total number of errors in validation data for SNPs, indels and SVs.
+    snp_err = true_vars.var_num(VARIANT_TYPE.SNP) * args.snp_err_rate
+    indel_err = sum([
+        true_vars.var_num(VARIANT_TYPE.INDEL_INS),
+        true_vars.var_num(VARIANT_TYPE.INDEL_DEL),
+        true_vars.var_num(VARIANT_TYPE.INDEL_OTH),
+        ]) * args.indel_err_rate
+    sv_err = sum([
+        true_vars.var_num(VARIANT_TYPE.SV_INS),
+        true_vars.var_num(VARIANT_TYPE.SV_DEL),
+        true_vars.var_num(VARIANT_TYPE.SV_OTH)
+        ]) * args.sv_err_rate
 
-def print_sv(var_type, description):
-  assert 'INDEL' in var_type or 'SV' in var_type
-  err = indel_err if 'INDEL' in var_type else sv_err
-  print_sv_stats(description, overall_statistics(var_type), err)
+    sv_eps = args.sv_eps
 
-def print_oth(var_type, description):
-  print_sv_other_results(description, true_var.var_num(var_type),
-                         pred_var.var_num(var_type))
+    stat_reporter, errors = evaluate_variants(
+        true_vars,
+        pred_vars,
+        sv_eps,
+        sv_eps,
+        ref,
+        window,
+        known_fp_vars
+        )
 
-print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
-print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
-print_oth(VARIANT_TYPE.INDEL_OTH, 'INDEL OTHER')
-print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION'),
-print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),
-print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
+    snp_stats = stat_reporter(VARIANT_TYPE.SNP)
+    print_snp_stats(snp_stats, snp_err, known_fp_vars)
+    def print_sv(var_type, description):
+        assert 'INDEL' in var_type or 'SV' in var_type
+        err = indel_err if 'INDEL' in var_type else sv_err
+        print_sv_stats(description, stat_reporter(var_type), err)
 
-if options.err_vcf :
-    output_errors(errors,ref.keys() if ref != None else None, open(options.err_vcf,'w'))
+    def print_oth(var_type, description):
+      print_sv_other_results(description, true_vars.var_num(var_type),
+                             pred_vars.var_num(var_type))
+
+    print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
+    print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
+    print_oth(VARIANT_TYPE.INDEL_OTH, 'INDEL OTHER')
+    print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION'),
+    print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),
+    print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
+
+    if args.err_vcf :
+        output_errors(errors,ref.keys() if ref != None else None, open(args.err_vcf,'w'))
+
+if __name__ == '__main__':
+    main(params=sys.argv[1:])
