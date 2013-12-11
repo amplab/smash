@@ -148,10 +148,10 @@ def print_sv_stats(description, stats, err, writer=print):
                    stats['known_fp']), err, writer=writer)
 
 def print_other_results(var_type, num_true, num_pred, writer=print):
-  writer("\n\n------------------------")
-  writer("%s Statistics" % var_type)
-  writer("------------------------")
-  writer("# True = %d; # Predicted = %d" % (num_true, num_pred))
+    writer("\n\n------------------------")
+    writer("%s Statistics" % var_type)
+    writer("------------------------")
+    writer("# True = %d; # Predicted = %d" % (num_true, num_pred))
 
 def parse_args(params):
 
