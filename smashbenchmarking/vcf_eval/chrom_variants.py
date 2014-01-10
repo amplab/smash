@@ -171,7 +171,7 @@ class ChromVariants:
     """
 
     assert record.CHROM == self.chrom
-    if not is_pass(record) and not self._args['knownFP']: # if this is a known FP object, let it past the filter
+    if not is_pass(record) and not self._args.get('knownFP',None): # if this is a known FP object, let it past the filter
       return
     ref = record.REF
     if ( record.REF != record.REF.upper() ):
