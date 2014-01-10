@@ -225,8 +225,8 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
     intersect_bad_dict = _type_dict([])
     for loc in pred_loc.intersection(true_loc):
       vartype = true_var.all_variants[loc].var_type
-      if ( vartype.startswith("SV") ): # ignore SVs here
-        continue
+      # if ( vartype.startswith("SV") ): # ignore SVs here
+      #   continue
       match = var_match_at_loc(true_var, pred_var, loc)
       destination = intersect_good if match else intersect_bad
       destination.append(loc)
