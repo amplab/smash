@@ -32,6 +32,9 @@ from rectify_seq import SequenceRescuer
 def _type_dict(default=0):
     return dict(map(lambda t: [t,default],VARIANT_TYPE))
 
+def _type_dict_of_lists():
+    return dict(map(lambda t: [t,list()],VARIANT_TYPE))
+
 def _genotype_concordance_dict():
     # this looks too much like Clojure
     gcDict = dict()
@@ -222,7 +225,7 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
     false_negatives = true_loc.difference(pred_loc)
     intersect_good = []
     intersect_bad = []
-    intersect_bad_dict = _type_dict([])
+    intersect_bad_dict = _type_dict_of_lists()
     for loc in pred_loc.intersection(true_loc):
       vartype = true_var.all_variants[loc].var_type
       # if ( vartype.startswith("SV") ): # ignore SVs here
@@ -231,7 +234,7 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
       destination = intersect_good if match else intersect_bad
       destination.append(loc)
       if not match:
-       intersect_bad_dict[vartype].append(loc)
+        intersect_bad_dict[vartype].append(loc)
       else:
        true_geno = true_var.all_variants[loc].genotype_type
        pred_geno = pred_var.all_variants[loc].genotype_type
@@ -276,7 +279,6 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
       variant_stats.known_fp = all_known_fp
       variant_stats.calls_at_known_fp = calls_at_known_fp
       variant_stats.known_fp_variants = variant_stats._extract(variant_stats.pred_var,known_fp_calls_positions,None)
-
     variant_stats.intersect_bad = intersect_bad_dict
     #stats = variant_stats.to_dict()
     #stats['intersect_bad'] = len(intersect_bad)

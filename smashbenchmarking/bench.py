@@ -188,6 +188,23 @@ def parse_args(params):
     args = parser.parse_args(params)
     return args
 
+def get_snp_err(true_vars, snp_err_rate):
+    return true_vars.var_num(VARIANT_TYPE.SNP) * snp_err_rate
+
+def get_indel_err(true_vars, indel_err_rate):
+    return sum([
+        true_vars.var_num(VARIANT_TYPE.INDEL_INS),
+        true_vars.var_num(VARIANT_TYPE.INDEL_DEL),
+        true_vars.var_num(VARIANT_TYPE.INDEL_OTH),
+        ]) * indel_err_rate
+
+def get_sv_err(true_vars, sv_err_rate):
+    return sum([
+        true_vars.var_num(VARIANT_TYPE.SV_INS),
+        true_vars.var_num(VARIANT_TYPE.SV_DEL),
+        true_vars.var_num(VARIANT_TYPE.SV_OTH)
+        ]) * sv_err_rate
+
 def main(params):
     args = parse_args(params)
 
@@ -214,17 +231,11 @@ def main(params):
         known_fp_vars = None
 
     # Estimated total number of errors in validation data for SNPs, indels and SVs.
-    snp_err = true_vars.var_num(VARIANT_TYPE.SNP) * args.snp_err_rate
-    indel_err = sum([
-        true_vars.var_num(VARIANT_TYPE.INDEL_INS),
-        true_vars.var_num(VARIANT_TYPE.INDEL_DEL),
-        true_vars.var_num(VARIANT_TYPE.INDEL_OTH),
-        ]) * args.indel_err_rate
-    sv_err = sum([
-        true_vars.var_num(VARIANT_TYPE.SV_INS),
-        true_vars.var_num(VARIANT_TYPE.SV_DEL),
-        true_vars.var_num(VARIANT_TYPE.SV_OTH)
-        ]) * args.sv_err_rate
+    snp_err = get_snp_err(true_vars,args.snp_err_rate)
+
+    indel_err = get_indel_err(true_vars,args.indel_err_rate)
+
+    sv_err = get_sv_err(true_vars,args.sv_err_rate)
 
     sv_eps = args.sv_eps
 
