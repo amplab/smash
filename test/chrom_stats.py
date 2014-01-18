@@ -326,5 +326,59 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
         self.truePositiveBadGeno(stat_reporter,VARIANT_TYPE.SV_INS)
         self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
 
+    def test_approx_sv(self):
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+##source=TVsim\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr19   88013   .       CTT     C       20      PASS    .       GT      0/1\n
+chr19   89272   .       C       T       20      PASS    .       GT      0/1\n
+chr19   269771  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGCTTCATGAGAGAG 20      PASS    .       GT      1/1
+"""
+
+        pred_io = StringIO.StringIO(pred_str)
+        pred_vcf = vcf.Reader(pred_io)
+        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
+
+        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+
+        self.truePositive(stat_reporter,VARIANT_TYPE.SNP)
+        self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
+        self.truePositive(stat_reporter,VARIANT_TYPE.INDEL_DEL)
+        self.truePositive(stat_reporter,VARIANT_TYPE.SV_INS)
+        self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
+
+    def test_sv_out_of_range(self):
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+##source=TVsim\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr19   88013   .       CTT     C       20      PASS    .       GT      0/1\n
+chr19   89272   .       C       T       20      PASS    .       GT      0/1\n
+chr19   269852  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGCTTCATGAGAGAG 20      PASS    .       GT      1/1
+"""
+
+        pred_io = StringIO.StringIO(pred_str)
+        pred_vcf = vcf.Reader(pred_io)
+        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
+
+        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+
+        self.truePositive(stat_reporter,VARIANT_TYPE.SNP)
+        self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
+        self.truePositive(stat_reporter,VARIANT_TYPE.INDEL_DEL)
+
+        sv_ins_stats = stat_reporter(VARIANT_TYPE.SV_INS)
+
+        self.assertEqual(sv_ins_stats['num_true'],1)
+        self.assertEqual(sv_ins_stats['num_pred'],1)
+        self.assertEqual(sv_ins_stats['good_predictions'],0)
+        self.assertEqual(sv_ins_stats['intersect_bad'],0)
+        self.assertEqual(sv_ins_stats['false_negatives'],1)
+        self.assertEqual(sv_ins_stats['nrd_total'],0)
+        self.assertEqual(sv_ins_stats['nrd_wrong'],0)
+
+        self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
+
 if __name__ == '__main__':
     unittest.main()
