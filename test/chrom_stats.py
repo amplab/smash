@@ -44,6 +44,18 @@ class EvalVarsTestCase(unittest.TestCase):
         self.assertEqual(stats['good_predictions'],1)
         self.assertEqual(stats['intersect_bad'],0)
         self.assertEqual(stats['false_negatives'],0)
+        self.assertEqual(stats['nrd_total'],1)
+        self.assertEqual(stats['nrd_wrong'],0)
+
+    def truePositiveBadGeno(self,stat_reporter,var_type):
+        stats = stat_reporter(var_type)
+        self.assertEqual(stats['num_true'],1)
+        self.assertEqual(stats['num_pred'],1)
+        self.assertEqual(stats['good_predictions'],1)
+        self.assertEqual(stats['intersect_bad'],0)
+        self.assertEqual(stats['false_negatives'],0)
+        self.assertEqual(stats['nrd_total'],1)
+        self.assertEqual(stats['nrd_wrong'],1)
 
     def falseNegative(self,stat_reporter,var_type):
         stats = stat_reporter(var_type)
@@ -52,6 +64,8 @@ class EvalVarsTestCase(unittest.TestCase):
         self.assertEqual(stats['good_predictions'],0)
         self.assertEqual(stats['intersect_bad'],0)
         self.assertEqual(stats['false_negatives'],1)
+        self.assertEqual(stats['nrd_total'],0)
+        self.assertEqual(stats['nrd_wrong'],0)
 
     def falsePositive(self,stat_reporter,var_type):
         stats = stat_reporter(var_type)
@@ -60,6 +74,8 @@ class EvalVarsTestCase(unittest.TestCase):
         self.assertEqual(stats['good_predictions'],1)
         self.assertEqual(stats['intersect_bad'],1)
         self.assertEqual(stats['false_negatives'],1)
+        self.assertEqual(stats['nrd_total'],0)
+        self.assertEqual(stats['nrd_wrong'],0)
 
     def trueNegative(self,stat_reporter,var_type):
         stats = stat_reporter(var_type)
@@ -68,6 +84,8 @@ class EvalVarsTestCase(unittest.TestCase):
         self.assertEqual(stats['good_predictions'],0)
         self.assertEqual(stats['intersect_bad'],0)
         self.assertEqual(stats['false_negatives'],0)
+        self.assertEqual(stats['nrd_total'],0)
+        self.assertEqual(stats['nrd_wrong'],0)
 
     def badCallAtTrueSite(self,stat_reporter,var_type):
         stats = stat_reporter(var_type)
@@ -76,6 +94,8 @@ class EvalVarsTestCase(unittest.TestCase):
         self.assertEqual(stats['good_predictions'],0)
         self.assertEqual(stats['intersect_bad'],1)
         self.assertEqual(stats['false_negatives'],1)
+        self.assertEqual(stats['nrd_total'],0)
+        self.assertEqual(stats['nrd_wrong'],0)
 
     def setUp(self):
         true_str = """##fileformat=VCFv4.0\n
@@ -282,6 +302,28 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
         self.assertEqual(sv_ins_stats['intersect_bad'],0)
         self.assertEqual(sv_ins_stats['false_negatives'],0)
 
+        self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
+
+    def test_perfect_bad_genotypes(self):
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+##source=TVsim\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr19   88013   .       CTT     C       20      PASS    .       GT      1/1\n
+chr19   89272   .       C       T       20      PASS    .       GT      1/1\n
+chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGCTTCATGAGAGAG 20      PASS    .       GT      0/1
+"""
+
+        pred_io = StringIO.StringIO(pred_str)
+        pred_vcf = vcf.Reader(pred_io)
+        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
+
+        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+
+        self.truePositiveBadGeno(stat_reporter,VARIANT_TYPE.SNP)
+        self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
+        self.truePositiveBadGeno(stat_reporter,VARIANT_TYPE.INDEL_DEL)
+        self.truePositiveBadGeno(stat_reporter,VARIANT_TYPE.SV_INS)
         self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
 
 if __name__ == '__main__':
