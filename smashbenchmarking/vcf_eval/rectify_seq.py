@@ -50,7 +50,6 @@ class SequenceRescuer(object):
 
         self.truthWindowQueue = chrom_variants.extract_variant_queues(falseNegatives,self.window[0],self.window[1]-1,location)
         self.predictWindowQueue = chrom_variants.extract_variant_queues(falsePositives,self.window[0],self.window[1]-1,location)
-
         if ( not self.truthWindowQueue or not self.predictWindowQueue or len(self.truthWindowQueue) * len(self.predictWindowQueue) > WINDOW_MAX_OVERLAPPING ):
             # too many overlapping variants to check; abort
             self.rescued = False
@@ -58,6 +57,7 @@ class SequenceRescuer(object):
         try:
             self.rescued, self.windowsRescued = self._try_rescue(reference)
             self.rescued_GA = False # self.rescued and self._try_rescue_window(reference,self.windowsRescued[0],self.windowsRescued[1],True)
+            #NB: rescued_GA property is never used
         except AssertionError:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             import traceback
@@ -197,12 +197,6 @@ def _get_chopped_variant(variants, loc, higher):
   V2:    XXXXXXXXX-----------X
 
   where V2 overlaps the window but V1 does not (though V1 starts after V2).
-
-  The correct way to do this is to switch to an interval representation and look up any
-  intervals that contain loc. This is a todo.
-
-  For the moment we'll use a heuristic and check the closest variant to the right endpoint, and
-  the three variants previous.
   """
   locations = variants.all_locations
   def getNear(p):
@@ -237,13 +231,16 @@ def _get_chopped_variant(variants, loc, higher):
 
   assert not any(map(lambda t: t.pos > loc,vars_near_bound))
 
-  vars_near_bound.sort(key = lambda t: (t.pos + len(t.ref)), reverse=higher)
-  most_extreme = vars_near_bound[0]
+  overlapping_vars_near_bound = filter(lambda t: t.overlaps(loc), vars_near_bound)
+  if ( not overlapping_vars_near_bound ):
+    return None
 
-  if ( most_extreme.overlaps(loc) ):
-      return most_extreme
+  if higher:
+    overlapping_vars_near_bound.sort(key=lambda t: (t.pos + len(t.ref)), reverse=True)
+  else:
+    overlapping_vars_near_bound.sort(key=lambda t: t.pos)
 
-  return None
+  return overlapping_vars_near_bound[0]
 
 
 
