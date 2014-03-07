@@ -121,7 +121,7 @@ class ChromVariants:
     self.all_locations.append(var.pos)
     self.all_variants[var.pos] = var
 
-  def _ensure_sorted(self):
+  def _ensure_sorted(self): #NB: never used
       for t in VARIANT_TYPE:
           self._var_locations[t].sort()
       self.all_locations.sort()
@@ -335,15 +335,15 @@ def extract_range_and_filter(variants,min_loc,max_loc,loc_of_interest):
   return variants_in_window
 
 
-def verifyPaths(variantPaths):
-    # verify that no overlapping variants are included. This should be removed from the stack after testing.
-    for path in variantPaths:
-        soFar = []
-        for elem in path:
-            for otherElem in soFar:
-                if ( elem == otherElem or otherElem.overlaps_allele(elem) ):
-                    raise AssertionError("Invalid Path: "+str(map(str,path)))
-    return variantPaths
+# def verifyPaths(variantPaths):
+#     # verify that no overlapping variants are included. This should be removed from the stack after testing.
+#     for path in variantPaths:
+#         soFar = []
+#         for elem in path:
+#             for otherElem in soFar:
+#                 if ( elem == otherElem or otherElem.overlaps_allele(elem) ):
+#                     raise AssertionError("Invalid Path: "+str(map(str,path)))
+#     return variantPaths
 
 def extract_variant_queues(variants,min_loc,max_loc,loc_of_interest):
   """ Given a range of locations (min_loc, max_loc), a list of variant locations (variant_locs),
@@ -358,10 +358,8 @@ def extract_variant_queues(variants,min_loc,max_loc,loc_of_interest):
       one and only one of the overlapping variants.
   """
   variants_in_window = extract_range_and_filter(variants,min_loc,max_loc,loc_of_interest)
-
-  # get the overlapping variants. Note that only non-snps can overlap other entries
-  overlaps_in_window = filter(lambda u: u.var_type != VARIANT_TYPE.SNP,variants_in_window )
-
+  if not variants_in_window:
+    return []
 
   # get the overlap sets TODO: inefficient - variant size can be used intelligently
   overlaps_sets = _getOverlaps([],variants_in_window)
