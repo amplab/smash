@@ -50,8 +50,9 @@ class SequenceRescuer(object):
 
         self.truthWindowQueue = chrom_variants.extract_variant_queues(falseNegatives,self.window[0],self.window[1]-1,location)
         self.predictWindowQueue = chrom_variants.extract_variant_queues(falsePositives,self.window[0],self.window[1]-1,location)
+
         if ( not self.truthWindowQueue or not self.predictWindowQueue or len(self.truthWindowQueue) * len(self.predictWindowQueue) > WINDOW_MAX_OVERLAPPING ):
-            # too many overlapping variants to check; abort
+            # either no variants or too many overlapping variants to check; abort
             self.rescued = False
             return
         try:
@@ -88,6 +89,7 @@ class SequenceRescuer(object):
     def _try_rescue(self,ref):
         for true_idx in range(len(self.truthWindowQueue)):
             for pred_idx in range(len(self.predictWindowQueue)):
+                # we always ignore genotype for now
                 if ( self._try_rescue_window(ref,true_idx,pred_idx,False) ):
                     return True, (true_idx,pred_idx)
         return False,None
@@ -147,9 +149,10 @@ def _get_seq(window,variants,ref,genotypeAware):
     hetOffset = low
     homOffset = low
 
-    # note: if genotype is False, the het objects will not be used
+    # note: if genotypeAware is False, the het chunks/offset will not be used
 
     def get_ref_bases(start,end):
+        """VCF parser is 1-based, but genome is 0-based."""
         return ref.ref(window[2],start-1,end-1)
     def add_ref_bases_until(chunks,begin,end):
         chunks.append(get_ref_bases(begin,end))
@@ -172,7 +175,7 @@ def _get_seq(window,variants,ref,genotypeAware):
         else: # ( variant.genotype_type == GENOTYPE_TYPE.HET )
             add_alt(hetChunks,hetOffset,variant)
             hetOffset = len(variant.ref) + loc
-
+# NB: this check seems redundant with the assert after it
         if ( hetOffset > high or homOffset > high ):
             print("-----fail-----")
             print(window)
@@ -183,10 +186,6 @@ def _get_seq(window,variants,ref,genotypeAware):
         add_ref_bases_until(hetChunks,hetOffset,high)
     add_ref_bases_until(homChunks,homOffset,high)
     return (''.join(homChunks),''.join(hetChunks))
-
-def _get_ref_bases(variants, start, end, ref):
-  """VCF parser is 1-based, but genome is 0-based."""
-  return ref.ref(variants.chrom, start - 1, end - 1)
 
 def _get_chopped_variant(variants, loc, higher):
   """If 'loc' points to a base in a ref allele, return the variant it chops.
