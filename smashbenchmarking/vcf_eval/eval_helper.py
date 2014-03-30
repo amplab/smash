@@ -75,7 +75,7 @@ def rescue_mission(false_negatives,false_positives,loc,ref,window):
         false_positives._remove_variant(variant.pos)
         num_fp_removed[variant.var_type] += 1
     return num_new_tp,num_fp_removed
-
+# NB the next four functions test equality of variants in slightly different ways. Careful!
 def var_match_at_loc(true_variants,pred_variants,loc):
     def get_var(variants):
         return variants.all_variants[loc]
@@ -103,7 +103,7 @@ def allele_match_at_loc(true_variants, pred_variants, loc):
     pred_var = get_var(pred_variants)
     return allele_match(true_var, pred_var)
 
-
+# NB: this not very complex method is only called directly above
 def allele_match(true_var, pred_var):
     def alt_alleles(var):
         return set(var.alt)
@@ -171,7 +171,6 @@ class ChromVariantStats:
 
         locs_to_rescue = list(map(lambda loc: loc, self.false_negatives.all_locations))
         # note we needed to force a copy here, since rescue_mission is modifying the false-negative sets
-
         for loc in locs_to_rescue:
             if ( loc in self.false_negatives.all_variants ): # if the element is still in the set of false negatives
                 new_tp,rm_fp = rescue_mission(self.false_negatives,self.false_positives,loc,ref,window)
@@ -319,7 +318,8 @@ def indel_or_sv_match(true_var, pred_var, eps_bp, eps_len):
 def find_possible_matches(var, pred_variants, eps_bp, eps_len):
     """Find all predicted locations that could possibly match a true location.
 
-    @param var: a true variant
+    @param var (Variant): a true variant
+    @param pred_variants (ChromVariants)
     """
     min_loc = var.pos - eps_bp
     max_loc = var.pos + eps_bp

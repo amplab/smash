@@ -214,7 +214,7 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCTTTTATGCCACCTGGATGGACCTCAC
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
         pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-    
+
         sv_eps = 100
 
         stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
@@ -238,7 +238,7 @@ chr19   269751  .       A       T       20      PASS    .       GT      1/1
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
         pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-    
+
         sv_eps = 100
 
         stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
