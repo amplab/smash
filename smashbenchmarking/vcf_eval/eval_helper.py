@@ -26,7 +26,7 @@
 
 from __future__ import print_function
 
-from chrom_variants import VARIANT_TYPE,GENOTYPE_TYPE,extract_range
+from chrom_variants import VARIANT_TYPE,GENOTYPE_TYPE,extract_range,ChromVariants
 from rectify_seq import SequenceRescuer
 
 def _type_dict(default=0):
@@ -141,16 +141,14 @@ class ChromVariantStats:
             self.num_tp[var.var_type] += 1
 
     def _extract(self,chromvariant,locset,isFN):
-        clone = chromvariant.clone()
-        assert clone.all_variants == chromvariant.all_variants
-        assert clone.all_locations == chromvariant.all_locations
+        clone = ChromVariants(chromvariant.chrom, chromvariant._max_indel_len)
         falseTypeDict = self.num_fn if isFN else self.num_fp if isFN != None else _type_dict()
-        for loc in chromvariant.all_locations:
-            if ( loc not in locset ):
-                clone._remove_variant(loc)
-            else:
-                var = clone.all_variants[loc]
-                falseTypeDict[var.var_type] += 1
+
+        for loc in locset:
+            var = chromvariant.all_variants[loc]
+            clone._add_variant(var)
+            falseTypeDict[var.var_type] += 1
+        clone._ensure_sorted()
 
         return clone
 
@@ -228,11 +226,13 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
     for loc in pred_loc.intersection(true_loc):
         vartype = true_var.all_variants[loc].var_type
         match = var_match_at_loc(true_var, pred_var, loc)
-        destination = intersect_good if match else intersect_bad
-        destination.append(loc)
+        # destination = intersect_good if match else intersect_bad
+        # destination.append(loc)
         if not match:
+            intersect_bad.append(loc)
             intersect_bad_dict[vartype].append(loc)
         else:
+            intersect_good.append(loc)
             true_geno = true_var.all_variants[loc].genotype_type
             pred_geno = pred_var.all_variants[loc].genotype_type
             genotype_concordance[vartype][true_geno][pred_geno] += 1

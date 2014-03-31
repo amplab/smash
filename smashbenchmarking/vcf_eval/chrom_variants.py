@@ -121,7 +121,7 @@ class ChromVariants:
     self.all_locations.append(var.pos)
     self.all_variants[var.pos] = var
 
-  def _ensure_sorted(self): #NB: never used
+  def _ensure_sorted(self):
       for t in VARIANT_TYPE:
           self._var_locations[t].sort()
       self.all_locations.sort()
