@@ -1,10 +1,98 @@
-# #!/usr/bin/env python
+#!/usr/bin/env python
 
-# import os
-# import sys
-# import unittest
+import os
+import sys
+import vcf
+import unittest
+import StringIO
 
-# sys.path.insert(0,'..')
+sys.path.insert(0,'..')
+from smashbenchmarking.vcf_eval.variants import *
+from smashbenchmarking.vcf_eval.variants import _aggregate
+from smashbenchmarking.vcf_eval.chrom_variants import VARIANT_TYPE,GENOTYPE_TYPE
+from smashbenchmarking.vcf_eval.eval_helper import chrom_evaluate_variants,ChromVariantStats,_genotype_concordance_dict
+from smashbenchmarking.parsers.genome import Genome
+
+MAX_INDEL_LEN = 50
+
+def vcf_to_ChromVariants(vcf_str,chrom):
+    str_io = StringIO.StringIO(vcf_str)
+    str_vcf = vcf.Reader(str_io)
+    str_vars = Variants(str_vcf,MAX_INDEL_LEN)
+    return str_vars.on_chrom(chrom)
+
+def get_reference():
+    return Genome('ref.fasta',lambda t: t.split()[0])
+
+class VariantsTestCase(unittest.TestCase):
+    def testInit(self):
+        vcf_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr19   11   .       ACT     A       20      PASS    .       GT      1/1\n
+chr19   15   .       G      A       20       PASS    .      GT      1/1\n
+chr19   16   .       A      ATCG        20      PASS    .       GT      1/1\n
+chr20   22   .       ATT       A         20      PASS    .       GT      0/1\n
+"""
+        vcf_io = StringIO.StringIO(vcf_str)
+        newvcf = vcf.Reader(vcf_io)
+        newvars = Variants(newvcf, 50)
+        self.assertEqual(len(newvars.chroms),2)
+        self.assertEqual(newvars.var_num(VARIANT_TYPE.SNP),1)
+        self.assertEqual(newvars.var_num(VARIANT_TYPE.INDEL_DEL),2)
+        self.assertEqual(newvars.var_num(VARIANT_TYPE.INDEL_INS),1)
+
+
+class VariantsHelpersTestCase(unittest.TestCase):
+    def testAggregate(self):
+        # build two ChromVariantStats objects
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       G     A       20      PASS    .       GT      1/1\n
+chr2   5   .       C     T       20      PASS    .       GT      1/1\n
+"""
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       G     A       20      PASS    .       GT      1/1\n
+chr2   7   .       G     C       20      PASS    .       GT      1/1\n
+"""
+        true_vars = vcf_to_ChromVariants(true_str,'chr2')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr2')
+        gtdict = _genotype_concordance_dict() # leave empty for now
+        cvs2 = chrom_evaluate_variants(true_vars,pred_vars,None,100,100,get_reference(),50)
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr3   3   .       G     A       20      PASS    .       GT      1/1\n
+chr3   5   .       C     T       20      PASS    .       GT      1/1\n
+"""
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr3   3   .       G     A       20      PASS    .       GT      1/1\n
+chr3   4   .       T     A       20      PASS    .       GT      1/1\n
+chr3   7   .       G     C       20      PASS    .       GT      1/1\n
+"""
+        true_vars = vcf_to_ChromVariants(true_str,'chr3')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr3')
+        cvs3 = chrom_evaluate_variants(true_vars,pred_vars,None,100,100,get_reference(),50)
+        #cvs5 = ChromVariantStats(true_vars,pred_vars,[31],[49,79],[52],_genotype_concordance_dict())
+        aggregator,errors = _aggregate([cvs2,cvs3])
+        # test some sums
+        self.assertEqual(cvs2.num_true[VARIANT_TYPE.SNP],2)
+        self.assertEqual(cvs3.num_true[VARIANT_TYPE.SNP],2)
+        self.assertEqual(aggregator(VARIANT_TYPE.SNP)['num_true'],4)
+        self.assertEqual(cvs2.num_tp[VARIANT_TYPE.SNP],1)
+        self.assertEqual(cvs3.num_tp[VARIANT_TYPE.SNP],1)
+        self.assertEqual(aggregator(VARIANT_TYPE.SNP)['good_predictions'],2)
+        # TODO: test error function
+
+
+
+if __name__ == "__main__":
+    unittest.main()
 # from vcfsmash import VariantComparator
 
 # VCF_HEADER = """
