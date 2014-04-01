@@ -41,13 +41,7 @@ import argparse
 from parsers.genome import Genome
 from vcf_eval.variants import Variants,evaluate_variants,output_errors
 from vcf_eval.chrom_variants import VARIANT_TYPE
-
-MAX_INDEL_LEN = 50
-"""Largest size a variant can be while still being considered an indel.
-
-Source: Alkan et al., "Genome structural variation discovery and genotyping".
-"""
-
+from vcf_eval.callset_helper import MAX_INDEL_LEN
 
 def nonzero_float(n):
     return float(n) if n != 0 else 1.0
@@ -61,7 +55,7 @@ def interval(lower, upper):
 
 def bound_recall(tp, fn, e):
     """Bound recall, given numbers of TP, FN, and validation errors.
-  
+
     This is a non-obvious theorem in the benchmarking paper.
     """
     num_true = tp + fn
@@ -73,7 +67,7 @@ def bound_recall(tp, fn, e):
 
 def bound_precision(tp, fp, e):
     """Bound precision, given numbers of TP, FP, and validation errors.
-    
+
     This is a non-obvious theorem in the benchmarking paper.
     """
     p = tp + fp

@@ -61,7 +61,7 @@ chr2   7   .       G     C       20      PASS    .       GT      1/1\n
         true_vars = vcf_to_ChromVariants(true_str,'chr2')
         pred_vars = vcf_to_ChromVariants(pred_str,'chr2')
         gtdict = _genotype_concordance_dict() # leave empty for now
-        cvs2 = chrom_evaluate_variants(true_vars,pred_vars,None,100,100,get_reference(),50)
+        cvs2 = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
         true_str = """##fileformat=VCFv4.0\n
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
@@ -77,7 +77,7 @@ chr3   7   .       G     C       20      PASS    .       GT      1/1\n
 """
         true_vars = vcf_to_ChromVariants(true_str,'chr3')
         pred_vars = vcf_to_ChromVariants(pred_str,'chr3')
-        cvs3 = chrom_evaluate_variants(true_vars,pred_vars,None,100,100,get_reference(),50)
+        cvs3 = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
         #cvs5 = ChromVariantStats(true_vars,pred_vars,[31],[49,79],[52],_genotype_concordance_dict())
         aggregator,errors = _aggregate([cvs2,cvs3])
         # test some sums

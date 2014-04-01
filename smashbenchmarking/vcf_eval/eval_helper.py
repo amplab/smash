@@ -211,7 +211,7 @@ class ChromVariantStats:
         stats['known_fp'] = self.known_fp[var_type] if self.calls_at_known_fp else 0
         return stats
 
-def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,window):
+def chrom_evaluate_variants(true_var,pred_var,sv_eps,sv_eps_bp,ref,window,known_fp=None):
     true_loc = set(true_var.all_locations)
     pred_loc = set(pred_var.all_locations)
     genotype_concordance = _genotype_concordance_dict()
@@ -226,8 +226,6 @@ def chrom_evaluate_variants(true_var,pred_var,known_fp,sv_eps,sv_eps_bp,ref,wind
     for loc in pred_loc.intersection(true_loc):
         vartype = true_var.all_variants[loc].var_type
         match = var_match_at_loc(true_var, pred_var, loc)
-        # destination = intersect_good if match else intersect_bad
-        # destination.append(loc)
         if not match:
             intersect_bad.append(loc)
             intersect_bad_dict[vartype].append(loc)
