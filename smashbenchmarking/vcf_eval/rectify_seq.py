@@ -165,7 +165,7 @@ def _get_seq(window,variants,ref,genotypeAware):
         #print((variant.ref, get_ref_bases(variant.pos,variant.pos+len(variant.ref))))
         verifyRefBases = get_ref_bases(variant.pos,variant.pos+len(variant.ref))
         if ( variant.ref != verifyRefBases ):
-            raise AssertionError(variant.ref + " != " + verifyRefBases )
+            raise AssertionError("Variant ref does not match reference at " + window[2] + " " + str(loc) + ": " +variant.ref + " != " + verifyRefBases )
         assert hetOffset <= loc and homOffset <= loc
         assert variant.genotype_type != GENOTYPE_TYPE.HOM_REF
         assert variant.genotype_type != GENOTYPE_TYPE.NO_CALL
