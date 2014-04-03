@@ -111,6 +111,23 @@ chr1   10032   .       TA           T       20      PASS    .       GT      1/1\
         rescuer = SequenceRescuer('chr1',10000,fn_vars,fp_vars,get_reference(),50)
         self.assertFalse(rescuer.rescued)
 
+    def testVariantWithMismatchedRef(self):
+        fn_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   2   .       TGC     TAT       20      PASS    .       GT      1/1\n
+"""
+        fp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       G     C       20      PASS    .       GT      1/1\n
+chr2   4   .       C     T       20      PASS    .       GT      1/1\n
+"""
+        fn_vars = vcf_to_ChromVariants(fn_str,'chr2')
+        fp_vars = vcf_to_ChromVariants(fp_str,'chr2')
+        rescuer = SequenceRescuer('chr2',2,fn_vars,fp_vars,get_reference(),50)
+        self.assertFalse(rescuer.rescued)
+
     def testOnlySnps(self):
         fn_str = """##fileformat=VCFv4.0\n
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n

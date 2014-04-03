@@ -38,6 +38,10 @@ WINDOW_MAX_OVERLAPPING = 16 # if there are enough overlapping variants in the wi
 
 WINDOW_VARIANT_LOOKBACK_SIZE = 50 # this should match max_indel_length
 
+class ReferenceMismatchError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
 class SequenceRescuer(object):
 
     def __init__(self,contig,location,falseNegatives,falsePositives,reference,windowSize):
@@ -59,6 +63,10 @@ class SequenceRescuer(object):
             self.rescued, self.windowsRescued = self._try_rescue(reference)
             self.rescued_GA = False # self.rescued and self._try_rescue_window(reference,self.windowsRescued[0],self.windowsRescued[1],True)
             #NB: rescued_GA property is never used
+        except ReferenceMismatchError as err:
+            print(err.msg,file=sys.stderr)
+            self.rescued = False
+            return
         except AssertionError:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             import traceback
@@ -165,7 +173,7 @@ def _get_seq(window,variants,ref,genotypeAware):
         #print((variant.ref, get_ref_bases(variant.pos,variant.pos+len(variant.ref))))
         verifyRefBases = get_ref_bases(variant.pos,variant.pos+len(variant.ref))
         if ( variant.ref != verifyRefBases ):
-            raise AssertionError("Variant ref does not match reference at " + window[2] + " " + str(loc) + ": " +variant.ref + " != " + verifyRefBases )
+            raise ReferenceMismatchError("Variant ref does not match reference at " + window[2] + " " + str(loc) + ": " +variant.ref + " != " + verifyRefBases )
         assert hetOffset <= loc and homOffset <= loc
         assert variant.genotype_type != GENOTYPE_TYPE.HOM_REF
         assert variant.genotype_type != GENOTYPE_TYPE.NO_CALL
