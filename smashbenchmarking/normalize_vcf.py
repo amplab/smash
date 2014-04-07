@@ -73,9 +73,9 @@ def genotype(vcfrecord):
     # return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
     # PyVCF's gt_type field only contains the values above. Pass the actual gt string through
     # to avoid converting other values, e.g. "2/1" to "0/1"
-    if vcfrecord.samples[0].gt_type is None:
-        return "."
-    return vcfrecord.samples[0].gt_nums
+    if vcfrecord.samples[0].gt_type == 1:
+        return vcfrecord.samples[0].gt_nums
+    return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
 
 def write(record, pos, ref, alts, writer):
     return writer.write_record(record.CHROM, pos, '.',

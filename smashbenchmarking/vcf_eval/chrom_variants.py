@@ -186,6 +186,7 @@ class ChromVariants:
                                     # single sample.
     # Possible TODO: filter on desired sample? Or at least document that this is our convention.
     # given that there's a single sample, get the genotype type
+    # note that PyVCF's gt_type only represents hom ref, het, hom var, None
     genotype_type = GENOTYPE_TYPE_MAP[record.samples[0].gt_type]
 
     if (not self._args.get('knownFP',None)) and (not is_sv(record, self._max_indel_len)) and ( genotype_type == GENOTYPE_TYPE.HOM_REF or genotype_type == GENOTYPE_TYPE.NO_CALL ):

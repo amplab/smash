@@ -111,6 +111,8 @@ chr1   2   .       C     C       20      PASS    .       GT      0/0\n
 ##source=TVsim\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr1   2   .       C     A       20      PASS    .       GT      .\n
+chr1   3   .       G     C       20      PASS    .       GT      0/0\n
+chr1   4   .       G     T       20      PASS    .       GT      0|0\n
 """
         vcf_io = StringIO.StringIO(vcf_str)
         homref_vcf = vcf.Reader(vcf_io)
