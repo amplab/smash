@@ -27,6 +27,8 @@
 import sys, unittest, vcf
 import StringIO
 
+from test_helper import get_reference, vcf_to_ChromVariants, MAX_INDEL_LEN
+
 sys.path.insert(0,'..')
 from smashbenchmarking.normalize_vcf import find_redundancy, left_normalize, normalize
 from smashbenchmarking.parsers.vcfwriter import VCFWriter
@@ -151,6 +153,23 @@ chr1   2   .       c     a       20      PASS    .       GT      0/1\n
         self.assertEqual(original_r.ALT[0], 'a')
         self.assertEqual(norm_r.REF,'C')
         self.assertEqual(norm_r.ALT[0],'A')
+
+    def testGenotypes(self):
+        # normalize a compound heterozygous call
+        vcf_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+##source=TVsim\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   2   .       A     C       20      PASS    .       GT      1/2\n
+"""
+        vcf_io = StringIO.StringIO(vcf_str)
+        test_vcf = vcf.Reader(vcf_io)
+        output_io = StringIO.StringIO()
+        output_writer = VCFWriter(self.test_fasta,'name',output_io)
+        normalize(self.test_fasta,test_vcf,output_writer)
+        output_vcf = self.outputToVcf(output_io)
+        record = output_vcf.next()
+        self.assertEqual(record.samples[0].gt_nums, "1/2")
 
 if __name__ == '__main__':
     unittest.main()
