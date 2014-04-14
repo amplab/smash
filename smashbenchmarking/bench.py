@@ -251,8 +251,7 @@ def main(params):
         print_sv_stats(description, stat_reporter(var_type), err)
 
     def print_oth(var_type, description):
-      print_sv_other_results(description, true_vars.var_num(var_type),
-                             pred_vars.var_num(var_type))
+        print_sv_other_results(description, stat_reporter(var_type)['num_true'], stat_reporter(var_type)['num_pred'])
 
     print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
     print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
