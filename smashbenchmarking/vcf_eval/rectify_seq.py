@@ -54,7 +54,7 @@ class SequenceRescuer(object):
         @params windowSize: int size of window for rescue
         """
         self.contig = contig
-        self.window = self._getWindowSize(location,falseNegatives,falsePositives,windowSize)
+        self.window = self._getWindowSize(location,falseNegatives,falsePositives,truePositives,windowSize)
         if ( self.window[1]-self.window[0] > WINDOW_SIZE_LIMIT ):
             # window is too big; abort
             self.rescued = False
@@ -94,13 +94,14 @@ class SequenceRescuer(object):
             errorText += "".join(traceback.format_exception(exc_type,exc_value,exc_traceback))
             raise AssertionError(errorText)
 
-    def _getWindowSize(self,location,fnVar,fpVar,size):
+    def _getWindowSize(self,location,fnVar,fpVar,tpVar,size):
         low,high = location-size,location+size
         prevL,prevH = None,None
         while ( low != prevL or high != prevH ):
             prevL,prevH = low,high
             low,high = _enlarge_bounds(fnVar,low,high)
             low,high = _enlarge_bounds(fpVar,low,high)
+            low,high = _enlarge_bounds(tpVar,low,high)
             assert low <= prevL and high >= prevH
         return (low,high,self.contig)
 
