@@ -29,22 +29,11 @@ import vcf
 import unittest
 import StringIO
 
+from test_helper import MAX_INDEL_LEN,vcf_to_ChromVariants,get_empty_ChromVariants,get_reference
+
 sys.path.insert(0,'..')
 from smashbenchmarking.vcf_eval.rectify_seq import *
 from smashbenchmarking.vcf_eval.rectify_seq import _get_chopped_variant,_enlarge_bounds,_get_seq
-from smashbenchmarking.vcf_eval.variants import Variants
-from smashbenchmarking.parsers.genome import Genome
-
-MAX_INDEL_LEN = 50
-
-def vcf_to_ChromVariants(vcf_str,chrom):
-    str_io = StringIO.StringIO(vcf_str)
-    str_vcf = vcf.Reader(str_io)
-    str_vars = Variants(str_vcf,MAX_INDEL_LEN)
-    return str_vars.on_chrom(chrom)
-
-def get_reference():
-    return Genome('ref.fasta',lambda t: t.split()[0])
 
 class SequenceRescuerTestCase(unittest.TestCase):
     def testWindowTooBig(self):
@@ -65,7 +54,7 @@ chr1   10049   .       CTTAAGCT     C       20      PASS    .       GT      1/1\
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr1')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        rescuer = SequenceRescuer('chr1',10049,fn_vars,fp_vars,get_reference(),50)
+        rescuer = SequenceRescuer('chr1',10049,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
         self.assertFalse(rescuer.rescued)
 
     def testEmptyWindow(self):
@@ -83,7 +72,7 @@ chr1   10049   .       CTTAAGCT     C       20      PASS    .       GT      1/1\
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr1')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        rescuer = SequenceRescuer('chr1',10049,fn_vars,fp_vars,get_reference(),50)
+        rescuer = SequenceRescuer('chr1',10049,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
         self.assertFalse(rescuer.rescued)
 
     def testTooManyPaths(self):
@@ -108,7 +97,7 @@ chr1   10032   .       TA           T       20      PASS    .       GT      1/1\
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr1')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        rescuer = SequenceRescuer('chr1',10000,fn_vars,fp_vars,get_reference(),50)
+        rescuer = SequenceRescuer('chr1',10000,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
         self.assertFalse(rescuer.rescued)
 
     def testVariantWithMismatchedRef(self):
@@ -125,7 +114,7 @@ chr2   4   .       C     T       20      PASS    .       GT      1/1\n
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr2')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr2')
-        rescuer = SequenceRescuer('chr2',2,fn_vars,fp_vars,get_reference(),50)
+        rescuer = SequenceRescuer('chr2',2,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
         self.assertFalse(rescuer.rescued)
 
     def testOnlySnps(self):
@@ -144,7 +133,7 @@ chr1   4   .       A     C       20      PASS    .       GT      1/1\n
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr1')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        rescuer = SequenceRescuer('chr1',3,fn_vars,fp_vars,get_reference(),50)
+        rescuer = SequenceRescuer('chr1',3,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
         self.assertFalse(rescuer.rescued)
 
     def testFullRescue(self):
@@ -161,9 +150,49 @@ chr2   4   .       C     T       20      PASS    .       GT      1/1\n
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr2')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr2')
-        rescuer = SequenceRescuer('chr2',2,fn_vars,fp_vars,get_reference(),50)
+        rescuer = SequenceRescuer('chr2',2,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
         self.assertTrue(rescuer.rescued)
         self.assertEqual(rescuer.windowsRescued,(0,0))
+
+        fp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       GC     G       20      PASS    .       GT      1/1\n
+chr2   6   .       G      A       20      PASS    .       GT      1/1\n
+"""
+        fn_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       GCCG     GCA       20      PASS    .       GT      1/1\n
+"""
+        fp_vars = vcf_to_ChromVariants(fp_str,'chr2')
+        fn_vars = vcf_to_ChromVariants(fn_str,'chr2')
+        rescuer = SequenceRescuer('chr2',3,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
+        self.assertTrue(rescuer.rescued)
+
+        fn_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   3   .       TC     T       20      PASS    .       GT      1/1\n
+chr4   8   .       C      T       20      PASS    .       GT      1/1\n
+"""
+        fp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   4   .       C     T       20      PASS    .       GT      1/1\n
+chr4   7   .       TC    T       20      PASS    .       GT      1/1\n
+"""
+        tp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   5   .       TC    T       20      PASS    .       GT      1/1\n
+        """
+        fn_vars = vcf_to_ChromVariants(fn_str,'chr4')
+        fp_vars = vcf_to_ChromVariants(fp_str,'chr4')
+        tp_vars = vcf_to_ChromVariants(tp_str,'chr4')
+        rescuer = SequenceRescuer('chr4',3,fn_vars,fp_vars,tp_vars,get_reference(),50)
+        self.assertTrue(rescuer.rescued)
+
 
 class RectifySeqHelperMethodsTestCase(unittest.TestCase):
     #find the variant that overlaps the specified location and extends farthest either left or right
@@ -267,5 +296,7 @@ chr3   9   .       A        AAAA    20      PASS    .       GT      0/1\n
         sequence = _get_seq(window_tup,variants.getAllVariants(),get_reference(),True)
         self.assertEqual(sequence[0],'ATTCGATCG')
         self.assertEqual(sequence[1],'ATCGATCGAAAATCG')
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -44,7 +44,15 @@ class ReferenceMismatchError(Exception):
 
 class SequenceRescuer(object):
 
-    def __init__(self,contig,location,falseNegatives,falsePositives,reference,windowSize):
+    def __init__(self,contig,location,falseNegatives,falsePositives,truePositives,reference,windowSize):
+        """
+        @params contig: String name of chromosome
+        @params location: int location of variant to rescue
+        @params falseNegatives: ChromVariants holding false negatives
+        @params falsePositives: ChromVariants holding false falsePositives
+        @params reference: Genome for reference
+        @params windowSize: int size of window for rescue
+        """
         self.contig = contig
         self.window = self._getWindowSize(location,falseNegatives,falsePositives,windowSize)
         if ( self.window[1]-self.window[0] > WINDOW_SIZE_LIMIT ):
@@ -54,6 +62,8 @@ class SequenceRescuer(object):
 
         self.truthWindowQueue = chrom_variants.extract_variant_queues(falseNegatives,self.window[0],self.window[1]-1,location)
         self.predictWindowQueue = chrom_variants.extract_variant_queues(falsePositives,self.window[0],self.window[1]-1,location)
+
+        self.truePositives = chrom_variants.extract_range_and_filter(truePositives,self.window[0],self.window[1]-1,location)
 
         if ( not self.truthWindowQueue or not self.predictWindowQueue or len(self.truthWindowQueue) * len(self.predictWindowQueue) > WINDOW_MAX_OVERLAPPING ):
             # either no variants or too many overlapping variants to check; abort
@@ -102,6 +112,16 @@ class SequenceRescuer(object):
                     return True, (true_idx,pred_idx)
         return False,None
 
+    def _add_true_pos_to_queue(self,queue):
+        new_queue = list(queue) # make copy as we're altering in place
+        for tp in self.truePositives:
+            for var in queue:
+                if tp.strictly_overlaps_var(var):
+                    return False # if a true pos overlaps with a variant in the queue, don't rescue
+            new_queue.append(tp)
+        new_queue.sort(key=lambda v: v.pos)
+        return new_queue
+
     def _try_rescue_window(self,ref,window_true_num,window_pred_num,genotypeAware):
         true_vars = self.truthWindowQueue[window_true_num]
         pred_vars = self.predictWindowQueue[window_pred_num]
@@ -112,8 +132,16 @@ class SequenceRescuer(object):
         if ( not has_non_snp ):
             return False
 
-        trueSeq,trueSeqHet = _get_seq(self.window,true_vars,ref,genotypeAware)
-        predSeq,predSeqHet = _get_seq(self.window,pred_vars,ref,genotypeAware)
+        fn_tp_vars = self._add_true_pos_to_queue(true_vars)
+        fp_tp_vars = self._add_true_pos_to_queue(pred_vars)
+
+        if (not fn_tp_vars or not fp_tp_vars):
+            print("failed when checking new queues")
+            print("fn tp vars " + str(fn_tp_vars))
+            return False # true pos overlapped with something in queue so we can't rescue
+
+        trueSeq,trueSeqHet = _get_seq(self.window,fn_tp_vars,ref,genotypeAware)
+        predSeq,predSeqHet = _get_seq(self.window,fp_tp_vars,ref,genotypeAware)
 
         return (trueSeq == predSeq) and ( trueSeqHet == predSeqHet ) # second statement always true if not genotype aware
 

@@ -275,6 +275,12 @@ class Variant:
   def strictly_overlaps(self,pos):
       return self.pos + len(self.ref) > pos and self.pos <= pos
 
+  def strictly_overlaps_var(self,var):
+      if self.pos < var.pos:
+        return self.strictly_overlaps(var.pos)
+      else:
+        return var.strictly_overlaps(self.pos)
+
   def _vcf_entry(self,contig,info="."):
       return "%s\t%d\t.\t%s\t%s\t.\t.\t%s" % (contig,self.pos,self.ref,",".join(self.alt),info)
 

@@ -29,13 +29,13 @@ import vcf
 import unittest
 import StringIO
 
+from test_helper import MAX_INDEL_LEN
+
 sys.path.insert(0,'..')
 from smashbenchmarking.vcf_eval.chrom_variants import Variant,VARIANT_TYPE,GENOTYPE_TYPE
 from smashbenchmarking.vcf_eval.chrom_variants import *
 from smashbenchmarking.vcf_eval.chrom_variants import _getOverlaps, _getRestOfPath
 from smashbenchmarking.vcf_eval.variants import Variants
-
-MAX_INDEL_LEN = 50
 
 #this class holds info from each VCF record
 class VariantTestCase(unittest.TestCase):
@@ -61,6 +61,15 @@ class VariantTestCase(unittest.TestCase):
         self.assertTrue(testVar.overlaps_allele(10))
         self.assertTrue(testVar.overlaps_allele(13))
         self.assertFalse(testVar.overlaps_allele(14))
+
+    def testOverlapsVariant(self):
+        snpVar = Variant(10,'A',['C'],VARIANT_TYPE.SNP,GENOTYPE_TYPE.HET)
+        indelVar = Variant(7,'AAAAAAAA',['A'],VARIANT_TYPE.INDEL_DEL,GENOTYPE_TYPE.HET)
+        self.assertTrue(snpVar.strictly_overlaps_var(indelVar))
+        self.assertTrue(indelVar.strictly_overlaps_var(snpVar))
+        snpVar2 = Variant(2,'C',['T'],VARIANT_TYPE.SNP,GENOTYPE_TYPE.HET)
+        self.assertFalse(snpVar2.strictly_overlaps_var(indelVar))
+        self.assertFalse(indelVar.strictly_overlaps_var(snpVar2))
 
 #test ChromVariants class
 class ChromVariantsTestCase(unittest.TestCase):

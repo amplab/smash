@@ -46,7 +46,15 @@ def _genotype_concordance_dict():
                 gcDict[vtype][gtype1][gtype2] = 0
     return gcDict
 
-def rescue_mission(false_negatives,false_positives,loc,ref,window):
+def rescue_mission(false_negatives,false_positives,true_positives,loc,ref,window):
+    """
+    @params false_negatives: ChromVariants holding false negative variants
+    @params false_positives: ChromVariants holding false positive variants
+    @params true_positives: ChromVariants holding true positive variants
+    @params loc: int indicating location of variant we want to rescue
+    @params ref: Genome for reference
+    @params window: int indicating size of window to expand for rescue
+    """
     # the rescue mission attempts to rescue a variant at a specific location in
     # the false negative track.    # note that if a variant is missed (false_negative) due to representation
     # then there will be a nearby false_positive. Thus it suffices to only
@@ -61,7 +69,7 @@ def rescue_mission(false_negatives,false_positives,loc,ref,window):
         # don't try to rescue SVs (if they could've been rescued, they were marked true
         # by having some breakpoint within the window
         return num_new_tp,num_fp_removed
-    rescuer = SequenceRescuer(false_negatives.chrom,loc,false_negatives,false_positives,ref,window)
+    rescuer = SequenceRescuer(false_negatives.chrom,loc,false_negatives,false_positives,true_positives,ref,window)
     if not rescuer or not rescuer.rescued:
         return num_new_tp,num_fp_removed
 
@@ -129,25 +137,25 @@ class ChromVariantStats:
         self.num_tp = _type_dict() # true positives as int
         self.num_fp = _type_dict()
         self.num_fn = _type_dict()
-        self.false_positives = self._extract(pred_var,false_positives,False) #chromvariants
-        self.false_negatives = self._extract(true_var,false_negatives,True) #chromvariants
+        self.false_positives = self._extract(pred_var,false_positives,self.num_fp) #chromvariants
+        self.false_negatives = self._extract(true_var,false_negatives,self.num_fn) #chromvariants
+        self.true_positives = self._extract(true_var,true_positives,self.num_tp) #chromvariants
         self.intersect_bad = None # set externally
         self.known_fp = None # set externally
         self.calls_at_known_fp = None # set externally
         self.known_fp_variants = None # set externally
         self.genotype_concordance = concordance
-        for loc in true_positives:
-            var = true_var.all_variants[loc]
-            self.num_tp[var.var_type] += 1
+        # for loc in true_positives:
+        #     var = true_var.all_variants[loc]
+        #     self.num_tp[var.var_type] += 1
 
-    def _extract(self,chromvariant,locset,isFN):
+    def _extract(self,chromvariant,locset,num_type_dict):
         clone = ChromVariants(chromvariant.chrom, chromvariant._max_indel_len)
-        falseTypeDict = self.num_fn if isFN else self.num_fp if isFN != None else _type_dict()
 
         for loc in locset:
             var = chromvariant.all_variants[loc]
             clone._add_variant(var)
-            falseTypeDict[var.var_type] += 1
+            num_type_dict[var.var_type] += 1
         clone._ensure_sorted()
 
         return clone
@@ -171,7 +179,7 @@ class ChromVariantStats:
         # note we needed to force a copy here, since rescue_mission is modifying the false-negative sets
         for loc in locs_to_rescue:
             if ( loc in self.false_negatives.all_variants ): # if the element is still in the set of false negatives
-                new_tp,rm_fp = rescue_mission(self.false_negatives,self.false_positives,loc,ref,window)
+                new_tp,rm_fp = rescue_mission(self.false_negatives,self.false_positives,self.true_positives,loc,ref,window)
                 for t in VARIANT_TYPE:
                     # seemingly odd accounting. The number of predicted variants *changes* as a result of rescuing.
                     # e.g. 2 predicted FPs are in fact 1 FN. So

@@ -29,11 +29,12 @@ import vcf
 import unittest
 import StringIO
 
+from test_helper import MAX_INDEL_LEN
+
 sys.path.insert(0,'..')
 from smashbenchmarking import Variants,evaluate_variants
 from smashbenchmarking import VARIANT_TYPE
 
-MAX_INDEL_LEN = 50
 sv_eps = 100
 
 class EvalVarsTestCase(unittest.TestCase):

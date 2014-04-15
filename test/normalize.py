@@ -32,7 +32,6 @@ from test_helper import get_reference, vcf_to_ChromVariants, MAX_INDEL_LEN
 sys.path.insert(0,'..')
 from smashbenchmarking.normalize_vcf import find_redundancy, left_normalize, normalize
 from smashbenchmarking.parsers.vcfwriter import VCFWriter
-from smashbenchmarking.parsers.genome import Genome
 
 class NormalizeTestCase(unittest.TestCase):
     def setUp(self):
@@ -65,13 +64,13 @@ class NormalizeTestCase(unittest.TestCase):
 
     def testLeftNormalize(self):
         #left normalize deletion
-        norm_pos, norm_ref, norm_alts = left_normalize(Genome(self.test_fasta,lambda t: t.split()[0]),'chr1',2,'CGCCG',['CG'])
+        norm_pos, norm_ref, norm_alts = left_normalize(get_reference(),'chr1',2,'CGCCG',['CG'])
         self.assertEqual(norm_pos,0)
         self.assertEqual(norm_ref,'AACGC')
         self.assertEqual(norm_alts[0],'AA')
 
         #left normalize insertion
-        norm_pos, norm_ref, norm_alts = left_normalize(Genome(self.test_fasta,lambda t: t.split()[0]),'chr2',4,'CGGA',['CTTGGA'])
+        norm_pos, norm_ref, norm_alts = left_normalize(get_reference(),'chr2',4,'CGGA',['CTTGGA'])
         self.assertEqual(norm_pos,1)
         self.assertEqual(norm_ref,'TGCC')
         self.assertEqual(norm_alts[0],'TGCCTT')

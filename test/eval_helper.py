@@ -29,28 +29,15 @@ import vcf
 import unittest
 import StringIO
 
+from test_helper import MAX_INDEL_LEN,vcf_to_ChromVariants,get_empty_ChromVariants,get_reference
+
 sys.path.insert(0,'..')
 from smashbenchmarking.vcf_eval.eval_helper import *
 from smashbenchmarking.vcf_eval.eval_helper import _genotype_concordance_dict
 from smashbenchmarking.vcf_eval.chrom_variants import Variant,VARIANT_TYPE,GENOTYPE_TYPE
-from smashbenchmarking.vcf_eval.variants import Variants
-from smashbenchmarking.parsers.genome import Genome
 
 EPS_BP = 10
 EPS_LEN = 10
-
-# these helpers want to live in some common test class
-MAX_INDEL_LEN = 50
-
-def vcf_to_ChromVariants(vcf_str,chrom):
-    str_io = StringIO.StringIO(vcf_str)
-    str_vcf = vcf.Reader(str_io)
-    str_vars = Variants(str_vcf,MAX_INDEL_LEN)
-    return str_vars.on_chrom(chrom)
-
-def get_reference():
-    return Genome('ref.fasta',lambda t: t.split()[0])
-
 
 class EvalHelperTestCase(unittest.TestCase):
     def testIndelOrSvMatch(self):
@@ -89,7 +76,7 @@ chr1   8000   .       G     GC       20      PASS    .       GT      1/1\n
 """
         true_vars = vcf_to_ChromVariants(fn_str,'chr1')
         pred_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        num_new_tp,num_removed_fn = rescue_mission(true_vars,pred_vars,8000,get_reference(),100)
+        num_new_tp,num_removed_fn = rescue_mission(true_vars,pred_vars,get_empty_ChromVariants('chr1'),8000,get_reference(),100)
         self.assertFalse(any(map(lambda x: x > 0, num_new_tp.itervalues())))
         self.assertFalse(any(map(lambda x: x > 0, num_removed_fn.itervalues())))
         # variant couldn't be rescued; no change to counts or ChromVariants
@@ -108,7 +95,7 @@ chr1   4   .       A     C       20      PASS    .       GT      1/1\n
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr1')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,2,get_reference(),100)
+        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,get_empty_ChromVariants('chr1'),2,get_reference(),100)
         self.assertFalse(any(map(lambda x: x > 0, num_new_tp.itervalues())))
         self.assertFalse(any(map(lambda x: x > 0, num_removed_fn.itervalues())))
         self.assertEqual(len(fn_vars.all_locations),2)
@@ -127,7 +114,7 @@ chr2   4   .       C     T       20      PASS    .       GT      1/1\n
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr2')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr2')
-        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,2,get_reference(),100)
+        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,get_empty_ChromVariants('chr2'),2,get_reference(),100)
         self.assertEqual(num_new_tp[VARIANT_TYPE.INDEL_OTH],1)
         self.assertEqual(num_removed_fn[VARIANT_TYPE.SNP],2)
         self.assertEqual(len(fn_vars.all_locations),0)
@@ -137,6 +124,94 @@ chr2   4   .       C     T       20      PASS    .       GT      1/1\n
         # TODO test known false positive functionality
         # TODO test genotype concordance
         pass
+
+    def testRescueChromEvalVariants(self):
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       GC     G       20      PASS    .       GT      1/1\n
+chr2   6   .       G      A       20      PASS    .       GT      1/1\n
+"""
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       GCCG     GCA       20      PASS    .       GT      1/1\n
+"""
+        true_vars = vcf_to_ChromVariants(true_str,'chr2')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr2')
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.INDEL_OTH],1)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_OTH],1)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_OTH],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_OTH],0)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_DEL],0)
+
+    def testRescueTruePosChromEvaluateVariants(self):
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   3   .       TC     T       20      PASS    .       GT      1/1\n
+chr4   5   .       TC    T       20      PASS    .       GT      1/1\n
+chr4   8   .       C      T       20      PASS    .       GT      1/1\n
+"""
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   4   .       C     T       20      PASS    .       GT      1/1\n
+chr4   5   .       TC    T       20      PASS    .       GT      1/1\n
+chr4   7   .       TC    T       20      PASS    .       GT      1/1\n
+"""
+        true_vars = vcf_to_ChromVariants(true_str,'chr4')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr4')
+        gtdict = _genotype_concordance_dict()
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
+        self.assertEqual(cvs.num_true[VARIANT_TYPE.SNP],1)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.SNP],1)
+        self.assertEqual(cvs.num_true[VARIANT_TYPE.INDEL_DEL],2)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.INDEL_DEL],2)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SNP],1)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_DEL],2)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_DEL],0)
+
+    def testTruePosRescueMission(self):
+        fn_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   3   .       TC     T       20      PASS    .       GT      1/1\n
+chr4   8   .       C      T       20      PASS    .       GT      1/1\n
+"""
+        fp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   4   .       C     T       20      PASS    .       GT      1/1\n
+chr4   7   .       TC    T       20      PASS    .       GT      1/1\n
+"""
+        tp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   5   .       TC    T       20      PASS    .       GT      1/1\n
+"""
+        fn_vars = vcf_to_ChromVariants(fn_str,'chr4')
+        fp_vars = vcf_to_ChromVariants(fp_str,'chr4')
+        tp_vars = vcf_to_ChromVariants(tp_str,'chr4')
+        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,tp_vars,3,get_reference(),100)
+        self.assertEqual(num_new_tp[VARIANT_TYPE.SNP],1)
+        self.assertEqual(num_new_tp[VARIANT_TYPE.INDEL_DEL],1)
+        self.assertEqual(num_removed_fn[VARIANT_TYPE.SNP],1)
+        self.assertEqual(num_removed_fn[VARIANT_TYPE.INDEL_DEL],1)
+        self.assertFalse(fn_vars.all_locations)
+        self.assertFalse(fp_vars.all_locations)
+
 
 class ChromVariantStatsTestCase(unittest.TestCase):
     def testInit(self):
@@ -196,8 +271,68 @@ chr2   4   .       C     T       20      PASS    .       GT      1/1\n
         self.assertTrue(all(map(lambda x: x == 0, cvs.num_fp.itervalues())))
         self.assertTrue(all(map(lambda x: x ==0, cvs.num_fn.itervalues())))
 
+    def testRectify2(self):
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       GC     G       20      PASS    .       GT      1/1\n
+chr2   6   .       G      A       20      PASS    .       GT      1/1\n
+"""
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .       GCCG     GCA       20      PASS    .       GT      1/1\n
+"""
+        true_vars = vcf_to_ChromVariants(true_str,'chr2')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr2')
+        gtdict = _genotype_concordance_dict()
+        cvs = ChromVariantStats(true_vars, pred_vars, [], [3,6], [3],gtdict)
+        cvs.rectify(get_reference(),100)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.INDEL_OTH],1)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_OTH],1)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_OTH],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_OTH],0)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_pred[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_DEL],0)
 
-
+    def testTruePosRectify(self):
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   3   .       TC     T       20      PASS    .       GT      1/1\n
+chr4   5   .       TC     T       20      PASS    .       GT      1/1\n
+chr4   8   .       C      T       20      PASS    .       GT      1/1\n
+"""
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4   4   .       C     T       20      PASS    .       GT      1/1\n
+chr4   5   .       TC    T       20      PASS    .       GT      1/1\n
+chr4   7   .       TC    T       20      PASS    .       GT      1/1\n
+"""
+        true_vars = vcf_to_ChromVariants(true_str,'chr4')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr4')
+        gtdict = _genotype_concordance_dict()
+        cvs = ChromVariantStats(true_vars,pred_vars,[5],[4,7],[3,8],gtdict)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.SNP],1)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.SNP],1)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_DEL],1)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_DEL],1)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_DEL],1)
+        cvs.rectify(get_reference(),100)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.SNP],0)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SNP],1)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_DEL],2)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_DEL],0)
 
 
 if __name__ == "__main__":
