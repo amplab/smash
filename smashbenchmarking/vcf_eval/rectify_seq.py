@@ -137,8 +137,8 @@ class SequenceRescuer(object):
         fp_tp_vars = self._add_true_pos_to_queue(pred_vars)
 
         if (not fn_tp_vars or not fp_tp_vars):
-            print("failed when checking new queues")
-            print("fn tp vars " + str(fn_tp_vars))
+            # print("failed when checking new queues")
+            # print("fn tp vars " + str(fn_tp_vars))
             return False # true pos overlapped with something in queue so we can't rescue
 
         trueSeq,trueSeqHet = _get_seq(self.window,fn_tp_vars,ref,genotypeAware)
