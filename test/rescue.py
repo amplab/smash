@@ -136,6 +136,30 @@ chr1   4   .       A     C       20      PASS    .       GT      1/1\n
         rescuer = SequenceRescuer('chr1',3,fn_vars,fp_vars,get_empty_ChromVariants('chr2'),get_reference(),50)
         self.assertFalse(rescuer.rescued)
 
+    def testOverlappingVariants(self):
+        # if vcf contains overlapping variants, don't rescue that sequence
+        fn_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   1        .       T       G       20      PASS    .       GT      1/1\n
+"""
+        tp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   3   .    GCC     G       20      PASS    .       GT      1/1\n
+chr2   4   .    C       G       20      PASS    .       GT      0/1\n
+"""
+        fp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2   7   .       GA     A       20      PASS    .       GT      1/1\n
+"""
+        tp_vars = vcf_to_ChromVariants(tp_str,'chr2')
+        fn_vars = vcf_to_ChromVariants(fn_str,'chr2')
+        fp_vars = vcf_to_ChromVariants(fp_str,'chr2')
+        rescuer = SequenceRescuer('chr2',1,fn_vars,fp_vars,tp_vars,get_reference(),50)
+        self.assertFalse(rescuer.rescued)
+
     def testFullRescue(self):
         fn_str = """##fileformat=VCFv4.0\n
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
