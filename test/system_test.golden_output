@@ -1,0 +1,73 @@
+
+-----------
+SNP Results
+-----------
+# True = 1; # Predicted = 1
+	# precision = 0.0 +/- 0.0000
+	# recall = 0.0 +/- 0.0000
+	# allele mismatch = 1
+	# correct = 0
+	# missed = 1
+	percent correct ignoring allele = 100.0
+	percent correct = 0.0
+	non reference discrepancy = 0.000000
+
+
+------------------------
+INDEL DELETION Results
+------------------------
+# True = 1; # Predicted = 1
+	# precision = 100.0 +/- 0.0000
+	# recall = 100.0 +/- 0.0000
+	# correct = 1
+	# missed = 0
+	# false pos = 0
+	percent correct = 100.0
+	non reference discrepancy = 0.0
+
+
+------------------------
+INDEL INSERTION Results
+------------------------
+# True = 0; # Predicted = 0
+	# precision = 0.0 +/- 0.0000
+	# recall = 0.0 +/- 0.0000
+	# correct = 0
+	# missed = 0
+	# false pos = 0
+
+
+------------------------
+INDEL OTHER Statistics
+------------------------
+# True = 0; # Predicted = 0
+
+
+------------------------
+SV DELETION Results
+------------------------
+# True = 0; # Predicted = 0
+	# precision = 0.0 +/- 0.0000
+	# recall = 0.0 +/- 0.0000
+	# correct = 0
+	# missed = 0
+	# false pos = 0
+
+
+------------------------
+SV INSERTION Results
+------------------------
+# True = 1; # Predicted = 1
+	# precision = 100.0 +/- 0.0000
+	# recall = 100.0 +/- 0.0000
+	# correct = 1
+	# missed = 0
+	# false pos = 0
+	percent correct = 100.0
+	non reference discrepancy = 100.0
+
+
+------------------------
+SV OTHER Statistics
+------------------------
+# True = 0; # Predicted = 0
