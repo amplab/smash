@@ -1,11 +1,11 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # Directory definitions
 test_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 smash_dir=$test_dir/..
 smashbenchmarking_dir=$smash_dir/smashbenchmarking
 scripts_dir=$smash_dir/scripts
-tmp_dir=`mktemp -d`
+tmp_dir=`mktemp -d /tmp/systest.XXXX`
 
 # Normalize inputs
 for vcf_file in $test_dir/system_test_true.vcf $test_dir/system_test_pred.vcf
