@@ -31,7 +31,7 @@ Take error rate for validation data for SNPs, indels, and SVs.
 WARNING: error rates are applied separately to insertions and deletions.
 """
 
-from __future__ import division
+from __future__ import division, print_function
 
 import os
 import vcf
@@ -42,6 +42,7 @@ from parsers.genome import Genome
 from vcf_eval.variants import Variants,evaluate_variants,output_errors
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
+from normalize_vcf import NormalizeIterator
 
 def nonzero_float(n):
     return float(n) if n != 0 else 1.0
@@ -76,23 +77,23 @@ def bound_precision(tp, fp, e):
     return (tp - e) / p, (tp + e) / p
 
 def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_prec, err, known_fp_vars=False):
-    print "\n-----------"
-    print "SNP Results"
-    print "-----------"
-    print "# True = %d; # Predicted = %d" % (num_true, num_pred)
+    print("\n-----------")
+    print("SNP Results")
+    print("-----------")
+    print("# True = %d; # Predicted = %d" % (num_true, num_pred))
     tp = num_ig
     assert tp + num_fn <= num_true
     assert tp + num_fp <= num_pred
-    print "\t# precision =", interval(*bound_precision(tp, num_fp, err))
+    print("\t# precision =", interval(*bound_precision(tp, num_fp, err)))
     if known_fp_vars:
         print("\t# precision (known FP) = %.1f" % (100*known_fp_prec) )
-    print "\t# recall =", interval(*bound_recall(tp, num_fn, err))
-    print "\t# allele mismatch = %d" % num_ib
-    print "\t# correct = %d" % num_ig
-    print "\t# missed = %d" % num_fn
-    print "\tpercent correct ignoring allele = %.1f" % (100 * (num_ig + num_ib) / nonzero_float(num_true))
-    print "\tpercent correct = %.1f" % (100 * num_ig / nonzero_float(num_true))
-    print "\tnon reference discrepancy = %1f" % (100*nrd)
+    print("\t# recall =", interval(*bound_recall(tp, num_fn, err)))
+    print("\t# allele mismatch = %d" % num_ib)
+    print("\t# correct = %d" % num_ig)
+    print("\t# missed = %d" % num_fn)
+    print("\tpercent correct ignoring allele = %.1f" % (100 * (num_ig + num_ib) / nonzero_float(num_true)))
+    print("\tpercent correct = %.1f" % (100 * num_ig / nonzero_float(num_true)))
+    print("\tnon reference discrepancy = %1f" % (100*nrd))
 
 def print_snp_stats(stats, err, known_fp_vars=False):
     print_snp_results(stats['num_true'], stats['num_pred'],
@@ -108,21 +109,21 @@ def ratio(a,b,sig=5):
     return float(int(10**sig*(float(a)/b)))/10**sig
 
 def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_prec, err, known_fp_vars=False):
-    print "\n\n------------------------"
-    print "%s Results" % var_type_str
-    print "------------------------"
-    print "# True = %d; # Predicted = %d" % (num_true, num_pred)
-    print "\t# precision =", interval(*bound_precision(num_gp, num_fp, err))
+    print("\n\n------------------------")
+    print("%s Results" % var_type_str)
+    print("------------------------")
+    print("# True = %d; # Predicted = %d" % (num_true, num_pred))
+    print("\t# precision =", interval(*bound_precision(num_gp, num_fp, err)))
     if known_fp_vars:
         print("\t# precision (known FP) = %.1f" % (100*known_fp_prec) )
-    print "\t# recall =", interval(*bound_recall(num_true - num_fn, num_fn, err))
+    print("\t# recall =", interval(*bound_recall(num_true - num_fn, num_fn, err)))
     #print "\t# multiple matches = %d" % num_mm
-    print "\t# correct = %d" % num_gp
-    print "\t# missed = %d" % num_fn
-    print "\t# false pos = %d" % num_fp
+    print("\t# correct = %d" % num_gp)
+    print("\t# missed = %d" % num_fn)
+    print("\t# false pos = %d" % num_fp)
     if num_true > 0:
-        print "\tpercent correct = %.1f" % (100 * num_gp / nonzero_float(num_true))
-        print "\tnon reference discrepancy = %.1f" % (100*nrd)
+        print("\tpercent correct = %.1f" % (100 * num_gp / nonzero_float(num_true)))
+        print("\tnon reference discrepancy = %.1f" % (100*nrd))
     # The issue of multiple matches is empirically negligible.
     # TODO: assumed that this doesn't happen now; better way would be to assume that equidistant predicted var is wrong
     assert num_gp + num_fn <= num_true
@@ -136,10 +137,10 @@ def print_sv_stats(description, stats, err):
                    1-ratio(stats['known_fp_calls'],stats['known_fp']), err)
 
 def print_sv_other_results(var_type_str, num_true, num_pred):
-    print "\n\n------------------------"
-    print "%s Statistics" % var_type_str
-    print "------------------------"
-    print "# True = %d; # Predicted = %d" % (num_true, num_pred)
+    print("\n\n------------------------")
+    print("%s Statistics" % var_type_str)
+    print("------------------------")
+    print("# True = %d; # Predicted = %d" % (num_true, num_pred))
 
 
 
@@ -179,6 +180,8 @@ def parse_args(params):
     parser.add_argument("--err_vcf",dest="err_vcf",action="store",
             help="""An optional output VCF to hold detected
             false-negatives and false-positives""")
+    parser.add_argument("--normalize",action="store_true",
+            help="Optionally normalize variants before evaluating them; requires reference file")
     args = parser.parse_args(params)
     return args
 
@@ -201,13 +204,8 @@ def get_sv_err(true_vars, sv_err_rate):
 
 def main(params):
     args = parse_args(params)
-
-    with open(args.true_vcf) as f:
-        true_vcf = vcf.Reader(f)
-        true_vars = Variants(true_vcf, MAX_INDEL_LEN)
-    with open(args.predicted_vcf) as f:
-        pred_vcf = vcf.Reader(f)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
+    if args.normalize and not args.reference:
+        print("Normalization requires a reference file.",file=sys.stderr)
 
     if args.reference:
         ref = Genome(args.reference,abbreviate= lambda ctig: ctig.split()[0])
@@ -215,6 +213,19 @@ def main(params):
     else:
         ref = None
         window = None
+
+    with open(args.true_vcf) as f:
+        true_vcf = vcf.Reader(f)
+        if args.normalize:
+            true_vcf = NormalizeIterator(ref,true_vcf)
+        true_vars = Variants(true_vcf, MAX_INDEL_LEN)
+    with open(args.predicted_vcf) as f:
+        pred_vcf = vcf.Reader(f)
+        if args.normalize:
+            pred_vcf = NormalizeIterator(ref,pred_vcf)
+        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
+
+
 
     if args.knownFP:
         with open(args.knownFP) as f:

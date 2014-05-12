@@ -50,6 +50,7 @@ import vcf
 import parsers.vcfwriter
 from parsers.genome import Genome
 from vcf_eval.chrom_variants import is_sv
+#from vcf_eval.normalize import find_redundancy
 
 def find_redundancy(strings):
     """Return the length of the longest common proper suffix.
@@ -77,9 +78,10 @@ def genotype(vcfrecord):
         return vcfrecord.samples[0].gt_nums
     return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
 
-def write(record, pos, ref, alts, writer):
-    return writer.write_record(record.CHROM, pos, '.',
-                               ref, ','.join(alts), genotype(record)) # TODO: more gtypes.
+# assume that input position is 0-based, so offset by 1
+def write(record, writer):
+    return writer.write_record(record.CHROM, record.POS + 1, '.',
+                               record.REF, record.ALT, genotype(record)) # TODO: more gtypes.
 
 
 left_slides = []
@@ -116,32 +118,54 @@ def left_normalize(ref_genome, chrom, pos, ref_allele, alts):
 
 
 def normalize(ref_genome, reader, writer, maxIndelLen = 50, cleanOnly = False):
-    for record in reader:
-        if ( record.FILTER != [] and record.FILTER != "." and record.FILTER != "PASS" and record.FILTER != None or genotype(record) == "0/0"):
-            continue # record filtered
-        if ( genotype(record) == "." and not is_sv(record, maxIndelLen)):
-            continue # filter variants without genotype information unless they are structural variants
-        pos = record.POS - 1
-        contig = record.CHROM
-        ref = str(record.REF.upper())
-        alts = map(lambda a: str(a).upper(), record.ALT)
-        all_alleles = alts + [ref]
-        redundancy = find_redundancy(all_alleles)
-        if cleanOnly:
-            write(record,pos,ref,alts,writer)
-            continue
+    norm_iter = NormalizeIterator(ref_genome,reader,maxIndelLen,cleanOnly)
+    for record in norm_iter:
+        write(record,writer)
 
-        if redundancy:
-            def chop(allele):
-                return allele[:-redundancy]
-            ref = chop(ref)
-            alts = map(chop, alts)
-        pos, ref, alts = left_normalize(ref_genome, record.CHROM,
-                                        pos, ref, alts)
-        write(record, pos, ref, alts, writer)
-        prev_end = pos + len(ref)
-        prev_contig = contig
+def keep_variant(record,maxIndelLen=50):
+    if ( record.FILTER != [] and record.FILTER != "." and record.FILTER != "PASS" and record.FILTER != None or genotype(record) == "0/0"):
+        return False # record filtered
+    if ( genotype(record) == "." and not is_sv(record, maxIndelLen)):
+        return False # filter variants without genotype information unless they are structural variants
+    return True
 
+def normalize_variant(record,ref_genome,cleanOnly=False):
+    pos = record.POS - 1 # left normalize assumes 0-based coord
+    contig = record.CHROM
+    record.REF = str(record.REF.upper())
+    record.ALT = map(lambda a: str(a).upper(), record.ALT)
+    if cleanOnly:
+        return record
+    ref = record.REF
+    alts = record.ALT
+    all_alleles = alts + [ref]
+    redundancy = find_redundancy(all_alleles)
+    if redundancy:
+        def chop(allele):
+            return allele[:-redundancy]
+        ref = chop(ref)
+        alts = map(chop,alts)
+    pos,ref,alts = left_normalize(ref_genome,contig,pos,ref,alts)
+    record.POS = pos + 1 # restore to 1-based coord
+    record.REF = ref # string
+    record.ALT = map(lambda a: vcf.model._Substitution(a),alts) # for some reason alts are not strings in PyVCF?
+    return record
+
+class NormalizeIterator:
+    def __init__(self,genome,vcfiter,max_indel_length=50,cleanOnly=False):
+        self.genome = genome
+        self.vcfiter = vcfiter
+        self.max_indel_length = max_indel_length
+        self.cleanOnly = cleanOnly
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        record = self.vcfiter.next()
+        while (not keep_variant(record,self.max_indel_length)):
+            record = self.vcfiter.next()
+        return normalize_variant(record,self.genome,self.cleanOnly)
 
 def main():
     # ref_genome = genome.Genome(sys.argv[1])
@@ -149,7 +173,7 @@ def main():
     ref = sys.argv[1]
     person = sys.argv[2]
     max_indel_length = 50
-    if len(sys.argv[3]) > 3:
+    if len(sys.argv) > 3:
         max_indel_length = sys.argv[3]
     cleanOnly = len(sys.argv) > 4 and sys.argv[4] == "cleanonly"
     vcf_writer = parsers.vcfwriter.VCFWriter(ref, person, sys.stdout)
