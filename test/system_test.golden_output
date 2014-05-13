@@ -2,24 +2,35 @@
 -----------
 SNP Results
 -----------
-# True = 1; # Predicted = 1
-	# precision = 0.0 +/- 0.0000
-	# recall = 0.0 +/- 0.0000
-	# allele mismatch = 1
-	# correct = 0
+# True = 2; # Predicted = 1
+	# precision = 100.0 +/- 0.0000
+	# recall = 50.0 +/- 0.0000
+	# allele mismatch = 0
+	# correct = 1
 	# missed = 1
-	percent correct ignoring allele = 100.0
-	percent correct = 0.0
+	percent correct ignoring allele = 50.0
+	percent correct = 50.0
 	non reference discrepancy = 0.000000
 
 
 ------------------------
 INDEL DELETION Results
 ------------------------
-# True = 1; # Predicted = 1
+# True = 0; # Predicted = 0
+	# precision = 0.0 +/- 0.0000
+	# recall = 0.0 +/- 0.0000
+	# correct = 0
+	# missed = 0
+	# false pos = 0
+
+
+------------------------
+INDEL INSERTION Results
+------------------------
+# True = 2; # Predicted = 2
 	# precision = 100.0 +/- 0.0000
 	# recall = 100.0 +/- 0.0000
-	# correct = 1
+	# correct = 2
 	# missed = 0
 	# false pos = 0
 	percent correct = 100.0
@@ -27,20 +38,9 @@ INDEL DELETION Results
 
 
 ------------------------
-INDEL INSERTION Results
-------------------------
-# True = 0; # Predicted = 0
-	# precision = 0.0 +/- 0.0000
-	# recall = 0.0 +/- 0.0000
-	# correct = 0
-	# missed = 0
-	# false pos = 0
-
-
-------------------------
 INDEL OTHER Statistics
 ------------------------
-# True = 0; # Predicted = 0
+# True = 1; # Predicted = 1
 
 
 ------------------------
@@ -57,14 +57,12 @@ SV DELETION Results
 ------------------------
 SV INSERTION Results
 ------------------------
-# True = 1; # Predicted = 1
-	# precision = 100.0 +/- 0.0000
-	# recall = 100.0 +/- 0.0000
-	# correct = 1
+# True = 0; # Predicted = 0
+	# precision = 0.0 +/- 0.0000
+	# recall = 0.0 +/- 0.0000
+	# correct = 0
 	# missed = 0
 	# false pos = 0
-	percent correct = 100.0
-	non reference discrepancy = 100.0
 
 
 ------------------------
