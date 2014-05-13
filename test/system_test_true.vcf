@@ -1,8 +1,8 @@
 ##fileformat=VCFv4.0
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##source=TVsim
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001
-chr19   88013   .       CTT     C       20      PASS    .       GT      0/1
-chr19   89272   .       C       T       20      PASS    .       GT      0/1
-chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGCTTCATGAGAGAG 20      PASS    .       GT      1/1
-
+chr1   2   .       a     c       20      PASS    .       GT      0/1
+chr1   9   .       a     ga       20      PASS    .       GT      0/1
+chr2   2   .       TGC   TAT     20      PASS    .       GT       1/1
+chr4   9   .       G     A         20      PASS    .       GT      1/1
+chr4   11   .       G     GGG       20      PASS    .       GT      0/1

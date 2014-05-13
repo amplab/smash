@@ -42,6 +42,7 @@ class Variants:
       self._add_record(record)
     self._chroms = frozenset(self._variation.iterkeys())
     for c in self.chroms:
+      self._variation[c]._ensure_sorted()
       self._variation[c].validate()
 
   @property
