@@ -2,6 +2,8 @@ package edu.berkeley.cs.amplab.vcfparser;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.FluentIterable;
@@ -45,6 +47,14 @@ public class VcfReader {
       KEY_VALUE_PAIR_PATTERN = Pattern.compile("(\\p{Alnum}+?)=(\"(?:\\\\\"|[^\"])*?\"|[^\"][^,]*?)(,|$)"),
       METAINFO_LINE_PATTERN = Pattern.compile("##(\\p{Alpha}+?)=(.+)"),
       UNESCAPE_PATTERN = Pattern.compile("\\\\(\\\\|\")");
+
+  private static final Predicate<String>
+      IS_NOT_EMPTY = Predicates.not(
+          new Predicate<String>() {
+            @Override public boolean apply(String line) {
+              return line.isEmpty();
+            }
+          });
 
   private static final Function<String, VcfRecord>
       PARSE_RECORD =
@@ -147,7 +157,11 @@ public class VcfReader {
         new FluentIterable<VcfRecord>() {
           @Override
           public Iterator<VcfRecord> iterator() {
-            return Iterators.transform(iterator, PARSE_RECORD);
+            return Iterators.transform(
+                Iterators.filter(
+                    iterator,
+                    IS_NOT_EMPTY),
+                PARSE_RECORD);
           }
         });
   }

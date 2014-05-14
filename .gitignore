@@ -5,3 +5,6 @@
 vcfparser/target
 vcfparser/.idea
 vcfparser/vcfparser.iml
+smash4j/target
+smash4j/.idea
+smash4j/smash4j.iml

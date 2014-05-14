@@ -57,6 +57,7 @@ public class VcfWriter<S> {
     for (VcfRecord record : records) {
       out.println(record);
     }
+    out.flush();
     return sink;
   }
 }
