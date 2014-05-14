@@ -2,5 +2,7 @@
 *.suo
 *.flat
 *.gdx
+*.iml
 smash4j/*/target
+smash4j/.idea
 
