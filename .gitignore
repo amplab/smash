@@ -2,3 +2,6 @@
 *.suo
 *.flat
 *.gdx
+vcfparser/target
+vcfparser/.idea
+vcfparser/vcfparser.iml
