@@ -11,4 +11,3 @@
     <artifactId>vcfparser</artifactId>
     <version>${smash4j.version}</version>
 </project>
-
