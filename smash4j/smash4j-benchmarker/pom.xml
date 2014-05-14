@@ -6,16 +6,15 @@
     <parent>
         <groupId>edu.berkeley.cs.amplab</groupId>
         <artifactId>smash4j</artifactId>
-        <version>0.1</version>
+        <version>${smash4j.version}</version>
     </parent>
-    <groupId>edu.berkeley.cs.amplab</groupId>
     <artifactId>smash4j-benchmarker</artifactId>
-    <version>0.1</version>
+    <version>${smash4j.version}</version>
     <dependencies>
         <dependency>
             <groupId>edu.berkeley.cs.amplab</groupId>
             <artifactId>vcfparser</artifactId>
-            <version>${vcfparser.version}</version>
+            <version>${smash4j.version}</version>
         </dependency>
         <dependency>
             <groupId>com.beust</groupId>
@@ -24,7 +23,6 @@
         </dependency>
     </dependencies>
     <properties>
-        <vcfparser.version>0.1</vcfparser.version>
         <jcommander.version>1.30</jcommander.version>
     </properties>
 </project>

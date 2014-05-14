@@ -6,10 +6,9 @@
     <parent>
         <groupId>edu.berkeley.cs.amplab</groupId>
         <artifactId>smash4j</artifactId>
-        <version>0.1</version>
+        <version>${smash4j.version}</version>
     </parent>
-    <groupId>edu.berkeley.cs.amplab</groupId>
     <artifactId>vcfparser</artifactId>
-    <version>0.1</version>
+    <version>${smash4j.version}</version>
 </project>
 
