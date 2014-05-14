@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>edu.berkeley.cs.amplab</groupId>
+        <artifactId>smash4j</artifactId>
+        <version>0.1</version>
+    </parent>
+    <groupId>edu.berkeley.cs.amplab</groupId>
+    <artifactId>smash4j-benchmarker</artifactId>
+    <version>0.1</version>
+    <dependencies>
+        <dependency>
+            <groupId>edu.berkeley.cs.amplab</groupId>
+            <artifactId>vcfparser</artifactId>
+            <version>${vcfparser.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.beust</groupId>
+            <artifactId>jcommander</artifactId>
+            <version>${jcommander.version}</version>
+        </dependency>
+    </dependencies>
+    <properties>
+        <vcfparser.version>0.1</vcfparser.version>
+        <jcommander.version>1.30</jcommander.version>
+    </properties>
+</project>
+
