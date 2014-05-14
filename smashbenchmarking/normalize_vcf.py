@@ -78,10 +78,9 @@ def genotype(vcfrecord):
         return vcfrecord.samples[0].gt_nums
     return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
 
-# assume that input position is 0-based, so offset by 1
 def write(record, writer):
-    return writer.write_record(record.CHROM, record.POS + 1, '.',
-                               record.REF, record.ALT, genotype(record)) # TODO: more gtypes.
+    return writer.write_record(record.CHROM, record.POS, '.',
+                               record.REF, ','.join(map(lambda a: str(a),record.ALT)), genotype(record)) # TODO: more gtypes.
 
 
 left_slides = []

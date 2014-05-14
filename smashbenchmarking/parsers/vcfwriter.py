@@ -84,7 +84,7 @@ class VCFWriter:
             QUAL = 20               # Default 1/100 error probability.
             FILTER = 'PASS'
             FORMAT = 'GT'
-            print(CHROM, POS + 1, ID, REF, ALT, QUAL, FILTER, '.', FORMAT, gtype,
+            print(CHROM, POS, ID, REF, ALT, QUAL, FILTER, '.', FORMAT, gtype,
                   sep='\t', file=self._output)
         return write
 

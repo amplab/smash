@@ -51,7 +51,7 @@ class NormalizeTestCase(unittest.TestCase):
         vcf_io = StringIO.StringIO(str)
         return vcf.Reader(vcf_io)
 
-    def normalizeString(self,vcf_str):
+    def normalizeStringToWriter(self,vcf_str):
         vcf_io = StringIO.StringIO(vcf_str)
         test_vcf = vcf.Reader(vcf_io)
         output_io = StringIO.StringIO()
@@ -233,6 +233,18 @@ chr2    6       .       G       CG,C       20      PASS    .       GT      0/1\n
         self.assertEqual(record.POS,6)
         self.assertEqual(record.REF,'G')
         self.assertEqual(record.ALT[0],'CG')
+
+    def testNormalizerWriter(self):
+        vcf_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   2   .       a     c       20      PASS    .       GT      0/1\n
+chr1   4   .      A      G       20      PASS     .      GT      1/1\n
+"""
+        output_vcf = self.normalizeStringToWriter(vcf_str)
+        r1 = output_vcf.next()
+        self.assertEqual(r1.POS,2)
+
 
 if __name__ == '__main__':
     unittest.main()
