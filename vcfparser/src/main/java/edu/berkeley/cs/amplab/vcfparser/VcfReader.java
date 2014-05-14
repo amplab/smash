@@ -11,7 +11,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 
 import java.io.BufferedReader;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -20,25 +19,40 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * A reader for VCF data.
  */
-public class VcfReader implements Closeable {
+public class VcfReader {
 
   /**
-   * A callback type used to receive VCF data from the source it is read from.
+   * A callback used to receive VCF data from the source it is read from.
    */
   public interface Callback<X> {
 
     /**
-     * Compute some value from the given {@code MetaInformation}, {@code Header}, and {@code FluentIterable<VcfRecord>}
-     * while the data is being consumed from the source.
+     * Compute a value of type {@code X>} from the given metainfo, header, and records.
+     * The value computed will be returned from {@link #read}.
      */
     X readVcf(MetaInformation metaInformation, Header header, FluentIterable<VcfRecord> records);
   }
+
+  private static final Pattern
+      HEADER_LINE_PATTERN = Pattern.compile("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO(\tFORMAT(?:\t\\p{Alnum}+?)+)?"),
+      KEY_VALUE_PAIR_PATTERN = Pattern.compile("(\\p{Alnum}+?)=(\"(?:\\\\\"|[^\"])*?\"|[^\"][^,]*?)(,|$)"),
+      METAINFO_LINE_PATTERN = Pattern.compile("##(\\p{Alpha}+?)=(.+)"),
+      UNESCAPE_PATTERN = Pattern.compile("\\\\(\\\\|\")");
+
+  private static final Function<String, VcfRecord>
+      PARSE_RECORD =
+          new Function<String, VcfRecord>() {
+            @Override public VcfRecord apply(String line) {
+              return parseRecord(line);
+            }
+          };
 
   /**
    * Static factory method that creates a new {@code VcfReader} that reads from the given {@code InputStream} source.
@@ -54,13 +68,61 @@ public class VcfReader implements Closeable {
     return new VcfReader(in instanceof BufferedReader ? (BufferedReader) in : new BufferedReader(in));
   }
 
+  private static VcfRecord parseRecord(String line) {
+    String
+        fields[] = line.split("\t"),
+        chrom = fields[0],
+        pos = fields[1],
+        id = fields[2],
+        ref = fields[3],
+        alt = fields[4],
+        qual = fields[5],
+        filter = fields[6],
+        info = fields[7],
+        format = fields[8];
+    VcfRecord.Builder record = VcfRecord.builder();
+    if (isDefined(chrom)) {
+      record.setChrom(chrom);
+    }
+    if (isDefined(pos)) {
+      record.setPos(Integer.parseInt(pos));
+    }
+    if (isDefined(id)) {
+      record.setId(id);
+    }
+    if (isDefined(ref)) {
+      record.setRef(ref);
+    }
+    if (isDefined(alt)) {
+      record.setAlt(alt);
+    }
+    if (isDefined(qual)) {
+      record.setQual(Integer.parseInt(qual));
+    }
+    if (isDefined(filter)) {
+      record.setFilter(filter);
+    }
+    if (isDefined(info)) {
+      record.setInfo(info);
+    }
+    if (isDefined(format)) {
+      record.setFormat(format);
+    }
+    for (int i = 9; i < fields.length; ++i) {
+      record.addSample(fields[i]);
+    }
+    return record.build();
+  }
+
+  private static boolean isDefined(String value) {
+    return !(null == value || ".".equals(value));
+  }
+
   private final BufferedReader in;
 
   private VcfReader(BufferedReader in) {
     this.in = in;
   }
-
-  private static final Pattern METAINFO_LINE_PATTERN = Pattern.compile("##(\\p{Alpha}+?)=(.+)");
 
   /**
    * Read the VCF data and pass the data to the provided {@code Callback}.
@@ -90,54 +152,97 @@ public class VcfReader implements Closeable {
         });
   }
 
-  private static final Pattern HEADER_LINE_PATTERN = Pattern.compile("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO(\tFORMAT(?:\t\\p{Alnum}+?)+)?");
-
-  private static final Function<String, VcfRecord> PARSE_RECORD =
-      new Function<String, VcfRecord>() {
-        @Override
-        public VcfRecord apply(String line) {
-          return parseRecord(line);
-        }
-      };
-
-  private static VcfRecord parseRecord(String line) {
-    String[] parts = line.split("\t");
-    VcfRecord.Builder record = VcfRecord.builder();
-    if (isDefined(parts[0])) {
-      record.setChrom(parts[0]);
+  private static MetaInformation parseMetaInfo(PeekingIterator<String> iterator) {
+    MetaInformation.Builder metainfo = MetaInformation.builder(getFormat(iterator));
+    while (iterator.hasNext() && iterator.peek().startsWith("##")) {
+      String next = iterator.next();
+      Matcher matcher = METAINFO_LINE_PATTERN.matcher(next);
+      if (!matcher.matches()) {
+        throw new IllegalStateException(String.format("Failed to parse metainfo line: \"%s\"", next));
+      }
+      String type = matcher.group(1);
+      String value = matcher.group(2);
+      switch (type) {
+        case "INFO":
+          Map<String, String> map = parseCompoundValue(value);
+          MetaInformation.Info.Builder info = MetaInformation.Info.builder()
+              .setId(map.get("ID"))
+              .setNumber(MetaInformation.Number.create(map.get("Number")))
+              .setType(MetaInformation.Info.Type.parse(map.get("Type")))
+              .setDescription(map.get("Description"));
+          for (Map.Entry<String, String> entry :
+              getExtraFields(map, MetaInformation.Info.REQUIRED_FIELDS)) {
+            info.addExtraField(entry.getKey(), entry.getValue());
+          }
+          metainfo.addInfo(info);
+          break;
+        case "FILTER":
+          MetaInformation.Filter.Builder filter = MetaInformation.Filter.builder()
+              .setId((map = parseCompoundValue(value)).get("ID"))
+              .setDescription(map.get("Description"));
+          for (Map.Entry<String, String> entry :
+              getExtraFields(map, MetaInformation.Filter.REQUIRED_FIELDS)) {
+            filter.addExtraField(entry.getKey(), entry.getValue());
+          }
+          metainfo.addFilter(filter);
+          break;
+        case "FORMAT":
+          MetaInformation.Format.Builder format = MetaInformation.Format.builder()
+              .setId((map = parseCompoundValue(value)).get("ID"))
+              .setNumber(MetaInformation.Number.create(map.get("Number")))
+              .setType(MetaInformation.Format.Type.parse(map.get("Type")))
+              .setDescription(map.get("Description"));
+          for (Map.Entry<String, String> entry :
+              getExtraFields(map, MetaInformation.Format.REQUIRED_FIELDS)) {
+            format.addExtraField(entry.getKey(), entry.getValue());
+          }
+          metainfo.addFormat(format);
+          break;
+        case "ALT":
+          MetaInformation.Alt.Builder alt = MetaInformation.Alt.builder()
+              .setId(MetaInformation.Alt.Type.parse((map = parseCompoundValue(value)).get("ID")))
+              .setDescription(map.get("Description"));
+          for (Map.Entry<String, String> entry :
+              getExtraFields(map, MetaInformation.Alt.REQUIRED_FIELDS)) {
+            alt.addExtraField(entry.getKey(), entry.getValue());
+          }
+          metainfo.addAlt(alt);
+          break;
+        case "assembly":
+          metainfo.addAssembly(MetaInformation.Assembly.create(url(value)));
+          break;
+        case "contig":
+          MetaInformation.Contig.Builder contig = MetaInformation.Contig.builder()
+              .setId((map = parseCompoundValue(value, false)).get("ID"));
+          for (Map.Entry<String, String> entry :
+              getExtraFields(map, MetaInformation.Contig.REQUIRED_FIELDS)) {
+            contig.addExtraField(entry.getKey(), entry.getValue());
+          }
+          metainfo.addContig(contig);
+          break;
+        case "SAMPLE":
+          metainfo.addSample(MetaInformation.Sample.builder()
+              .setId((map = parseCompoundValue(value)).get("ID"))
+              .setGenome(map.get("Genome"))
+              .setMixture(map.get("Mixture"))
+              .setDescription(map.get("Description"))
+              .build());
+          break;
+        case "PEDIGREE":
+          MetaInformation.Pedigree.Builder pedigree = MetaInformation.Pedigree.builder();
+          for (Map.Entry<String, String> entry : parseCompoundValue(value).entrySet()) {
+            pedigree.addExtraField(entry.getKey(), entry.getValue());
+          }
+          metainfo.addPedigree(pedigree);
+          break;
+        case "pedigreeDB":
+          metainfo.addPedigreeDB(MetaInformation.PedigreeDB.create(url(value)));
+          break;
+        default:
+          metainfo.addUnparsedLine(MetaInformation.UnparsedMetaInfoLine.create(type, value));
+      }
     }
-    if (isDefined(parts[1])) {
-      record.setPos(Integer.parseInt(parts[1]));
-    }
-    if (isDefined(parts[2])) {
-      record.setId(parts[2]);
-    }
-    if (isDefined(parts[3])) {
-      record.setRef(parts[3]);
-    }
-    if (isDefined(parts[4])) {
-      record.setAlt(parts[4]);
-    }
-    if (isDefined(parts[5])) {
-      record.setQual(Integer.parseInt(parts[5]));
-    }
-    if (isDefined(parts[6])) {
-      record.setFilter(parts[6]);
-    }
-    if (isDefined(parts[7])) {
-      record.setInfo(parts[7]);
-    }
-    if (isDefined(parts[8])) {
-      record.setFormat(parts[8]);
-    }
-    for (int i = 9; i < parts.length; ++i) {
-      record.addSample(parts[i]);
-    }
-    return record.build();
-  }
-
-  private static boolean isDefined(String value) {
-    return !(null == value || ".".equals(value));
+    return metainfo.build();
   }
 
   private static Header parseHeader(Iterator<String> iterator) {
@@ -157,51 +262,6 @@ public class VcfReader implements Closeable {
     throw new IllegalStateException("Empty file");
   }
 
-  private static MetaInformation parseMetaInfo(PeekingIterator<String> iterator) {
-    MetaInformation.Builder metainfo = MetaInformation.builder(getFormat(iterator));
-    while (iterator.hasNext() && iterator.peek().startsWith("##")) {
-      String next = iterator.next();
-      Matcher matcher = METAINFO_LINE_PATTERN.matcher(next);
-      if (!matcher.matches()) {
-        throw new IllegalStateException(String.format("Failed to parse metainfo line: \"%s\"", next));
-      }
-      String type = matcher.group(1);
-      String value = matcher.group(2);
-      switch (type) {
-        case "INFO":
-          metainfo.addInfo(info(value));
-          break;
-        case "FILTER":
-          metainfo.addFilter(filter(value));
-          break;
-        case "FORMAT":
-          metainfo.addFormat(format(value));
-          break;
-        case "ALT":
-          metainfo.addAlt(alt(value));
-          break;
-        case "assembly":
-          metainfo.addAssembly(assembly(value));
-          break;
-        case "contig":
-          metainfo.addContig(contig(value));
-          break;
-        case "SAMPLE":
-          metainfo.addSample(sample(value));
-          break;
-        case "PEDIGREE":
-          metainfo.addPedigree(pedigree(value));
-          break;
-        case "pedigreeDB":
-          metainfo.addPedigreeDB(pedigreeDB(value));
-          break;
-        default:
-          metainfo.addUnparsedLine(MetaInformation.UnparsedMetaInfoLine.create(type, value));
-      }
-    }
-    return metainfo.build();
-  }
-
   private static MetaInformation.FileFormat.Format getFormat(Iterator<String> iterator) {
     if (iterator.hasNext()) {
       String next = iterator.next();
@@ -217,149 +277,42 @@ public class VcfReader implements Closeable {
     throw new IllegalStateException("Empty file");
   }
 
-  private static final Pattern KEY_VALUE_PAIR_PATTERN = Pattern.compile("(\\p{Alnum}+?)=(\"(?:\\\\\"|[^\"])*?\"|[^\"][^,]*?)(,|$)");
-
-  private static MetaInformation.Info info(String value) {
-    Map<String, String> map = parseCompoundValue(value);
-    MetaInformation.Info.Builder builder = MetaInformation.Info.builder()
-        .setId(map.get("ID"))
-        .setNumber(MetaInformation.Number.create(map.get("Number")))
-        .setType(MetaInformation.Info.Type.parse(map.get("Type")))
-        .setDescription(map.get("Description"));
-    Map<String, String> extraFields = Maps.newLinkedHashMap(map);
-    for (String field : MetaInformation.Info.REQUIRED_FIELDS) {
-      extraFields.remove(field);
-    }
-    for (Map.Entry<String, String> entry : extraFields.entrySet()) {
-      builder.addExtraField(entry.getKey(), entry.getValue());
-    }
-    return builder.build();
-  }
-
-  private static MetaInformation.Filter filter(String value) {
-    Map<String, String> map = parseCompoundValue(value);
-    MetaInformation.Filter.Builder builder = MetaInformation.Filter.builder()
-        .setId(map.get("ID"))
-        .setDescription(map.get("Description"));
-    Map<String, String> extraFields = Maps.newLinkedHashMap(map);
-    for (String field : MetaInformation.Filter.REQUIRED_FIELDS) {
-      extraFields.remove(field);
-    }
-    for (Map.Entry<String, String> entry : extraFields.entrySet()) {
-      builder.addExtraField(entry.getKey(), entry.getValue());
-    }
-    return builder.build();
-  }
-
-  private static MetaInformation.Format format(String value) {
-    Map<String, String> map = parseCompoundValue(value);
-    MetaInformation.Format.Builder builder = MetaInformation.Format.builder()
-        .setId(map.get("ID"))
-        .setNumber(MetaInformation.Number.create(map.get("Number")))
-        .setType(MetaInformation.Format.Type.parse(map.get("Type")))
-        .setDescription(map.get("Description"));
-    Map<String, String> extraFields = Maps.newLinkedHashMap(map);
-    for (String field : MetaInformation.Format.REQUIRED_FIELDS) {
-      extraFields.remove(field);
-    }
-    for (Map.Entry<String, String> entry : extraFields.entrySet()) {
-      builder.addExtraField(entry.getKey(), entry.getValue());
-    }
-    return builder.build();
-  }
-
-  private static MetaInformation.Alt alt(String value) {
-    Map<String, String> map = parseCompoundValue(value);
-    MetaInformation.Alt.Builder builder = MetaInformation.Alt.builder()
-        .setId(map.get("ID"))
-        .setDescription(map.get("Description"));
-    Map<String, String> extraFields = Maps.newLinkedHashMap(map);
-    for (String field : MetaInformation.Alt.REQUIRED_FIELDS) {
-      extraFields.remove(field);
-    }
-    for (Map.Entry<String, String> entry : extraFields.entrySet()) {
-      builder.addExtraField(entry.getKey(), entry.getValue());
-    }
-    return builder.build();
-  }
-
-  private static MetaInformation.Assembly assembly(String value) {
-    try {
-      return MetaInformation.Assembly.create(new URL(value));
-    } catch (MalformedURLException e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  private static MetaInformation.Contig contig(String value) {
-    Map<String, String> map = parseCompoundValue(value, false);
-    MetaInformation.Contig.Builder builder = MetaInformation.Contig.builder()
-        .setId(map.get("ID"));
-    Map<String, String> extraFields = Maps.newLinkedHashMap(map);
-    for (String field : MetaInformation.Contig.REQUIRED_FIELDS) {
-      extraFields.remove(field);
-    }
-    for (Map.Entry<String, String> entry : extraFields.entrySet()) {
-      builder.addExtraField(entry.getKey(), entry.getValue());
-    }
-    return builder.build();
-  }
-
-  private static MetaInformation.Sample sample(String value) {
-    Map<String, String> map = parseCompoundValue(value);
-    return MetaInformation.Sample.builder()
-        .setId(map.get("ID"))
-        .setGenome(map.get("Genome"))
-        .setMixture(map.get("Mixture"))
-        .setDescription(map.get("Description"))
-        .build();
-  }
-
-  private static MetaInformation.Pedigree pedigree(String value) {
-    MetaInformation.Pedigree.Builder builder = MetaInformation.Pedigree.builder();
-    for (Map.Entry<String, String> entry : parseCompoundValue(value).entrySet()) {
-      builder.addExtraField(entry.getKey(), entry.getValue());
-    }
-    return builder.build();
-  }
-
-  private static MetaInformation.PedigreeDB pedigreeDB(String value) {
-    try {
-      return MetaInformation.PedigreeDB.create(new URL(value));
-    } catch (MalformedURLException e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
   private static Map<String, String> parseCompoundValue(String value) {
     return parseCompoundValue(value, true);
   }
 
-  private static Map<String, String> parseCompoundValue(String value, boolean unescape) {
-    if (value.startsWith("<") && value.endsWith(">")) {
+  private static Iterable<Map.Entry<String, String>> getExtraFields(Map<String, String> map, Set<String> requiredFields) {
+    Map<String, String> extraFields = Maps.newLinkedHashMap(map);
+    for (String field : MetaInformation.Info.REQUIRED_FIELDS) {
+      extraFields.remove(field);
+    }
+    return extraFields.entrySet();
+  }
+
+  private static URL url(String url) {
+    try {
+      return new URL(url);
+    } catch (MalformedURLException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private static Map<String, String> parseCompoundValue(String input, boolean unescape) {
+    if (input.startsWith("<") && input.endsWith(">")) {
       ImmutableMap.Builder<String, String> map = ImmutableMap.builder();
-      for (Matcher matcher = KEY_VALUE_PAIR_PATTERN.matcher(value.substring(1, value.length() - 1)); matcher.find();) {
-        String group2 = matcher.group(2);
-        map.put(matcher.group(1), unescape ? unescape(group2) : group2);
+      for (
+          Matcher matcher = KEY_VALUE_PAIR_PATTERN.matcher(input.substring(1, input.length() - 1));
+          matcher.find(); ) {
+        String value = matcher.group(2);
+        map.put(matcher.group(1), unescape && value.startsWith("\"") && value.endsWith("\"")
+            ? UNESCAPE_PATTERN.matcher(value.substring(1, value.length() - 1)).replaceAll("$1")
+            : value);
         if (matcher.group(3).isEmpty()) {
           break;
         }
       }
       return map.build();
     }
-    throw new IllegalStateException(String.format("Malformed value: \"%s\"", value));
-  }
-
-  private static final Pattern UNESCAPE_PATTERN = Pattern.compile("\\\\(\\\\|\")");
-
-  private static String unescape(String value) {
-    return value.startsWith("\"") && value.endsWith("\"")
-        ? UNESCAPE_PATTERN.matcher(value.substring(1, value.length() - 1)).replaceAll("$1")
-        : value;
-  }
-
-  @Override
-  public void close() throws IOException {
-    in.close();
+    throw new IllegalStateException(String.format("Malformed value: \"%s\"", input));
   }
 }
