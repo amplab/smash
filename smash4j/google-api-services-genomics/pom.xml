@@ -10,11 +10,20 @@
     </parent>
     <groupId>com.google.apis</groupId>
     <artifactId>google-api-services-genomics</artifactId>
+    <version>1.18.0-rc</version>
     <dependencies>
         <dependency>
             <groupId>com.google.api-client</groupId>
             <artifactId>google-api-client</artifactId>
-            <version>1.18.0-rc</version>
+            <version>${google.api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.http-client</groupId>
+            <artifactId>google-http-client-jackson2</artifactId>
+            <version>${google.api.version}</version>
         </dependency>
     </dependencies>
+    <properties>
+        <google.api.version>1.18.0-rc</google.api.version>
+    </properties>
 </project>
