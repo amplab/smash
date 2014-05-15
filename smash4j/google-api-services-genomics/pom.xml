@@ -1,0 +1,21 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>edu.berkeley.cs.amplab</groupId>
+        <artifactId>smash4j</artifactId>
+        <version>0.1</version>
+    </parent>
+    <groupId>com.google.apis</groupId>
+    <artifactId>google-api-services-genomics</artifactId>
+    <version>v1beta-rev20140512-1.19.0-rc-SNAPSHOT</version>
+    <dependencies>
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>${google-api-client.version}</version>
+        </dependency>
+    </dependencies>
+    <properties>
+        <google-api-client.version>1.18.0-rc</google-api-client.version>
+    </properties>
+</project>

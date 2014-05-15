@@ -6,10 +6,11 @@
     <groupId>edu.berkeley.cs.amplab</groupId>
     <artifactId>smash4j</artifactId>
     <packaging>pom</packaging>
-    <version>${smash4j.version}</version>
+    <version>0.1</version>
     <modules>
         <module>smash4j-benchmarker</module>
         <module>vcfparser</module>
+        <module>google-api-services-genomics</module>
     </modules>
     <build>
         <plugins>
@@ -43,6 +44,5 @@
         <junit.version>4.11</junit.version>
         <maven-compiler-plugin.version>3.1</maven-compiler-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <smash4j.version>0.1</smash4j.version>
     </properties>
 </project>

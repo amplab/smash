@@ -6,23 +6,30 @@
     <parent>
         <groupId>edu.berkeley.cs.amplab</groupId>
         <artifactId>smash4j</artifactId>
-        <version>${smash4j.version}</version>
+        <version>0.1</version>
     </parent>
     <artifactId>smash4j-benchmarker</artifactId>
-    <version>${smash4j.version}</version>
+    <version>0.1</version>
     <dependencies>
         <dependency>
             <groupId>edu.berkeley.cs.amplab</groupId>
             <artifactId>vcfparser</artifactId>
-            <version>${smash4j.version}</version>
+            <version>${vcfparser.version}</version>
         </dependency>
         <dependency>
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
             <version>${jcommander.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-genomics</artifactId>
+            <version>${google-api-services-genomics.version}</version>
+        </dependency>
     </dependencies>
     <properties>
         <jcommander.version>1.30</jcommander.version>
+        <google-api-services-genomics.version>v1beta-rev20140512-1.19.0-rc-SNAPSHOT</google-api-services-genomics.version>
+        <vcfparser.version>0.1</vcfparser.version>
     </properties>
 </project>
