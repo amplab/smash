@@ -8,41 +8,32 @@
     <packaging>pom</packaging>
     <version>0.1</version>
     <modules>
+        <module>google-api-services-genomics</module>
         <module>smash4j-benchmarker</module>
         <module>vcfparser</module>
-        <module>google-api-services-genomics</module>
     </modules>
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
+                <version>3.1</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <source>1.7</source>
+                    <target>1.7</target>
                 </configuration>
             </plugin>
         </plugins>
     </build>
     <dependencies>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
+            <version>4.11</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
     <properties>
-        <guava.version>17.0</guava.version>
-        <java.version>1.7</java.version>
-        <junit.version>4.11</junit.version>
-        <maven-compiler-plugin.version>3.1</maven-compiler-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 </project>
