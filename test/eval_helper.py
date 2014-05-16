@@ -124,6 +124,52 @@ chr2   4   .       C     T       20      PASS    .       GT      1/1\n
         # TODO test known false positive functionality
         # TODO test genotype concordance
         pass
+    def testChromEvaluateVariantsSV(self):
+        #NB: SVs aren't rescued, just checked for within breakpoint tolerance
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   6   .       C     CGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGAAAAA       20      PASS    .       GT      0/1
+"""
+        #SV with exact position, exact allele match
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   6   .       C     CGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGAAAAA       20      PASS    .       GT      0/1
+"""
+        true_vars = vcf_to_ChromVariants(true_str,'chr1')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr1')
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SV_INS],1)
+        #SV with exact position, difference allele match
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   6   .       C     CGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGAAAAATGC       20      PASS    .       GT      0/1
+"""
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr1')
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SV_INS],1)
+        #SV with position within tolerance, exact allele match
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   4   .       C     CGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGAAAAA       20      PASS    .       GT      0/1
+"""
+
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr1')
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SV_INS],1)
+        #SV outside of tolerance
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   110   .       C     CGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGAAAAA       20      PASS    .       GT      0/1
+"""
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr1')
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.SV_INS],0)
+
 
     def testRescueChromEvalVariants(self):
         pred_str = """##fileformat=VCFv4.0\n
