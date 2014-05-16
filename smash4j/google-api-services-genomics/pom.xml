@@ -22,6 +22,16 @@
             <artifactId>google-http-client-jackson2</artifactId>
             <version>${google.api.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-java6</artifactId>
+            <version>${google.api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-jetty</artifactId>
+            <version>${google.api.version}</version>
+        </dependency>
     </dependencies>
     <properties>
         <google.api.version>1.18.0-rc</google.api.version>
