@@ -202,30 +202,6 @@ chr19   89272   .       C       T       20      PASS    .       GT      0/1
         self.falseNegative(stat_reporter,VARIANT_TYPE.SV_INS)
         self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
 
-    def test_bad_sv_ins(self):
-        pred_str = """##fileformat=VCFv4.0\n
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
-##source=TVsim\n
-#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
-chr19   88013   .       CTT     C       20      PASS    .       GT      0/1\n
-chr19   89272   .       C       T       20      PASS    .       GT      0/1\n
-chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCTTTTATGCCACCTGGATGGACCTCACAGGCACACTGCTTCATGAGAGAG 20      PASS    .       GT      1/1
-"""
-
-        pred_io = StringIO.StringIO(pred_str)
-        pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-
-        sv_eps = 100
-
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
-
-        self.truePositive(stat_reporter,VARIANT_TYPE.SNP)
-        self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
-        self.truePositive(stat_reporter,VARIANT_TYPE.INDEL_DEL)
-        self.badCallAtTrueSite(stat_reporter,VARIANT_TYPE.SV_INS)
-        self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
-
     def test_sv_snp_collision(self):
         pred_str = """##fileformat=VCFv4.0\n
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n

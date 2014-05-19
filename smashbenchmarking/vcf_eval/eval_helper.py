@@ -89,6 +89,8 @@ def var_match_at_loc(true_variants,pred_variants,loc):
         return variants.all_variants[loc]
     true_var = get_var(true_variants)
     pred_var = get_var(pred_variants)
+    if true_var.var_type.startswith("SV"):
+        return true_var.var_type == pred_var.var_type
     if ( true_var.var_type != pred_var.var_type ):
         return False
     return true_var.alt == pred_var.alt
