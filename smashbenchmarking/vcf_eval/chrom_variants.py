@@ -113,7 +113,7 @@ class ChromVariants:
   def _add_variant(self,var):
     if ( var.pos in self.all_variants ):
         #raise Exception("Two variants have the exact same start position: "+ str(self.all_variants[var.pos]) + 'and' + str(var))
-        print("Two variants have the exact same start position: "+ str(self.all_variants[var.pos]) + ' and ' + str(var)+". Variant excluded.",file=sys.stderr )
+        print("Variant " + self.chrom + " " + str(var) + " will not be evaluated; " + str(self.all_variants[var.pos]) + " already at that start position",file=sys.stderr)
         return
     # careful as adding a variant requires a later sorting of all the positions
     self._var_locations[var.var_type].append(var.pos)
