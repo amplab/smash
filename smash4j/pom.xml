@@ -8,7 +8,6 @@
     <packaging>pom</packaging>
     <version>0.1</version>
     <modules>
-        <module>google-api-services-genomics</module>
         <module>smash4j-benchmarker</module>
         <module>vcfparser</module>
     </modules>

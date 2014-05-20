@@ -13,7 +13,7 @@
         <dependency>
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-genomics</artifactId>
-            <version>1.18.0-rc</version>
+            <version>v1beta-rev2-1.18.0-rc</version>
         </dependency>
         <dependency>
             <groupId>edu.berkeley.cs.amplab</groupId>
@@ -24,6 +24,26 @@
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
             <version>1.35</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>1.18.0-rc</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.http-client</groupId>
+            <artifactId>google-http-client-jackson2</artifactId>
+            <version>1.18.0-rc</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-java6</artifactId>
+            <version>1.18.0-rc</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-jetty</artifactId>
+            <version>1.18.0-rc</version>
         </dependency>
     </dependencies>
 </project>
