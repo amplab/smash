@@ -88,7 +88,11 @@ left_slides = []
 
 def show_slides(slides):
     nonzero_slides = filter(lambda s: s != 0, slides)
-    print("Average slide:", mean(slides), file=sys.stderr)
+    if len(slides) == 0:
+        meanslides = 0
+    else:
+        meanslides = mean(slides)
+    print("Average slide:", meanslides, file=sys.stderr)
     print("Fraction of variants that slide:",
           float(len(nonzero_slides)) / (1+len(slides)), file=sys.stderr)
     if nonzero_slides:
@@ -177,7 +181,8 @@ def main():
     cleanOnly = len(sys.argv) > 4 and sys.argv[4] == "cleanonly"
     vcf_writer = parsers.vcfwriter.VCFWriter(ref, person, sys.stdout)
     normalize(Genome(ref,lambda t: t.split()[0]), vcf_reader, vcf_writer, max_indel_length, cleanOnly)
-    show_slides(left_slides)
+    if not cleanOnly:
+        show_slides(left_slides)
 
 
 if __name__ == '__main__':
