@@ -43,7 +43,8 @@ from __future__ import print_function
 
 import sys
 
-from numpy import mean
+from numpy import mean,histogram
+from collections import OrderedDict
 
 import vcf
 
@@ -51,6 +52,25 @@ import parsers.vcfwriter
 from parsers.genome import Genome
 from vcf_eval.chrom_variants import is_sv
 #from vcf_eval.normalize import find_redundancy
+
+normalize_header = """##fileformat=VCFv4.0
+##source=VCFWriter
+##INFO=<ID=OP,Number=1,Type=Integer,Description="Original position before normalization">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM  POS ID  REF ALT QUAL    FILTER  INFO    FORMAT  """
+
+#TODO: probably move info methods to parsers.util?
+def infoToStr(info):
+    if len(info) == 0:
+        return '.'
+    else:
+        return ";".join(map(lambda (k,v): str(k)+"="+str(v), info.iteritems()))
+
+def addInfoEntry(info,key,value):
+    if type(info) == dict:
+        return OrderedDict({key:value})
+    else:
+        return info.update({key:value})
 
 def find_redundancy(strings):
     """Return the length of the longest common proper suffix.
@@ -80,7 +100,7 @@ def genotype(vcfrecord):
 
 def write(record, writer):
     return writer.write_record(record.CHROM, record.POS, '.',
-                               record.REF, ','.join(map(lambda a: str(a),record.ALT)), genotype(record)) # TODO: more gtypes.
+                               record.REF, ','.join(map(lambda a: str(a),record.ALT)), genotype(record),infoToStr(record.INFO)) # TODO: more gtypes.
 
 
 left_slides = []
@@ -133,6 +153,7 @@ def keep_variant(record,maxIndelLen=50):
     return True
 
 def normalize_variant(record,ref_genome,cleanOnly=False):
+    orig_pos = record.POS
     pos = record.POS - 1 # left normalize assumes 0-based coord
     contig = record.CHROM
     record.REF = str(record.REF.upper())
@@ -152,6 +173,8 @@ def normalize_variant(record,ref_genome,cleanOnly=False):
     record.POS = pos + 1 # restore to 1-based coord
     record.REF = ref # string
     record.ALT = map(lambda a: vcf.model._Substitution(a),alts) # for some reason alts are not strings in PyVCF?
+    if orig_pos != record.POS:
+        record.INFO = addInfoEntry({},'OP',orig_pos)
     return record
 
 class NormalizeIterator:
@@ -179,7 +202,10 @@ def main():
     if len(sys.argv) > 3:
         max_indel_length = sys.argv[3]
     cleanOnly = len(sys.argv) > 4 and sys.argv[4] == "cleanonly"
-    vcf_writer = parsers.vcfwriter.VCFWriter(ref, person, sys.stdout)
+    if cleanOnly:
+        vcf_writer = parsers.vcfwriter.VCFWriter(ref, person, sys.stdout)
+    else:
+        vcf_writer = parsers.vcfwriter.VCFWriter(ref,person,sys.stdout,normalize_header)
     normalize(Genome(ref,lambda t: t.split()[0]), vcf_reader, vcf_writer, max_indel_length, cleanOnly)
     if not cleanOnly:
         show_slides(left_slides)
