@@ -20,7 +20,9 @@ import java.io.Reader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -123,15 +125,15 @@ public class VcfReader {
       record.setFilters(Arrays.asList(filters.split(";")));
     }
     if (isDefined(info)) {
-      ImmutableMap.Builder<String, String> map = ImmutableMap.builder();
+      ImmutableMap.Builder<String, List<String>> map = ImmutableMap.builder();
       for (Matcher matcher = INFO_PATTERN.matcher(info); matcher.find();) {
         String[] infoParts = matcher.group(1).split("=");
         switch (infoParts.length) {
           case 1:
-            map.put(infoParts[0], "");
+            map.put(infoParts[0], Collections.<String>emptyList());
             break;
           case 2:
-            map.put(infoParts[0], infoParts[1]);
+            map.put(infoParts[0], Arrays.asList(infoParts[1].split(",")));
             break;
           default:
             throw new IllegalStateException(

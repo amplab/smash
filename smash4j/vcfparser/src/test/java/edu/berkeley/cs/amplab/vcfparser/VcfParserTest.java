@@ -147,7 +147,12 @@ public class VcfParserTest {
             .setAlt(Collections.singletonList("A"))
             .setQual(29)
             .setFilters(Collections.singletonList("PASS"))
-            .setInfo(ImmutableMap.of("NS", "3", "DP", "14", "AF", "0.5", "DB", "", "H2", ""))
+            .setInfo(ImmutableMap.of(
+                "NS", Collections.singletonList("3"),
+                "DP", Collections.singletonList("14"),
+                "AF", Collections.singletonList("0.5"),
+                "DB", Collections.<String>emptyList(),
+                "H2", Collections.<String>emptyList()))
             .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
             .addSample(Arrays.asList("0|0", "48", "1", "51,51"))
             .addSample(Arrays.asList("1|0", "48", "8", "51,51"))
@@ -160,7 +165,10 @@ public class VcfParserTest {
             .setAlt(Collections.singletonList("A"))
             .setQual(3)
             .setFilters(Collections.singletonList("q10"))
-            .setInfo(ImmutableMap.of("NS", "3", "DP", "11", "AF", "0.017"))
+            .setInfo(ImmutableMap.of(
+                "NS", Collections.singletonList("3"),
+                "DP", Collections.singletonList("11"),
+                "AF", Collections.singletonList("0.017")))
             .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
             .addSample(Arrays.asList("0|0", "49", "3", "58,50"))
             .addSample(Arrays.asList("0|1", "3", "5", "65,3"))
@@ -174,7 +182,12 @@ public class VcfParserTest {
             .setAlt(Arrays.asList("G", "T"))
             .setQual(67)
             .setFilters(Collections.singletonList("PASS"))
-            .setInfo(ImmutableMap.of("NS", "2", "DP", "10", "AF", "0.333,0.667", "AA", "T", "DB", ""))
+            .setInfo(ImmutableMap.of(
+                "NS", Collections.singletonList("2"),
+                "DP", Collections.singletonList("10"),
+                "AF", Arrays.asList("0.333", "0.667"),
+                "AA", Collections.singletonList("T"),
+                "DB", Collections.<String>emptyList()))
             .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
             .addSample(Arrays.asList("1|2", "21", "6", "23,27"))
             .addSample(Arrays.asList("2|1", "2", "0", "18,2"))
@@ -186,7 +199,10 @@ public class VcfParserTest {
             .setRef("T")
             .setQual(47)
             .setFilters(Collections.singletonList("PASS"))
-            .setInfo(ImmutableMap.of("NS", "3", "DP", "13", "AA", "T"))
+            .setInfo(ImmutableMap.of(
+                "NS", Collections.singletonList("3"),
+                "DP", Collections.singletonList("13"),
+                "AA", Collections.singletonList("T")))
             .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
             .addSample(Arrays.asList("0|0", "54", "7", "56,60"))
             .addSample(Arrays.asList("0|0", "48", "4", "51,51"))
@@ -200,7 +216,10 @@ public class VcfParserTest {
             .setAlt(Arrays.asList("G", "GTCT"))
             .setQual(50)
             .setFilters(Collections.singletonList("PASS"))
-            .setInfo(ImmutableMap.of("NS", "3", "DP", "9", "AA", "G"))
+            .setInfo(ImmutableMap.of(
+                "NS", Collections.singletonList("3"),
+                "DP", Collections.singletonList("9"),
+                "AA", Collections.singletonList("G")))
             .setFormat(Arrays.asList("GT", "GQ", "DP"))
             .addSample(Arrays.asList("0/1", "35", "4"))
             .addSample(Arrays.asList("0/2", "17", "2"))

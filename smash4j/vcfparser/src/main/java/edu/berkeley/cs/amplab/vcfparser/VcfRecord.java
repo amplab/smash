@@ -19,7 +19,7 @@ public final class VcfRecord {
     private Optional<List<String>> filters = Optional.absent();
     private Optional<List<String>> format = Optional.absent();
     private Optional<List<String>> ids = Optional.absent();
-    private Optional<Map<String, String>> info = Optional.absent();
+    private Optional<Map<String, List<String>>> info = Optional.absent();
     private Optional<Integer> pos = Optional.absent();
     private Optional<Integer> qual = Optional.absent();
     private Optional<String> ref = Optional.absent();
@@ -35,7 +35,7 @@ public final class VcfRecord {
         List<String> alt,
         Integer qual,
         List<String> filters,
-        Map<String, String> info,
+        Map<String, List<String>> info,
         List<String> format,
         List<List<String>> samples) {
       setChrom(chrom);
@@ -87,7 +87,7 @@ public final class VcfRecord {
       return this;
     }
 
-    public Builder setInfo(Map<String, String> info) {
+    public Builder setInfo(Map<String, List<String>> info) {
       this.info = Optional.fromNullable(info);
       return this;
     }
@@ -131,7 +131,7 @@ public final class VcfRecord {
   private final List<String> filters;
   private final List<String> format;
   private final List<String> ids;
-  private final Map<String, String> info;
+  private final Map<String, List<String>> info;
   private final Integer pos;
   private final Integer qual;
   private final String ref;
@@ -145,7 +145,7 @@ public final class VcfRecord {
       List<String> alt,
       Integer qual,
       List<String> filters,
-      Map<String, String> info,
+      Map<String, List<String>> info,
       List<String> format,
       List<List<String>> samples) {
     this.chrom = chrom;
@@ -207,7 +207,7 @@ public final class VcfRecord {
     return filters;
   }
 
-  public Map<String, String> info() {
+  public Map<String, List<String>> info() {
     return info;
   }
 
@@ -273,19 +273,19 @@ public final class VcfRecord {
     return null == list ? "." : Joiner.on(separator).join(list);
   }
 
-  private static String toString(Map<String, String> map) {
+  private static String toString(Map<String, List<String>> map) {
     if (null != map) {
       StringBuilder builder = new StringBuilder();
       for (
-          Iterator<Map.Entry<String, String>> iterator = map.entrySet().iterator();
+          Iterator<Map.Entry<String, List<String>>> iterator = map.entrySet().iterator();
           iterator.hasNext();
           builder.append(iterator.hasNext() ? ";" : "")) {
-        Map.Entry<String, String> entry = iterator.next();
-        String value = entry.getValue();
+        Map.Entry<String, List<String>> entry = iterator.next();
+        List<String> value = entry.getValue();
         builder.append(String.format(
             "%s%s",
             entry.getKey(),
-            "".equals(value) ? "" : String.format("=%s", value)));
+            value.isEmpty() ? "" : String.format("=%s", toString(value, ','))));
       }
       return builder.toString();
     }
