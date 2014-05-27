@@ -61,17 +61,17 @@ class VCFWriter:
     (Note that the VCF format itself is "base-counted, one-start".)
     """
     
-    def __init__(self, reference_fasta, person, output):
+    def __init__(self, reference_fasta, person, output,header=_anon_header):
         """Given a reference, a person, and a file-like object for output.
 
         Ideally the reference would be encoded in the FASTA.
         """
         self._ref_genome = genome.Genome(reference_fasta)
         self._output = output
-        print(_anon_header + person, file=self._output)
+        print(header + person, file=self._output)
         self._person = person
 
-    def write_record(self, CHROM, POS, ID, REF, ALT, gtype):
+    def write_record(self, CHROM, POS, ID, REF, ALT, gtype,INFO='.'):
         """Write a fully specified VCF record.
 
         WARNING: 'REF' isn't checked against the reference genome.
@@ -84,7 +84,7 @@ class VCFWriter:
             QUAL = 20               # Default 1/100 error probability.
             FILTER = 'PASS'
             FORMAT = 'GT'
-            print(CHROM, POS, ID, REF, ALT, QUAL, FILTER, '.', FORMAT, gtype,
+            print(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, gtype,
                   sep='\t', file=self._output)
         return write
 

@@ -35,6 +35,7 @@ from __future__ import division, print_function
 
 import os
 import vcf
+import csv
 import sys
 import argparse
 
@@ -43,6 +44,20 @@ from vcf_eval.variants import Variants,evaluate_variants,output_errors
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
 from normalize_vcf import NormalizeIterator
+
+# this needs to move to another class
+tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN']
+
+def tsv_row(variant_name,stats,err):
+    return [variant_name,
+    stats['num_true'],
+    stats['num_pred'],
+    interval(*bound_precision(stats['good_predictions'],stats['false_positives'],err)),
+    interval(*bound_recall(stats['good_predictions'],stats['false_negatives'],err)),
+    stats['good_predictions'],
+    stats['false_negatives'],
+    stats['false_positives']
+    ]
 
 def nonzero_float(n):
     return float(n) if n != 0 else 1.0
@@ -182,6 +197,8 @@ def parse_args(params):
             false-negatives and false-positives""")
     parser.add_argument("--normalize",action="store_true",
             help="Optionally normalize variants before evaluating them; requires reference file")
+    parser.add_argument("--output",action="store",
+            help="Specify output type: plain text or TSV", default="text")
     args = parser.parse_args(params)
     return args
 
@@ -254,22 +271,33 @@ def main(params):
         known_fp_vars
         )
 
-    snp_stats = stat_reporter(VARIANT_TYPE.SNP)
-    print_snp_stats(snp_stats, snp_err, known_fp_vars)
-    def print_sv(var_type, description):
-        assert 'INDEL' in var_type or 'SV' in var_type
-        err = indel_err if 'INDEL' in var_type else sv_err
-        print_sv_stats(description, stat_reporter(var_type), err)
-
-    def print_oth(var_type, description):
-        print_sv_other_results(description, stat_reporter(var_type)['num_true'], stat_reporter(var_type)['num_pred'])
-
-    print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
-    print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
-    print_oth(VARIANT_TYPE.INDEL_OTH, 'INDEL OTHER')
-    print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION'),
-    print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),
-    print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
+    if args.output == "tsv":
+        tsvwriter = csv.writer(sys.stdout, delimiter='\t')
+        tsvwriter.writerow(tsv_header)
+        tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err))
+        tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),indel_err))
+        tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),indel_err))
+        tsvwriter.writerow(tsv_row("Indel Other",stat_reporter(VARIANT_TYPE.INDEL_OTH),indel_err))
+        tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),sv_err))
+        tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),sv_err))
+        tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),sv_err))
+    else:
+        snp_stats = stat_reporter(VARIANT_TYPE.SNP)
+        print_snp_stats(snp_stats, snp_err, known_fp_vars)
+        def print_sv(var_type, description):
+            assert 'INDEL' in var_type or 'SV' in var_type
+            err = indel_err if 'INDEL' in var_type else sv_err
+            print_sv_stats(description, stat_reporter(var_type), err)
+    
+        def print_oth(var_type, description):
+            print_sv_other_results(description, stat_reporter(var_type)['num_true'], stat_reporter(var_type)['num_pred'])
+    
+        print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
+        print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
+        print_oth(VARIANT_TYPE.INDEL_OTH, 'INDEL OTHER')
+        print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION'),
+        print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),
+        print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
 
     if args.err_vcf :
         output_errors(errors,ref.keys() if ref != None else None, open(args.err_vcf,'w'))
