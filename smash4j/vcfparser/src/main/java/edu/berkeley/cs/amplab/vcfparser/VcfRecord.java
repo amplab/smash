@@ -5,48 +5,51 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public final class VcfRecord {
 
   public static final class Builder {
 
-    private Optional<String> alt = Optional.absent();
+    private Optional<List<String>> alt = Optional.absent();
     private Optional<String> chrom = Optional.absent();
-    private Optional<String> filter = Optional.absent();
-    private Optional<String> format = Optional.absent();
-    private Optional<String> id = Optional.absent();
-    private Optional<String> info = Optional.absent();
+    private Optional<List<String>> filters = Optional.absent();
+    private Optional<List<String>> format = Optional.absent();
+    private Optional<List<String>> ids = Optional.absent();
+    private Optional<Map<String, String>> info = Optional.absent();
     private Optional<Integer> pos = Optional.absent();
     private Optional<Integer> qual = Optional.absent();
     private Optional<String> ref = Optional.absent();
-    private final ImmutableList.Builder<String> samples = ImmutableList.builder();
+    private final ImmutableList.Builder<List<String>> samples = ImmutableList.builder();
 
     private Builder() {}
 
     private Builder(
         String chrom,
         Integer pos,
-        String id,
+        List<String> ids,
         String ref,
-        String alt,
+        List<String> alt,
         Integer qual,
-        String filter,
-        String info,
-        String format,
-        List<String> samples) {
+        List<String> filters,
+        Map<String, String> info,
+        List<String> format,
+        List<List<String>> samples) {
       setChrom(chrom);
       setPos(pos);
-      setId(id);
+      setIds(ids);
       setRef(ref);
       setAlt(alt);
       setQual(qual);
-      setFilter(filter);
+      setFilters(filters);
       setInfo(info);
       setFormat(format);
-      addSamples(samples);
+      for (List<String> sample : samples) {
+        addSample(sample);
+      }
     }
 
     public Builder setChrom(String chrom) {
@@ -59,8 +62,8 @@ public final class VcfRecord {
       return this;
     }
 
-    public Builder setId(String id) {
-      this.id = Optional.fromNullable(id);
+    public Builder setIds(List<String> ids) {
+      this.ids = Optional.fromNullable(ids);
       return this;
     }
 
@@ -69,7 +72,7 @@ public final class VcfRecord {
       return this;
     }
 
-    public Builder setAlt(String alt) {
+    public Builder setAlt(List<String> alt) {
       this.alt = Optional.fromNullable(alt);
       return this;
     }
@@ -79,48 +82,40 @@ public final class VcfRecord {
       return this;
     }
 
-    public Builder setFilter(String filter) {
-      this.filter = Optional.fromNullable(filter);
+    public Builder setFilters(List<String> filters) {
+      this.filters = Optional.fromNullable(filters);
       return this;
     }
 
-    public Builder setInfo(String info) {
+    public Builder setInfo(Map<String, String> info) {
       this.info = Optional.fromNullable(info);
       return this;
     }
 
-    public Builder setFormat(String format) {
+    public Builder setFormat(List<String> format) {
       this.format = Optional.fromNullable(format);
       return this;
     }
 
-    public Builder addSamples(Iterable<String> samples) {
-      this.samples.addAll(samples);
+    public Builder addSample(List<String> sample) {
+      this.samples.add(sample);
       return this;
     }
 
-    public Builder addSample(String sample) {
-      return addSamples(sample);
-    }
-
-    public Builder addSamples(String... samples) {
-      return addSamples(Arrays.asList(samples));
-    }
-
     public VcfRecord build() {
-      String format = this.format.orNull();
-      List<String> samples = this.samples.build();
+      List<String> format = this.format.orNull();
+      List<List<String>> samples = this.samples.build();
       Preconditions.checkState(
           null == format == samples.isEmpty(),
           "If there are no samples, format can't be set. If there are any samples, format must be set");
       return new VcfRecord(
           chrom.orNull(),
           pos.orNull(),
-          id.orNull(),
+          ids.orNull(),
           ref.orNull(),
           alt.orNull(),
           qual.orNull(),
-          filter.orNull(),
+          filters.orNull(),
           info.orNull(),
           format,
           samples);
@@ -130,34 +125,36 @@ public final class VcfRecord {
   public static Builder builder() {
     return new Builder();
   }
-  private final String alt;
+
+  private final List<String> alt;
   private final String chrom;
-  private final String filter;
-  private final String format;
-  private final String id;
-  private final String info;
+  private final List<String> filters;
+  private final List<String> format;
+  private final List<String> ids;
+  private final Map<String, String> info;
   private final Integer pos;
   private final Integer qual;
   private final String ref;
-  private final List<String> samples;
+  private final List<List<String>> samples;
+
   private VcfRecord(
       String chrom,
       Integer pos,
-      String id,
+      List<String> ids,
       String ref,
-      String alt,
+      List<String> alt,
       Integer qual,
-      String filter,
-      String info,
-      String format,
-      List<String> samples) {
+      List<String> filters,
+      Map<String, String> info,
+      List<String> format,
+      List<List<String>> samples) {
     this.chrom = chrom;
     this.pos = pos;
-    this.id = id;
+    this.ids = ids;
     this.ref = ref;
     this.alt = alt;
     this.qual = qual;
-    this.filter = filter;
+    this.filters = filters;
     this.info = info;
     this.format = format;
     this.samples = samples;
@@ -170,11 +167,11 @@ public final class VcfRecord {
       VcfRecord rhs = (VcfRecord) obj;
       return Objects.equals(chrom(), rhs.chrom())
           && Objects.equals(pos(), rhs.pos())
-          && Objects.equals(id(), rhs.id())
+          && Objects.equals(ids(), rhs.ids())
           && Objects.equals(ref(), rhs.ref())
           && Objects.equals(alt(), rhs.alt())
           && Objects.equals(qual(), rhs.qual())
-          && Objects.equals(filter(), rhs.filter())
+          && Objects.equals(filters(), rhs.filters())
           && Objects.equals(info(), rhs.info())
           && Objects.equals(format(), rhs.format())
           && Objects.equals(samples(), rhs.samples());
@@ -190,15 +187,15 @@ public final class VcfRecord {
     return pos;
   }
 
-  public String id() {
-    return id;
+  public List<String> ids() {
+    return ids;
   }
 
   public String ref() {
     return ref;
   }
 
-  public String alt() {
+  public List<String> alt() {
     return alt;
   }
 
@@ -206,19 +203,19 @@ public final class VcfRecord {
     return qual;
   }
 
-  public String filter() {
-    return filter;
+  public List<String> filters() {
+    return filters;
   }
 
-  public String info() {
+  public Map<String, String> info() {
     return info;
   }
 
-  public String format() {
+  public List<String> format() {
     return format;
   }
 
-  public List<String> samples() {
+  public List<List<String>> samples() {
     return samples;
   }
 
@@ -227,11 +224,11 @@ public final class VcfRecord {
     return Objects.hash(
         chrom(),
         pos(),
-        id(),
+        ids(),
         ref(),
         alt(),
         qual(),
-        filter(),
+        filters(),
         info(),
         format(),
         samples());
@@ -241,11 +238,11 @@ public final class VcfRecord {
     return new Builder(
         chrom(),
         pos(),
-        id(),
+        ids(),
         ref(),
         alt(),
         qual(),
-        filter(),
+        filters(),
         info(),
         format(),
         samples());
@@ -253,23 +250,57 @@ public final class VcfRecord {
 
   @Override
   public String toString() {
-    Optional<String> format = Optional.fromNullable(format());
-    List<String> samples = samples();
+    Optional<List<String>> format = Optional.fromNullable(format());
     return String.format(
         "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s%s%s",
         toString(chrom()),
         toString(pos()),
-        toString(id()),
+        toString(ids(), ';'),
         toString(ref()),
-        toString(alt()),
+        toString(alt(), ','),
         toString(qual()),
-        toString(filter()),
+        toString(filters(), ';'),
         toString(info()),
-        format.isPresent() ? String.format("\t%s", format.get()) : "",
-        samples.isEmpty() ? "" : String.format("\t%s", Joiner.on('\t').join(samples)));
+        format.isPresent() ? String.format("\t%s", Joiner.on(':').join(format.get())) : "",
+        toString(samples()));
   }
 
   private static String toString(Object object) {
     return null == object ? "." : Objects.toString(object);
+  }
+
+  private static String toString(List<String> list, char separator) {
+    return null == list ? "." : Joiner.on(separator).join(list);
+  }
+
+  private static String toString(Map<String, String> map) {
+    if (null != map) {
+      StringBuilder builder = new StringBuilder();
+      for (
+          Iterator<Map.Entry<String, String>> iterator = map.entrySet().iterator();
+          iterator.hasNext();
+          builder.append(iterator.hasNext() ? ";" : "")) {
+        Map.Entry<String, String> entry = iterator.next();
+        String value = entry.getValue();
+        builder.append(String.format(
+            "%s%s",
+            entry.getKey(),
+            "".equals(value) ? "" : String.format("=%s", value)));
+      }
+      return builder.toString();
+    }
+    return ".";
+  }
+
+  private static String toString(List<List<String>> samples) {
+    if (!samples.isEmpty()) {
+      StringBuilder builder = new StringBuilder("\t");
+      for (
+          Iterator<List<String>> iterator = samples.iterator();
+          iterator.hasNext();
+          builder.append(Joiner.on(':').join(iterator.next())).append(iterator.hasNext() ? "\t" : ""));
+      return builder.toString();
+    }
+    return "";
   }
 }

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -140,71 +142,70 @@ public class VcfParserTest {
         VcfRecord.builder()
             .setChrom("20")
             .setPos(14370)
-            .setId("rs6054257")
+            .setIds(Collections.singletonList("rs6054257"))
             .setRef("G")
-            .setAlt("A")
+            .setAlt(Collections.singletonList("A"))
             .setQual(29)
-            .setFilter("PASS")
-            .setInfo("NS=3;DP=14;AF=0.5;DB;H2")
-            .setFormat("GT:GQ:DP:HQ")
-            .addSample("0|0:48:1:51,51")
-            .addSample("1|0:48:8:51,51")
-            .addSample("1/1:43:5:.,.")
+            .setFilters(Collections.singletonList("PASS"))
+            .setInfo(ImmutableMap.of("NS", "3", "DP", "14", "AF", "0.5", "DB", "", "H2", ""))
+            .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
+            .addSample(Arrays.asList("0|0", "48", "1", "51,51"))
+            .addSample(Arrays.asList("1|0", "48", "8", "51,51"))
+            .addSample(Arrays.asList("1/1", "43", "5", ".,."))
             .build(),
         VcfRecord.builder()
             .setChrom("20")
             .setPos(17330)
             .setRef("T")
-            .setAlt("A")
+            .setAlt(Collections.singletonList("A"))
             .setQual(3)
-            .setFilter("q10")
-            .setInfo("NS=3;DP=11;AF=0.017")
-            .setFormat("GT:GQ:DP:HQ")
-            .addSample("0|0:49:3:58,50")
-            .addSample("0|1:3:5:65,3")
-            .addSample("0/0:41:3")
+            .setFilters(Collections.singletonList("q10"))
+            .setInfo(ImmutableMap.of("NS", "3", "DP", "11", "AF", "0.017"))
+            .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
+            .addSample(Arrays.asList("0|0", "49", "3", "58,50"))
+            .addSample(Arrays.asList("0|1", "3", "5", "65,3"))
+            .addSample(Arrays.asList("0/0", "41", "3"))
             .build(),
         VcfRecord.builder()
             .setChrom("20")
             .setPos(1110696)
-            .setId("rs6040355")
+            .setIds(Collections.singletonList("rs6040355"))
             .setRef("A")
-            .setAlt("G,T")
+            .setAlt(Arrays.asList("G", "T"))
             .setQual(67)
-            .setFilter("PASS")
-            .setInfo("NS=2;DP=10;AF=0.333,0.667;AA=T;DB")
-            .setFormat("GT:GQ:DP:HQ")
-            .addSample("1|2:21:6:23,27")
-            .addSample("2|1:2:0:18,2")
-            .addSample("2/2:35:4")
+            .setFilters(Collections.singletonList("PASS"))
+            .setInfo(ImmutableMap.of("NS", "2", "DP", "10", "AF", "0.333,0.667", "AA", "T", "DB", ""))
+            .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
+            .addSample(Arrays.asList("1|2", "21", "6", "23,27"))
+            .addSample(Arrays.asList("2|1", "2", "0", "18,2"))
+            .addSample(Arrays.asList("2/2", "35", "4"))
             .build(),
         VcfRecord.builder()
             .setChrom("20")
             .setPos(1230237)
             .setRef("T")
             .setQual(47)
-            .setFilter("PASS")
-            .setInfo("NS=3;DP=13;AA=T")
-            .setFormat("GT:GQ:DP:HQ")
-            .addSample("0|0:54:7:56,60")
-            .addSample("0|0:48:4:51,51")
-            .addSample("0/0:61:2")
+            .setFilters(Collections.singletonList("PASS"))
+            .setInfo(ImmutableMap.of("NS", "3", "DP", "13", "AA", "T"))
+            .setFormat(Arrays.asList("GT", "GQ", "DP", "HQ"))
+            .addSample(Arrays.asList("0|0", "54", "7", "56,60"))
+            .addSample(Arrays.asList("0|0", "48", "4", "51,51"))
+            .addSample(Arrays.asList("0/0", "61", "2"))
             .build(),
         VcfRecord.builder()
             .setChrom("20")
             .setPos(1234567)
-            .setId("microsat1")
+            .setIds(Collections.singletonList("microsat1"))
             .setRef("GTC")
-            .setAlt("G,GTCT")
+            .setAlt(Arrays.asList("G", "GTCT"))
             .setQual(50)
-            .setFilter("PASS")
-            .setInfo("NS=3;DP=9;AA=G")
-            .setFormat("GT:GQ:DP")
-            .addSample("0/1:35:4")
-            .addSample("0/2:17:2")
-            .addSample("1/1:40:3")
-            .build()
-    );
+            .setFilters(Collections.singletonList("PASS"))
+            .setInfo(ImmutableMap.of("NS", "3", "DP", "9", "AA", "G"))
+            .setFormat(Arrays.asList("GT", "GQ", "DP"))
+            .addSample(Arrays.asList("0/1", "35", "4"))
+            .addSample(Arrays.asList("0/2", "17", "2"))
+            .addSample(Arrays.asList("1/1", "40", "3"))
+            .build());
   }
 
   /**

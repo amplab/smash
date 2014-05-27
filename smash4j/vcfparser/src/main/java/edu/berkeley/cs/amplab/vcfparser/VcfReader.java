@@ -19,6 +19,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +45,7 @@ public class VcfReader {
 
   private static final Pattern
       HEADER_LINE_PATTERN = Pattern.compile("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO(\tFORMAT(?:\t\\p{Alnum}+?)+)?"),
+      INFO_PATTERN = Pattern.compile("([^;]+?)(;|$)"),
       KEY_VALUE_PAIR_PATTERN = Pattern.compile("(\\p{Alnum}+?)=(\"(?:\\\\\"|[^\"])*?\"|[^\"][^,]*?)(,|$)"),
       METAINFO_LINE_PATTERN = Pattern.compile("##(\\p{Alpha}+?)=(.+)"),
       UNESCAPE_PATTERN = Pattern.compile("\\\\(\\\\|\")");
@@ -83,43 +85,69 @@ public class VcfReader {
         fields[] = line.split("\t"),
         chrom = fields[0],
         pos = fields[1],
-        id = fields[2],
+        ids = fields[2],
         ref = fields[3],
         alt = fields[4],
         qual = fields[5],
-        filter = fields[6],
+        filters = fields[6],
         info = fields[7],
         format = fields[8];
     VcfRecord.Builder record = VcfRecord.builder();
     if (isDefined(chrom)) {
+      if (chrom.contains(":")) {
+        throw new IllegalStateException(
+            String.format("Chromosome \"%s\" cannot contain a colon.", chrom));
+      }
       record.setChrom(chrom);
     }
     if (isDefined(pos)) {
-      record.setPos(Integer.parseInt(pos));
+      int ipos = Integer.parseInt(pos);
+      if (ipos < 0) {
+        throw new IllegalStateException(String.format("Position %d cannot be negative", ipos));
+      }
+      record.setPos(ipos);
     }
-    if (isDefined(id)) {
-      record.setId(id);
+    if (isDefined(ids)) {
+      record.setIds(Arrays.asList(ids.split(";")));
     }
     if (isDefined(ref)) {
       record.setRef(ref);
     }
     if (isDefined(alt)) {
-      record.setAlt(alt);
+      record.setAlt(Arrays.asList(alt.split(",")));
     }
     if (isDefined(qual)) {
       record.setQual(Integer.parseInt(qual));
     }
-    if (isDefined(filter)) {
-      record.setFilter(filter);
+    if (isDefined(filters)) {
+      record.setFilters(Arrays.asList(filters.split(";")));
     }
     if (isDefined(info)) {
-      record.setInfo(info);
+      ImmutableMap.Builder<String, String> map = ImmutableMap.builder();
+      for (Matcher matcher = INFO_PATTERN.matcher(info); matcher.find();) {
+        String[] infoParts = matcher.group(1).split("=");
+        switch (infoParts.length) {
+          case 1:
+            map.put(infoParts[0], "");
+            break;
+          case 2:
+            map.put(infoParts[0], infoParts[1]);
+            break;
+          default:
+            throw new IllegalStateException(
+                String.format("Unexpected number of INFO components: \"%s\"", info));
+        }
+        if ("".equals(matcher.group(2))) {
+          break;
+        }
+      }
+      record.setInfo(map.build());
     }
     if (isDefined(format)) {
-      record.setFormat(format);
+      record.setFormat(Arrays.asList(format.split(":")));
     }
     for (int i = 9; i < fields.length; ++i) {
-      record.addSample(fields[i]);
+      record.addSample(Arrays.asList(fields[i].split(":")));
     }
     return record.build();
   }
