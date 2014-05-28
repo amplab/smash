@@ -3,6 +3,7 @@ package edu.berkeley.cs.amplab.smash4j;
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.JCommander;
+import com.beust.jcommander.MissingCommandException;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -169,20 +170,24 @@ public abstract class CommandDispatcher {
     ShowPrefsCommand showPrefs = new ShowPrefsCommand();
     jCommander.addCommand("setprefs", setPrefs);
     jCommander.addCommand("showprefs", showPrefs);
-    jCommander.parse(args);
-    String command = jCommander.getParsedCommand();
-    if (null != command) {
-      switch (command) {
-        case "setprefs":
-          setPrefs(setPrefs);
-          break;
-        case "showprefs":
-          showPrefs(showPrefs);
-          break;
-        default:
-          throw new IllegalStateException(String.format("Unrecognized command: \"%s\"", command));
+    try {
+      jCommander.parse(args);
+      String command = jCommander.getParsedCommand();
+      if (null != command) {
+        switch (command) {
+          case "setprefs":
+            setPrefs(setPrefs);
+            break;
+          case "showprefs":
+            showPrefs(showPrefs);
+            break;
+          default:
+            throw new IllegalStateException(String.format("Unrecognized command: \"%s\"", command));
+        }
+      } else {
+        noCommand(args);
       }
-    } else {
+    } catch (MissingCommandException e) {
       noCommand(args);
     }
   }

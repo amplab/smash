@@ -46,7 +46,7 @@ public class VcfReader {
   }
 
   private static final Pattern
-      HEADER_LINE_PATTERN = Pattern.compile("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO(\tFORMAT(?:\t\\p{Alnum}+?)+)?"),
+      HEADER_LINE_PATTERN = Pattern.compile("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO(\tFORMAT(?:\t[^\t]+?)+)?"),
       INFO_PATTERN = Pattern.compile("([^;]+?)(;|$)"),
       KEY_VALUE_PAIR_PATTERN = Pattern.compile("(\\p{Alnum}+?)=(\"(?:\\\\\"|[^\"])*?\"|[^\"][^,]*?)(,|$)"),
       METAINFO_LINE_PATTERN = Pattern.compile("##(\\p{Alpha}+?)=(.+)"),
