@@ -67,7 +67,7 @@ public class Main {
         }
       }
 
-      @Override protected void noCommand() {
+      @Override protected void noCommand(String[] args) {
         System.out.println(PROGRAM_NAME);
       }
     }.parse(args);

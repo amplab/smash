@@ -160,7 +160,7 @@ public abstract class CommandDispatcher {
 
   protected abstract void setPrefs(SetPrefsCommand command) throws Exception;
   protected abstract void showPrefs(ShowPrefsCommand command) throws Exception;
-  protected abstract void noCommand() throws Exception;
+  protected abstract void noCommand(String[] args) throws Exception;
 
   public final void parse(String... args) throws Exception {
     JCommander jCommander = new JCommander();
@@ -183,7 +183,7 @@ public abstract class CommandDispatcher {
           throw new IllegalStateException(String.format("Unrecognized command: \"%s\"", command));
       }
     } else {
-      noCommand();
+      noCommand(args);
     }
   }
 }
