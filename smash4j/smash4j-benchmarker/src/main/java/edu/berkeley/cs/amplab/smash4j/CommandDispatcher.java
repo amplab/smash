@@ -7,6 +7,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.FileConverter;
+import com.google.common.base.Optional;
 
 import java.io.File;
 
@@ -98,24 +99,24 @@ public abstract class CommandDispatcher {
         validateValueWith = FileValidator.class)
     private File serviceAccountP12File;
 
-    public AuthorizationMethod authorizationMethod() {
-      return authorizationMethod;
+    public Optional<AuthorizationMethod> authorizationMethod() {
+      return Optional.fromNullable(authorizationMethod);
     }
 
-    public String apiKey() {
-      return apiKey;
+    public Optional<String> apiKey() {
+      return Optional.fromNullable(apiKey);
     }
 
-    public File clientSecretsFile() {
-      return clientSecretsFile;
+    public Optional<File> clientSecretsFile() {
+      return Optional.fromNullable(clientSecretsFile);
     }
 
-    public String serviceAccountId() {
-      return serviceAccountId;
+    public Optional<String> serviceAccountId() {
+      return Optional.fromNullable(serviceAccountId);
     }
 
-    public File serviceAccountP12File() {
-      return serviceAccountP12File;
+    public Optional<File> serviceAccountP12File() {
+      return Optional.fromNullable(serviceAccountP12File);
     }
   }
 

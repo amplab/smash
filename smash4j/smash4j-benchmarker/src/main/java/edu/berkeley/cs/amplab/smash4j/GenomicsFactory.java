@@ -46,7 +46,7 @@ public final class GenomicsFactory {
     private int connectTimeout;
 
     private Builder() throws GeneralSecurityException, IOException {
-      setApplicationName("AMPLab-SMaSH4J/0.1");
+      setApplicationName(Main.PROGRAM_NAME);
       setDataStoreFactory(
           new FileDataStoreFactory(new File(System.getProperty("user.home"), ".store/smash4j")));
       setHttpTransport(GoogleNetHttpTransport.newTrustedTransport());
@@ -137,11 +137,6 @@ public final class GenomicsFactory {
     }
   }
 
-  private static final Preferences
-      PREFERENCES = Preferences.userNodeForPackage(Main.class);
-  private static final String
-      PREFERENCES_PATH = PREFERENCES.absolutePath();
-
   /**
    * Static factory method for {@link Builder}.
    */
@@ -151,7 +146,8 @@ public final class GenomicsFactory {
 
   private static IllegalStateException badFile(File file, String key, String reason) {
     return illegalStateException(
-        "File \"%s\" specified in %s:%s must %s.", file.getPath(), PREFERENCES_PATH, key, reason);
+        "File \"%s\" specified in %s:%s must %s.",
+        file.getPath(), Main.PREFERENCES_PATH, key, reason);
   }
 
   private static File checkFile(String path, String key) {
@@ -176,7 +172,7 @@ public final class GenomicsFactory {
   }
 
   private static String getPreference(String key, String format, Object... args) {
-    String value = PREFERENCES.get(key, null);
+    String value =  Main.PREFERENCES.get(key, null);
     if (null == value) {
       throw illegalStateException(String.format(format, args));
     }
@@ -249,30 +245,30 @@ public final class GenomicsFactory {
         "authorizationMethod",
         "%s:authorizationMethod is unset. Please set it to one of \"API_KEY\", "
             + "\"SERVICE_ACCOUNT\", or \"CLIENT_SECRETS\".",
-        PREFERENCES_PATH);
+        Main.PREFERENCES_PATH);
     switch (authorizationMethod) {
       case "API_KEY":
         return fromApiKey(
             getPreference(
                 "apiKey",
                 "When %s:authorizationMethod = \"API_KEY\", %s:apiKey must be set.",
-                PREFERENCES_PATH,
-                PREFERENCES_PATH));
+                Main.PREFERENCES_PATH,
+                Main.PREFERENCES_PATH));
       case "SERVICE_ACCOUNT":
         return fromServiceAccount(
             getPreference(
                 "serviceAccountId",
                 "When %s:authorizationMethod = \"SERVICE_ACCOUNT\", %s:serviceAccountId must be "
                     + "set.",
-                PREFERENCES_PATH,
-                PREFERENCES_PATH),
+                Main.PREFERENCES_PATH,
+                Main.PREFERENCES_PATH),
             checkFile(
                 getPreference(
                     "serviceAccountP12File",
                     "When %s:authorizationMethod = \"SERVICE_ACCOUNT\", %s:serviceAccountP12File "
                         + "must be set.",
-                    PREFERENCES_PATH,
-                    PREFERENCES_PATH),
+                    Main.PREFERENCES_PATH,
+                    Main.PREFERENCES_PATH),
                 "serviceAccountP12File"));
       case "CLIENT_SECRETS":
         return fromClientSecretsFile(
@@ -281,14 +277,14 @@ public final class GenomicsFactory {
                     "clientSecretsFile",
                     "When %s:authorizationMethod = \"CLIENT_SECRETS\", %s:clientSecretsFile must "
                         + "be set.",
-                    PREFERENCES_PATH,
-                    PREFERENCES_PATH),
+                    Main.PREFERENCES_PATH,
+                    Main.PREFERENCES_PATH),
                 "clientSecretsFile"));
       default:
         throw illegalStateException(
             "%s:authorizationMethod set to an invalid value \"%s\". Please set it to one of "
                 + "{ \"API_KEY\", \"SERVICE_ACCOUNT\", \"CLIENT_SECRETS\" }.",
-            PREFERENCES_PATH,
+            Main.PREFERENCES_PATH,
             authorizationMethod);
     }
   }

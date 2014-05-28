@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public abstract class IVariant {
+public abstract class VariantAdapter {
 
-  public static IVariant fromVariant(final Variant variant) {
+  public static VariantAdapter fromVariant(final Variant variant) {
     return
-        new IVariant() {
+        new VariantAdapter() {
 
           @Override public List<String> alternateBases() {
             return variant.getAlternateBases();
@@ -43,9 +43,9 @@ public abstract class IVariant {
         };
   }
 
-  public static IVariant fromVcfRecord(final VcfRecord record) {
+  public static VariantAdapter fromVcfRecord(final VcfRecord record) {
     return
-        new IVariant() {
+        new VariantAdapter() {
 
           @Override public List<String> alternateBases() {
             return record.alt();
@@ -99,8 +99,8 @@ public abstract class IVariant {
   @Override
   public final boolean equals(Object obj) {
     boolean same = this == obj;
-    if (!same && obj instanceof IVariant) {
-      IVariant rhs = (IVariant) obj;
+    if (!same && obj instanceof VariantAdapter) {
+      VariantAdapter rhs = (VariantAdapter) obj;
       return Objects.equals(alternateBases(), rhs.alternateBases())
           && Objects.equals(contig(), rhs.contig())
           && Objects.equals(info(), rhs.info())
