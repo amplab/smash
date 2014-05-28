@@ -53,7 +53,7 @@ public class VariantFetcher {
   /**
    * Because {@code SearchVariantsRequest.clone()} is busted.
    */
-  private static SearchVariantsRequest clone(SearchVariantsRequest prototype) {
+  static SearchVariantsRequest clone(SearchVariantsRequest prototype) {
     SearchVariantsRequest copy = new SearchVariantsRequest();
     Optional<List<String>> callsetIds = Optional.fromNullable(prototype.getCallsetIds());
     if (callsetIds.isPresent()) {
