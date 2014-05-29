@@ -2,6 +2,7 @@ package edu.berkeley.cs.amplab.smash4j;
 
 import static org.junit.Assert.assertEquals;
 
+import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 import com.google.api.client.repackaged.com.google.common.base.Joiner;
 import com.google.api.services.genomics.model.Call;
 import com.google.api.services.genomics.model.Variant;
@@ -12,16 +13,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import edu.berkeley.cs.amplab.vcfparser.VcfRecord;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@RunWith(JUnit4.class)
-public class VariantAdapterTest {
+public class VariantProtoConverterTest {
 
   private static final Function<Map<String, List<String>>, Call> INFO_TO_CALL =
       new Function<Map<String, List<String>>, Call>() {
@@ -32,15 +30,12 @@ public class VariantAdapterTest {
 
   @Test
   public void testVariantAdapter() {
-    testEqualsAndHashCode(
-        Collections.singletonList("C"),
-        Collections.<Map<String, List<String>>>singletonList(
-            ImmutableMap.<String, List<String>>builder()
-                .put("GT", Collections.singletonList("0|0"))
-                .put("DS", Collections.singletonList("0.050"))
-                .put("GL", Arrays.asList("-0.03", "-1.17", "-5.00"))
-                .build()),
+    testEquals(
+        Collections.singletonList("rs149201999"),
         "22",
+        16050408,
+        "T",
+        Collections.singletonList("C"),
         ImmutableMap.<String, List<String>>builder()
             .put("LDAF", Collections.singletonList("0.0649"))
             .put("RSQ", Collections.singletonList("0.8652"))
@@ -58,25 +53,28 @@ public class VariantAdapterTest {
             .put("AFR_AF", Collections.singletonList("0.10"))
             .put("EUR_AF", Collections.singletonList("0.06"))
             .build(),
-        Collections.singletonList("rs149201999"),
-        16050408,
-        "T");
+        Collections.<Map<String, List<String>>>singletonList(
+            ImmutableMap.<String, List<String>>builder()
+                .put("GT", Collections.singletonList("0|0"))
+                .put("DS", Collections.singletonList("0.050"))
+                .put("GL", Arrays.asList("-0.03", "-1.17", "-5.00"))
+                .build()));
   }
 
-  private static void testEqualsAndHashCode(
-      List<String> alt,
-      List<Map<String, List<String>>> calls,
-      String contig,
-      Map<String, List<String>> info,
+  private static void testEquals(
       List<String> names,
-      int pos,
-      String ref) {
+      String contig,
+      int position,
+      String referenceBases,
+      List<String> alternateBases,
+      Map<String, List<String>> info,
+      List<Map<String, List<String>>> calls) {
     VcfRecord.Builder record = VcfRecord.builder()
         .setChrom(contig)
         .setInfo(info)
         .setIds(names)
-        .setPos(pos)
-        .setRef(ref);
+        .setPos(position)
+        .setRef(referenceBases);
     final ImmutableSet.Builder<String> format = ImmutableSet.builder();
     for (Map<String, List<String>> map : calls) {
       ImmutableList.Builder<String> sample = ImmutableList.builder();
@@ -89,18 +87,16 @@ public class VariantAdapterTest {
       record.addSample(sample.build());
     }
     record.setFormat(ImmutableList.copyOf(format.build()));
-    VariantAdapter
-        fromVariant = VariantAdapter.fromVariant(new Variant()
+    VariantProto
+        fromVariant = VariantProtoConverter.VARIANT_CONVERTER.convert(new Variant()
             .setCalls(FluentIterable.from(calls).transform(INFO_TO_CALL).toList())
             .setContig(contig)
             .setInfo(info)
             .setNames(names)
-            .setPosition((long) pos)
-            .setReferenceBases(ref)),
-        fromVcfRecord = VariantAdapter.fromVcfRecord(record.build());
+            .setPosition((long) position)
+            .setReferenceBases(referenceBases)),
+        fromVcfRecord = VariantProtoConverter.VCF_RECORD_CONVERTER.convert(record.build());
     assertEquals(fromVariant, fromVcfRecord);
     assertEquals(fromVcfRecord, fromVariant);
-    assertEquals(fromVariant.hashCode(), fromVcfRecord.hashCode());
   }
-
 }

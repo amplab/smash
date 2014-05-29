@@ -1,5 +1,6 @@
 package edu.berkeley.cs.amplab.smash4j;
 
+import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.model.SearchVariantsRequest;
 import com.google.api.services.genomics.model.Variant;
@@ -18,7 +19,7 @@ import java.util.List;
 public abstract class VariantScanner {
 
   public interface Callback<X> {
-    X accumulate(X accumulator, VariantAdapter variant);
+    X accumulate(X accumulator, VariantProto variant);
   }
 
   public static VariantScanner fromFile(final File file) {
@@ -34,7 +35,7 @@ public abstract class VariantScanner {
                       X accumulator = initial;
                       for (VcfRecord record : records) {
                         accumulator =
-                            callback.accumulate(accumulator, VariantAdapter.fromVcfRecord(record));
+                            callback.accumulate(accumulator, VariantProtoConverter.VCF_RECORD_CONVERTER.convert(record));
                       }
                       return accumulator;
                     }
@@ -64,7 +65,7 @@ public abstract class VariantScanner {
                 initial,
                 new VariantFetcher.Callback<X>() {
                   @Override public X accumulate(X accumulator, Variant variant) throws IOException {
-                    return callback.accumulate(accumulator, VariantAdapter.fromVariant(variant));
+                    return callback.accumulate(accumulator, VariantProtoConverter.VARIANT_CONVERTER.convert(variant));
                   }
                 });
           }
