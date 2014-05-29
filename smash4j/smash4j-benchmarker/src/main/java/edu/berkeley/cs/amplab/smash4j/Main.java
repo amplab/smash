@@ -1,17 +1,8 @@
 package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
-import edu.berkeley.cs.amplab.vcfparser.Header;
-import edu.berkeley.cs.amplab.vcfparser.MetaInformation;
-import edu.berkeley.cs.amplab.vcfparser.VcfReader;
-import edu.berkeley.cs.amplab.vcfparser.VcfRecord;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.io.Reader;
 import java.util.prefs.Preferences;
 
 public class Main {
@@ -77,22 +68,6 @@ public class Main {
       }
 
       @Override protected void noCommand(String[] args) throws Exception {
-        try (Reader in = new FileReader(args[0])) {
-          try (final PrintWriter out = new PrintWriter(new FileWriter(args[1]))) {
-            VcfReader.from(in).read(
-                new VcfReader.Callback<Void>() {
-                  @Override
-                  public Void readVcf(MetaInformation metaInformation, Header header, FluentIterable<VcfRecord> records) {
-                    out.print(metaInformation);
-                    out.println(header);
-                    for (VcfRecord record : records) {
-                      out.println(record);
-                    }
-                    return null;
-                  }
-                });
-          }
-        }
       }
     }.parse(args);
   }
