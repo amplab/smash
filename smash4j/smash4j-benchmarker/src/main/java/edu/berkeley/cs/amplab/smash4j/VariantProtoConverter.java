@@ -66,6 +66,7 @@ public abstract class VariantProtoConverter<X> {
               .addAllNames(record.ids())
               .setPosition(record.pos())
               .setReferenceBases(record.ref())
+              .setInfo(CONVERT_MULTIMAP.apply(record.info()))
               .build();
         }
       };
