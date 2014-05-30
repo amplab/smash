@@ -42,7 +42,8 @@ public class VcfReader {
      * Compute a value of type {@code X>} from the given metainfo, header, and records.
      * The value computed will be returned from {@link #read}.
      */
-    X readVcf(MetaInformation metaInformation, Header header, FluentIterable<VcfRecord> records);
+    X readVcf(MetaInformation metaInformation, Header header, FluentIterable<VcfRecord> records)
+        throws IOException;
   }
 
   private static final Pattern
@@ -167,7 +168,7 @@ public class VcfReader {
   /**
    * Read the VCF data and pass the data to the provided {@code Callback}.
    */
-  public <X> X read(Callback<X> callback) {
+  public <X> X read(Callback<X> callback) throws IOException {
     final PeekingIterator<String> iterator = Iterators.peekingIterator(
         new AbstractIterator<String>() {
           @Override

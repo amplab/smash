@@ -235,7 +235,7 @@ public class VcfParserTest {
   private static void serializeAndParseTest(
       final MetaInformation metainfo,
       final Header header,
-      VcfRecord... vcfRecords) {
+      VcfRecord... vcfRecords) throws IOException {
     final Writer buffer = new StringWriter();
     final List<VcfRecord> records = Arrays.asList(vcfRecords);
     assertSame(buffer, VcfWriter.to(buffer).write(metainfo, header, records));

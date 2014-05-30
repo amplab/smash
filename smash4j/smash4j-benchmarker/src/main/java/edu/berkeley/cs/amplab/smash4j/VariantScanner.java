@@ -1,10 +1,10 @@
 package edu.berkeley.cs.amplab.smash4j;
 
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 import com.google.api.services.genomics.Genomics;
-import com.google.api.services.genomics.model.SearchVariantsRequest;
+import com.google.api.services.genomics.model.Callset;
 import com.google.api.services.genomics.model.Variant;
 import com.google.common.collect.FluentIterable;
+import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 import edu.berkeley.cs.amplab.vcfparser.Header;
 import edu.berkeley.cs.amplab.vcfparser.MetaInformation;
 import edu.berkeley.cs.amplab.vcfparser.VcfReader;
@@ -15,62 +15,45 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.List;
+import java.util.Map;
 
 public abstract class VariantScanner {
 
   public interface Callback<X> {
-    X accumulate(X accumulator, VariantProto variant);
+
+    X accept(FluentIterable<VariantProto> protos) throws IOException;
   }
 
-  public static VariantScanner fromFile(final File file) {
-    return
-        new VariantScanner() {
-          @Override public <X> X scan(final X initial, final Callback<X> callback)
-              throws IOException {
-            try (final Reader in = new FileReader(file)) {
-              return VcfReader.from(in).read(
-                  new VcfReader.Callback<X>() {
-                    @Override public X readVcf(MetaInformation metaInformation,
-                        Header header, FluentIterable<VcfRecord> records) {
-                      X accumulator = initial;
-                      for (VcfRecord record : records) {
-                        accumulator =
-                            callback.accumulate(accumulator, VariantProtoConverter.VCF_RECORD_CONVERTER.convert(record));
-                      }
-                      return accumulator;
-                    }
-                  });
+  public static VariantScanner from(final File file) {
+    return new VariantScanner() {
+          @Override public <X> X scan(final Callback<X> callback) throws IOException {
+            try (Reader in = new FileReader(file)) {
+              return VcfReader.from(in).read(new VcfReader.Callback<X>() {
+                @Override public X readVcf(MetaInformation metaInformation,
+                    Header header, FluentIterable<VcfRecord> records) throws IOException {
+                  return callback.accept(
+                      records.transform(VariantProtoConverter.VCF_RECORD_CONVERTER));
+                }
+              });
             }
           }
         };
   }
 
-  public static VariantScanner fromCallsets(
-      final Genomics genomics, final List<String> callsetIds, final List<String> contigs) {
-    return
-        new VariantScanner() {
-
-          private final VariantFetcher fetcher = VariantFetcher.create(genomics);
-
-          @Override public <X> X scan(X initial, final Callback<X> callback) throws IOException {
-            return fetcher.fetchVariants(
-                new SearchVariantsRequest()
-                    // .setDatasetId(fetcher.getDatasetId(callsetIds))
-                    // TODO: unhardcode from this test dataset id.
-                    .setDatasetId("376902546192")
-                    .setCallsetIds(callsetIds)
-                    .setStartPosition(1L)
-                    .setEndPosition(Long.MAX_VALUE),
-                contigs,
-                initial,
+  public static VariantScanner from(final Genomics genomics, final List<String> callsets) {
+    return new VariantScanner() {
+          @Override public <X> X scan(final Callback<X> callback) throws IOException {
+            return VariantFetcher.create(genomics).fetchVariants(callsets,
                 new VariantFetcher.Callback<X>() {
-                  @Override public X accumulate(X accumulator, Variant variant) throws IOException {
-                    return callback.accumulate(accumulator, VariantProtoConverter.VARIANT_CONVERTER.convert(variant));
+                  @Override public X accept(Map<String, Callset> callsets,
+                      FluentIterable<Variant> variants) throws IOException {
+                    return callback.accept(
+                        variants.transform(VariantProtoConverter.VARIANT_CONVERTER));
                   }
                 });
           }
         };
   }
 
-  public abstract <X> X scan(X initial, Callback<X> callback) throws IOException;
+  public abstract <X> X scan(Callback<X> callback) throws IOException;
 }

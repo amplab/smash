@@ -16,7 +16,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public abstract class VariantProtoConverter<X> {
+public abstract class VariantProtoConverter<X> implements Function<X, VariantProto> {
 
   private static final Function<Map<String, List<String>>, VariantProto.Multimap> CONVERT_MULTIMAP =
       new Function<Map<String, List<String>>, VariantProto.Multimap>() {
@@ -70,10 +70,10 @@ public abstract class VariantProtoConverter<X> {
                             }
                           })))
               .setContig(record.chrom())
+              .setInfo(CONVERT_MULTIMAP.apply(record.info()))
               .addAllNames(emptyForNull(record.ids()))
               .setPosition(record.pos())
               .setReferenceBases(record.ref())
-              .setInfo(CONVERT_MULTIMAP.apply(record.info()))
               .build();
         }
       };
@@ -98,4 +98,9 @@ public abstract class VariantProtoConverter<X> {
   }
 
   public abstract VariantProto convert(X object);
+
+  @Override
+  public final VariantProto apply(X object) {
+    return convert(object);
+  }
 }
