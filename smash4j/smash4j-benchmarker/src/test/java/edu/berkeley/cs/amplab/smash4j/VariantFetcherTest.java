@@ -16,13 +16,13 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -44,7 +44,7 @@ public class VariantFetcherTest {
   }
 
   @Test
-  public void testFetchVariants() throws IOException {
+  public void testFetchVariants() throws Exception {
     class Actual {
 
       final Map<String, Callset> callsets;

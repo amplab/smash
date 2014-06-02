@@ -32,7 +32,7 @@ import java.util.Set;
 public class VariantFetcher {
 
   public interface Callback<X> {
-    X accept(Map<String, Callset> callsets, FluentIterable<Variant> variants) throws IOException;
+    X accept(Map<String, Callset> callsets, FluentIterable<Variant> variants) throws Exception;
   }
 
   private enum VariantFetcherStrategy {
@@ -171,7 +171,7 @@ public class VariantFetcher {
   }
 
   public <X> X fetchVariants(final List<String> callsetIds, Callback<? extends X> callback)
-      throws IOException {
+      throws Exception {
     try {
       VariantFetcherStrategy strategy = VariantFetcherStrategy.TEMPORARY_HACK;
       Map<String, Callset> callsets = strategy.getCallsets(genomics, callsetIds);

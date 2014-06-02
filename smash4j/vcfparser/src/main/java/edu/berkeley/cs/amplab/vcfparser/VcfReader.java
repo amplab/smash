@@ -43,7 +43,7 @@ public class VcfReader {
      * The value computed will be returned from {@link #read}.
      */
     X readVcf(MetaInformation metaInformation, Header header, FluentIterable<VcfRecord> records)
-        throws IOException;
+        throws Exception;
   }
 
   private static final Pattern
@@ -168,7 +168,7 @@ public class VcfReader {
   /**
    * Read the VCF data and pass the data to the provided {@code Callback}.
    */
-  public <X> X read(Callback<X> callback) throws IOException {
+  public <X> X read(Callback<X> callback) throws Exception {
     final PeekingIterator<String> iterator = Iterators.peekingIterator(
         new AbstractIterator<String>() {
           @Override
@@ -328,7 +328,7 @@ public class VcfReader {
 
   private static Iterable<Map.Entry<String, String>> getExtraFields(Map<String, String> map, Set<String> requiredFields) {
     Map<String, String> extraFields = Maps.newLinkedHashMap(map);
-    for (String field : MetaInformation.Info.REQUIRED_FIELDS) {
+    for (String field : requiredFields) {
       extraFields.remove(field);
     }
     return extraFields.entrySet();

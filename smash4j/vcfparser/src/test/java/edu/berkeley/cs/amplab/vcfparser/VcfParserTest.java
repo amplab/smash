@@ -6,9 +6,9 @@ import static org.junit.Assert.assertSame;
 
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+
 import org.junit.Test;
 
-import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -21,7 +21,7 @@ import java.util.List;
 public class VcfParserTest {
 
   @Test
-  public void testAllMetaInfoRecordTypes() throws IOException {
+  public void testAllMetaInfoRecordTypes() throws Exception {
     serializeAndParseTest(
         MetaInformation.builder(MetaInformation.FileFormat.Format.V4_1)
             .addAssembly(MetaInformation.Assembly.create(new URL("http://domain.com/assembly")))
@@ -63,7 +63,7 @@ public class VcfParserTest {
   }
 
   @Test
-  public void testExampleInVcfSpec() throws IOException {
+  public void testExampleInVcfSpec() throws Exception {
     serializeAndParseTest(
         MetaInformation.builder(MetaInformation.FileFormat.Format.V4_2)
             .addUnparsedLine(MetaInformation.UnparsedMetaInfoLine.create("fileDate", "20090805"))
@@ -235,7 +235,7 @@ public class VcfParserTest {
   private static void serializeAndParseTest(
       final MetaInformation metainfo,
       final Header header,
-      VcfRecord... vcfRecords) throws IOException {
+      VcfRecord... vcfRecords) throws Exception {
     final Writer buffer = new StringWriter();
     final List<VcfRecord> records = Arrays.asList(vcfRecords);
     assertSame(buffer, VcfWriter.to(buffer).write(metainfo, header, records));
