@@ -67,7 +67,7 @@ public class Main {
         }
       }
 
-      @Override protected void noCommand(String[] args) throws Exception {
+      @Override protected void main(MainCommand command) throws Exception {
       }
     }.parse(args);
   }

@@ -52,17 +52,17 @@ public abstract class CommandDispatcher {
 
       private static final Test[] TESTS = {
           new Test("doesn't exist") {
-            boolean test(File file) {
+            @Override boolean test(File file) {
               return file.exists();
             }
           },
           new Test("is not a file") {
-            boolean test(File file) {
+            @Override boolean test(File file) {
               return file.isFile();
             }
           },
           new Test("is not readable") {
-            boolean test(File file) {
+            @Override boolean test(File file) {
               return file.canRead();
             }
           }
@@ -159,15 +159,33 @@ public abstract class CommandDispatcher {
     }
   }
 
+  public static class MainCommand {
+
+    @Parameter(names = { "--lhs" })
+    private String leftHandSide;
+
+    @Parameter(names = { "--lhs" })
+    private String rightHandSide;
+
+    public Optional<String> leftHandSide() {
+      return Optional.fromNullable(leftHandSide);
+    }
+
+    public Optional<String> rightHandSide() {
+      return Optional.fromNullable(rightHandSide);
+    }
+  }
+
   protected abstract void setPrefs(SetPrefsCommand command) throws Exception;
   protected abstract void showPrefs(ShowPrefsCommand command) throws Exception;
-  protected abstract void noCommand(String[] args) throws Exception;
+  protected abstract void main(MainCommand command) throws Exception;
 
   public final void parse(String... args) throws Exception {
-    JCommander jCommander = new JCommander();
-    jCommander.setProgramName("smash4j");
+    MainCommand main = new MainCommand();
     SetPrefsCommand setPrefs = new SetPrefsCommand();
     ShowPrefsCommand showPrefs = new ShowPrefsCommand();
+    JCommander jCommander = new JCommander(main);
+    jCommander.setProgramName("smash4j");
     jCommander.addCommand("setprefs", setPrefs);
     jCommander.addCommand("showprefs", showPrefs);
     try {
@@ -185,10 +203,10 @@ public abstract class CommandDispatcher {
             throw new IllegalStateException(String.format("Unrecognized command: \"%s\"", command));
         }
       } else {
-        noCommand(args);
+        main(main);
       }
     } catch (MissingCommandException e) {
-      noCommand(args);
+      main(main);
     }
   }
 }
