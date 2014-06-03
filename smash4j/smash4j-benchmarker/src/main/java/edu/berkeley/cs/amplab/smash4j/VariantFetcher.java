@@ -6,6 +6,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.model.Callset;
+import com.google.api.services.genomics.model.ContigBound;
 import com.google.api.services.genomics.model.SearchCallsetsRequest;
 import com.google.api.services.genomics.model.SearchVariantsRequest;
 import com.google.api.services.genomics.model.SearchVariantsResponse;
@@ -66,8 +67,16 @@ public class VariantFetcher {
       }
 
       @Override
-      Map<String, Long> getContigs(Genomics genomics, String datasetId) {
-        throw new UnsupportedOperationException();
+      Map<String, Long> getContigs(Genomics genomics, String datasetId) throws IOException {
+        ImmutableMap.Builder<String, Long> contigs = ImmutableMap.builder();
+        for (ContigBound contigBound : genomics.variants()
+            .getSummary()
+            .setDatasetId(datasetId)
+            .execute()
+            .getContigBounds()) {
+          contigs.put(contigBound.getContig(), contigBound.getUpperBound());
+        }
+        return contigs.build();
       }
     },
 
