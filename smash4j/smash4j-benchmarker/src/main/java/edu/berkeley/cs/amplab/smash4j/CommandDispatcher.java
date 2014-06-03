@@ -159,6 +159,7 @@ public abstract class CommandDispatcher {
     }
   }
 
+  @Parameters(separators = "=")
   public static class MainCommand {
 
     @Parameter(names = { "--lhs" })
