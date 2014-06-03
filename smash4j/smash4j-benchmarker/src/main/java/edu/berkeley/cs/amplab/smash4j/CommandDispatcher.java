@@ -164,7 +164,7 @@ public abstract class CommandDispatcher {
     @Parameter(names = { "--lhs" })
     private String leftHandSide;
 
-    @Parameter(names = { "--lhs" })
+    @Parameter(names = { "--rhs" })
     private String rightHandSide;
 
     public Optional<String> leftHandSide() {
