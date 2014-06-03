@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -167,10 +166,6 @@ public class VariantFetcher {
               return response.getVariants();
             }
           };
-
-  public static VariantFetcher create() throws GeneralSecurityException, IOException {
-    return create(GenomicsFactory.getDefault().fromPreferences());
-  }
 
   public static VariantFetcher create(Genomics genomics) {
     return new VariantFetcher(genomics, genomics.variants());

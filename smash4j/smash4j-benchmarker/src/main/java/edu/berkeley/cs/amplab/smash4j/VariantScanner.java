@@ -1,5 +1,6 @@
 package edu.berkeley.cs.amplab.smash4j;
 
+import com.google.api.client.repackaged.com.google.common.base.Throwables;
 import com.google.api.services.genomics.model.Callset;
 import com.google.api.services.genomics.model.Variant;
 import com.google.common.collect.AbstractIterator;
@@ -18,79 +19,140 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 public abstract class VariantScanner {
 
   public interface Callback<X> {
-
-    X accept(FluentIterable<VariantProto> protos) throws Exception;
+    X scan(FluentIterable<VariantProto> protos) throws Exception;
   }
 
-  public static VariantScanner create(final String spec) {
-    return spec.startsWith("callsets:")
-        ? new VariantScanner() {
-            @Override public <X> X scan(final Callback<X> callback) throws Exception {
-              return VariantFetcher.create().fetchVariants(
-                  Arrays.asList(spec.substring(9).split(",")),
-                  new VariantFetcher.Callback<X>() {
-                    @Override public X accept(Map<String, Callset> callsets,
-                        FluentIterable<Variant> variants) throws Exception {
-                      return callback.accept(
-                          variants.transform(VariantProtoConverter.VARIANT_CONVERTER));
-                    }
-                  });
+  public static VariantScanner fromCallsets(final List<String> callsetIds) {
+    try {
+      return fromVariantFetcher(
+          VariantFetcher.create(GenomicsFactory.getDefault().fromPreferences()), callsetIds);
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  public static VariantScanner fromSpec(String spec) {
+    if (spec.startsWith("vcf:")) {
+      return fromVcfFile(new File(spec.substring(4)));
+    } else if (spec.startsWith("callsets:")) {
+      return fromCallsets(Arrays.asList(spec.substring(9).split(",")));
+    } else if (spec.startsWith("protofile:")) {
+      return fromVariantProtoFile(new File(spec.substring(10)));
+    } else {
+      throw new IllegalArgumentException(String.format("Failed to parse spec: \"%s\"", spec));
+    }
+  }
+
+  public static VariantScanner fromVariantFetcher(
+      final VariantFetcher fetcher, final List<String> callsetIds) {
+    return new VariantScanner() {
+          @Override public <X> X scan(final Callback<X> callback) throws Exception {
+            return fetcher.fetchVariants(callsetIds,
+                new VariantFetcher.Callback<X>() {
+                  @Override public X accept(Map<String, Callset> callsets,
+                      FluentIterable<Variant> variants) throws Exception {
+                    return callback.scan(
+                        variants.transform(VariantProtoConverter.VARIANT_CONVERTER));
+                  }
+                });
+          }
+        };
+  }
+
+  public static VariantScanner fromVariantProtoFile(final File file) {
+    return new VariantScanner() {
+          @Override public <X> X scan(Callback<X> callback) throws Exception {
+            try (InputStream in = new FileInputStream(file)) {
+              return scan(in, callback);
             }
           }
-        : spec.startsWith("protofile:")
-            ? new VariantScanner() {
-              @Override public <X> X scan(final Callback<X> callback) throws Exception {
-                  try (final InputStream in = new FileInputStream(new File(spec.substring(10)))) {
-                    class ExceptionWrapper extends RuntimeException {
+        };
+  }
 
-                      ExceptionWrapper(IOException cause) {
-                        super(cause);
-                      }
+  public static VariantScanner fromVariantProtoInputStream(final InputStream in) {
+    return new VariantScanner() {
+          @Override public <X> X scan(Callback<X> callback) throws Exception {
+            return scan(in, callback);
+          }
+        };
+  }
 
-                      @Override public IOException getCause() {
-                        return (IOException) super.getCause();
-                      }
-                    }
-                    try {
-                      return callback.accept(
-                          new FluentIterable<VariantProto>() {
-                            @Override public Iterator<VariantProto> iterator() {
-                              return new AbstractIterator<VariantProto>() {
-                                    @Override protected VariantProto computeNext() {
-                                      try {
-                                        return VariantProto.parseDelimitedFrom(in);
-                                      } catch (IOException e) {
-                                        throw new ExceptionWrapper(e);
-                                      }
-                                    }
-                                  };
-                            }
-                          });
-                    } catch (ExceptionWrapper e) {
-                      throw e.getCause();
-                    }
-                  }
-              }
+  public static VariantScanner fromVariantProtos(final Collection<VariantProto> variants) {
+    return new VariantScanner() {
+          @Override public <X> X scan(Callback<X> callback) throws Exception {
+            return callback.scan(FluentIterable.from(variants));
+          }
+        };
+  }
+
+  public static VariantScanner fromVcfFile(final File file) {
+    return new VariantScanner() {
+          @Override public <X> X scan(Callback<X> callback) throws Exception {
+            try (Reader in = new FileReader(file)) {
+              return scan(VcfReader.from(in), callback);
             }
-          : new VariantScanner() {
-              @Override public <X> X scan(final Callback<X> callback) throws Exception {
-                try (Reader in = new FileReader(new File(spec))) {
-                  return VcfReader.from(in).read(new VcfReader.Callback<X>() {
-                    @Override public X readVcf(MetaInformation metaInformation,
-                        Header header, FluentIterable<VcfRecord> records) throws Exception {
-                      return callback.accept(
-                          records.transform(VariantProtoConverter.VCF_RECORD_CONVERTER));
+          }
+        };
+  }
+
+  public static VariantScanner fromVcfReader(final VcfReader reader) {
+    return new VariantScanner() {
+          @Override public <X> X scan(final Callback<X> callback) throws Exception {
+            return scan(reader, callback);
+          }
+        };
+  }
+
+  private static <X> X scan(final InputStream in, Callback<X> callback) throws Exception,
+      IOException {
+    class ExceptionWrapper extends RuntimeException {
+
+      ExceptionWrapper(IOException cause) {
+        super(cause);
+      }
+
+      @Override public IOException getCause() {
+        return (IOException) super.getCause();
+      }
+    }
+    try {
+      return callback.scan(
+          new FluentIterable<VariantProto>() {
+            @Override public Iterator<VariantProto> iterator() {
+              return new AbstractIterator<VariantProto>() {
+                    @Override protected VariantProto computeNext() {
+                      try {
+                        VariantProto variant = VariantProto.parseDelimitedFrom(in);
+                        return null == variant ? endOfData() : variant;
+                      } catch (IOException e) {
+                        throw new ExceptionWrapper(e);
+                      }
                     }
-                  });
-                }
-              }
-            };
+                  };
+            }
+          });
+    } catch (ExceptionWrapper e) {
+      throw e.getCause();
+    }
+  }
+
+  private static <X> X scan(final VcfReader reader, final Callback<X> callback) throws Exception {
+    return reader.read(
+        new VcfReader.Callback<X>() {
+          @Override public X readVcf(MetaInformation metaInformation, Header header,
+              FluentIterable<VcfRecord> records) throws Exception {
+            return callback.scan(
+                records.transform(VariantProtoConverter.VCF_RECORD_CONVERTER));
+          }
+        });
   }
 
   public abstract <X> X scan(Callback<X> callback) throws Exception;
