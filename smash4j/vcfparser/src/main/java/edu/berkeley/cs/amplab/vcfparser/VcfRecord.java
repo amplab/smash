@@ -298,7 +298,8 @@ public final class VcfRecord {
       for (
           Iterator<List<String>> iterator = samples.iterator();
           iterator.hasNext();
-          builder.append(Joiner.on(':').join(iterator.next())).append(iterator.hasNext() ? "\t" : ""));
+          builder.append(Joiner.on(':').join(iterator.next()))
+              .append(iterator.hasNext() ? "\t" : ""));
       return builder.toString();
     }
     return "";

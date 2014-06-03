@@ -1022,6 +1022,7 @@ public final class MetaInformation {
       return lineType();
     }
 
+    @Override
     public String value() {
       return super.value();
     }
@@ -1136,6 +1137,7 @@ public final class MetaInformation {
     return new Builder(lines);
   }
 
+  @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
     for (MetaInfoLine<?> line : lines) {

@@ -1,8 +1,24 @@
 package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+
+import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.prefs.Preferences;
 
 public class Main {
@@ -68,7 +84,69 @@ public class Main {
       }
 
       @Override protected void main(MainCommand command) throws Exception {
+        Optional<String>
+            leftHandSide = command.leftHandSide(),
+            rightHandSide = command.rightHandSide();
+        for (Map.Entry<String, Optional<String>> entry : ImmutableMap
+            .of("lhs", leftHandSide, "rhs", rightHandSide)
+            .entrySet()) {
+          if (!entry.getValue().isPresent()) {
+            throw new IllegalArgumentException(
+                String.format("Flag --%s is required", entry.getKey()));
+          }
+        }
+        Main.main(leftHandSide.get(), rightHandSide.get());
       }
     }.parse(args);
+  }
+
+  private static final ListeningExecutorService
+      EXECUTOR_SERVICE = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
+
+  private static void main(String leftHandSide, String rightHandSide) throws Exception {
+    File desktop = new File("/usr/local/google/home/kwestbrooks/Desktop");
+    List<File> list = Futures.allAsList(
+        cleanAndNormalize(leftHandSide, "lhs", desktop, false),
+        cleanAndNormalize(rightHandSide, "rhs", desktop, false)).get();
+    File lhs = list.get(0), rhs = list.get(1);
+    
+  }
+
+  private static ListenableFuture<File> cleanAndNormalize(
+      final String spec,
+      final String prefix,
+      final File directory,
+      final boolean deleteOnExit) {
+    return EXECUTOR_SERVICE.submit(
+        new Callable<File>() {
+          @Override public File call() throws Exception {
+            return VariantScanner.create(spec).scan(
+                new VariantScanner.Callback<File>() {
+                  @Override public File accept(FluentIterable<VariantProto> variants)
+                      throws Exception {
+                    File tempFile = File.createTempFile(prefix, ".variants", directory);
+                    if (deleteOnExit) {
+                      tempFile.deleteOnExit();
+                    }
+                    try (OutputStream out = new FileOutputStream(tempFile)) {
+                      for (VariantProto variant : variants) {
+                        if (filter(variant)) {
+                          normalize(variant).writeDelimitedTo(out);
+                        }
+                      }
+                      return tempFile;
+                    }
+                  }
+                });
+          }
+        });
+  }
+
+  private static boolean filter(VariantProto variant) {
+    return true;
+  }
+
+  private static VariantProto normalize(VariantProto variant) {
+    return variant;
   }
 }
