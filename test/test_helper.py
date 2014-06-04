@@ -32,6 +32,7 @@ sys.path.insert(0,'..')
 from smashbenchmarking.vcf_eval.variants import Variants
 from smashbenchmarking.vcf_eval.chrom_variants import ChromVariants
 from smashbenchmarking.parsers.genome import Genome
+from smashbenchmarking.normalize_vcf import normalize
 
 MAX_INDEL_LEN = 50
 
@@ -39,6 +40,13 @@ def vcf_to_ChromVariants(vcf_str,chrom):
     str_io = StringIO.StringIO(vcf_str)
     str_vcf = vcf.Reader(str_io)
     str_vars = Variants(str_vcf,MAX_INDEL_LEN)
+    return str_vars.on_chrom(chrom)
+
+def normalize_vcf_to_ChromVariants(vcf_str,chrom):
+    str_io = StringIO.StringIO(vcf_str)
+    str_vcf = vcf.Reader(str_io)
+    norm_iter = normalize(get_reference(),str_vcf)
+    str_vars = Variants(norm_iter,MAX_INDEL_LEN)
     return str_vars.on_chrom(chrom)
 
 def get_empty_ChromVariants(contig):

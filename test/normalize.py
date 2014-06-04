@@ -30,7 +30,7 @@ import StringIO
 from test_helper import get_reference, vcf_to_ChromVariants, MAX_INDEL_LEN
 
 sys.path.insert(0,'..')
-from smashbenchmarking.normalize_vcf import find_redundancy, left_normalize, normalize, NormalizeIterator
+from smashbenchmarking.normalize_vcf import normalize,write,find_redundancy, left_normalize
 from smashbenchmarking.parsers.vcfwriter import VCFWriter
 
 class NormalizeTestCase(unittest.TestCase):
@@ -56,7 +56,7 @@ class NormalizeTestCase(unittest.TestCase):
         test_vcf = vcf.Reader(vcf_io)
         output_io = StringIO.StringIO()
         output_writer = VCFWriter('ref.fasta','name',output_io)
-        normalize(get_reference(),test_vcf,output_writer)
+        map(lambda r: write(r,output_writer),normalize(get_reference(),test_vcf))
         outputStr = output_io.getvalue()
         outputStr = outputStr.replace('\n','\n\n')
         return vcf.Reader(StringIO.StringIO(outputStr))
@@ -91,7 +91,7 @@ class NormalizeTestCase(unittest.TestCase):
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr2    6       .       g       cg       20      PASS    .       GT      0/1\n
 """
-        norm = NormalizeIterator(get_reference(),self.getVcf(vcf_str),50,True)
+        norm = normalize(get_reference(),self.getVcf(vcf_str),50,True)
         record = norm.next()
         self.assertEqual(record.POS,6)
         self.assertEqual(record.REF,'G')
@@ -105,7 +105,7 @@ chr2    6       .       g       cg       20      PASS    .       GT      0/1\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr1   2   .       C     A       20      PASS    .       GT      0/1\n
 """
-        norm_vcf = NormalizeIterator(get_reference(),self.getVcf(vcf_str))
+        norm_vcf = normalize(get_reference(),self.getVcf(vcf_str))
         self.assertEqual(self.countRecords(norm_vcf),1)
 
         #test that hom ref records are removed
@@ -116,7 +116,7 @@ chr1   2   .       C     A       20      PASS    .       GT      0/1\n
 chr1   2   .       C     C       20      PASS    .       GT      0/0\n
 chr1   3   .       G     A       20      PASS    .       GT      1/1\n
 """
-        norm_vcf = NormalizeIterator(get_reference(),self.getVcf(vcf_str))
+        norm_vcf = normalize(get_reference(),self.getVcf(vcf_str))
         self.assertEqual(self.countRecords(norm_vcf),1)
 
         #test that SNP/indels without genotyping are removed
@@ -129,7 +129,7 @@ chr1   3   .       G     C       20      PASS    .       GT      0/0\n
 chr1   4   .       G     T       20      PASS    .       GT      0|0\n
 chr1   5   .       G     A       20      PASS    .       GT      1/1\n
 """
-        norm_vcf = NormalizeIterator(get_reference(),self.getVcf(vcf_str))
+        norm_vcf = normalize(get_reference(),self.getVcf(vcf_str))
         self.assertEqual(self.countRecords(norm_vcf),1)
 
         #test that SV without genotyping is retained
@@ -139,7 +139,7 @@ chr1   5   .       G     A       20      PASS    .       GT      1/1\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr1   2   .       C     AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGCTTCATGAGAGAG       20      PASS    .       GT      .\n
 """
-        norm_vcf = NormalizeIterator(get_reference(),self.getVcf(vcf_str))
+        norm_vcf = normalize(get_reference(),self.getVcf(vcf_str))
         self.assertEqual(self.countRecords(norm_vcf),1)
 
         #test that lower case ref/alt gets upper-cased
@@ -151,7 +151,7 @@ chr1   2   .       c     a       20      PASS    .       GT      0/1\n
 """
         vcf_io = StringIO.StringIO(vcf_str)
         lowercase_vcf = vcf.Reader(StringIO.StringIO(vcf_str))
-        output_vcf = NormalizeIterator(get_reference(),self.getVcf(vcf_str))
+        output_vcf = normalize(get_reference(),self.getVcf(vcf_str))
         original_r = lowercase_vcf.next()
         norm_r = output_vcf.next()
         self.assertEqual(original_r.REF,'c')
@@ -166,7 +166,7 @@ chr1   2   .       c     a       20      PASS    .       GT      0/1\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr1   9   .       a     ga       20      PASS    .       GT      0/1\n
 """
-        record = NormalizeIterator(get_reference(),self.getVcf(vcf_str)).next()
+        record = normalize(get_reference(),self.getVcf(vcf_str)).next()
         self.assertEqual(record.POS,6)
         self.assertEqual(record.REF,'C')
         self.assertEqual(record.ALT,['CG'])
@@ -178,25 +178,10 @@ chr1   9   .       a     ga       20      PASS    .       GT      0/1\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr1   5   .       cc     c       20      PASS    .       GT      0/1\n
 """
-        record = NormalizeIterator(get_reference(),self.getVcf(vcf_str)).next()
+        record = normalize(get_reference(),self.getVcf(vcf_str)).next()
         self.assertEqual(record.POS,4)
         self.assertEqual(record.REF,'GC')
         self.assertEqual(record.ALT,['G'])
-
-    def testNormalizeBreakSortOrder(self):
-        vcf_str = """##fileformat=VCFv4.0\n
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
-##source=TVsim\n
-#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
-chr4   9   .       G     A         20      PASS    .       GT      1/1\n
-chr4   11   .       G     GGG       20      PASS    .       GT      0/1\n
-"""
-        norm = NormalizeIterator(get_reference(),self.getVcf(vcf_str))
-        record1 = norm.next()
-        record2 = norm.next()
-        self.assertEqual(record1.POS,9)
-        self.assertEqual(record2.POS,8)
-
 
     def testGenotypes(self):
         # keep genotype info for a compound heterozygous call
@@ -207,7 +192,7 @@ chr4   11   .       G     GGG       20      PASS    .       GT      0/1\n
 chr1   2   .       A     C,T       20      PASS    .       GT      1/2\n
 """
         vcf = self.getVcf(vcf_str)
-        record = NormalizeIterator(get_reference(),vcf).next()
+        record = normalize(get_reference(),vcf).next()
         self.assertEqual(record.samples[0].gt_nums, "1/2")
 
     def testMultipleAltAlleles(self):
@@ -218,8 +203,7 @@ chr1   2   .       A     C,T       20      PASS    .       GT      1/2\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr2    6       .       G       CG       20      PASS    .       GT      0/1\n
 """
-        # output_vcf = self.normalizeString(vcf_str)
-        record = NormalizeIterator(get_reference(),self.getVcf(vcf_str)).next()
+        record = normalize(get_reference(),self.getVcf(vcf_str)).next()
         self.assertEqual(record.POS,3)
         self.assertEqual(record.REF,'G')
         self.assertEqual(record.ALT[0], 'GC')
@@ -229,7 +213,7 @@ chr2    6       .       G       CG       20      PASS    .       GT      0/1\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
 chr2    6       .       G       CG,C       20      PASS    .       GT      0/1\n
 """
-        record = NormalizeIterator(get_reference(),self.getVcf(vcf_str2)).next()
+        record = normalize(get_reference(),self.getVcf(vcf_str2)).next()
         self.assertEqual(record.POS,6)
         self.assertEqual(record.REF,'G')
         self.assertEqual(record.ALT[0],'CG')
@@ -245,6 +229,94 @@ chr1   4   .      A      G       20      PASS     .      GT      1/1\n
         r1 = output_vcf.next()
         self.assertEqual(r1.POS,2)
 
+    def testCollidingVariants(self):
+        vcf_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1   5   .      A     TGC       20      PASS    .       GT      1/1\n
+chr1   5   .      A      GGG       20      PASS     .      GT      1/1\n
+"""
+        norm_iter = normalize(get_reference(),self.getVcf(vcf_str))
+        count = self.countRecords(norm_iter)
+        self.assertEqual(count,1)
+
+    def testNormalizedToCollision(self):
+        vcf_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr2    4       .       C       T       20      PASS    .       GT      0/1\n
+chr2    5       .       C       CGC     20      PASS    .       GT      0/1\n
+chr4    2       .       A       AGG     20      PASS    .       GT      0/1\n
+chr4    6       .       C       CTC     20      PASS    .       GT      0/1\n
+"""
+        norm_iter = normalize(get_reference(),self.getVcf(vcf_str))
+        r1 = norm_iter.next()
+        r2 = norm_iter.next()
+        r3 = norm_iter.next()
+        r4 = norm_iter.next()
+        self.assertEqual(r1.POS,4) # chr2 SNP doesn't change
+        self.assertEqual(r2.POS,5) # chr2 insertion gets normed forward 1 base and slid back to original pos
+        self.assertEqual(r2.REF,"C")
+        self.assertEqual(r2.ALT,["CGC"])
+        self.assertEqual(r3.POS,2)
+        self.assertEqual(r3.REF,"A")
+        self.assertEqual(r3.ALT,["AGG"])
+        self.assertEqual(r4.POS,3)
+        self.assertEqual(r4.REF,"T")
+        self.assertEqual(r4.ALT,["TCT"])
+
+        vcf_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4    2       .       ATC     A     20      PASS    .       GT      0/1\n
+chr4    6       .       CTC     C     20      PASS    .       GT      0/1\n
+"""
+        norm_iter = normalize(get_reference(),self.getVcf(vcf_str))
+        r1 = norm_iter.next()
+        r2 = norm_iter.next()
+        self.assertEqual(r1.POS,2)
+        self.assertEqual(r1.REF,"ATC")
+        self.assertEqual(r1.ALT,["A"])
+        self.assertEqual(r2.POS,5)
+        self.assertEqual(r2.REF,"TCT")
+        self.assertEqual(r2.ALT,["T"])
+
+
+    def testNormalizeTwoToCollision(self):
+        vcf_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4    4       .       C       CTC     20      PASS    .       GT      0/1\n
+chr4    6       .       C       CTC     20      PASS    .       GT      0/1\n
+"""
+        norm_iter = normalize(get_reference(),self.getVcf(vcf_str))
+        r1 = norm_iter.next()
+        r2 = norm_iter.next()
+        self.assertEqual(r1.POS,2)
+        self.assertEqual(r1.REF,"A")
+        self.assertEqual(r1.ALT,["ATC"])
+        self.assertEqual(r2.POS,3)
+        self.assertEqual(r2.REF,"T")
+        self.assertEqual(r2.ALT,["TCT"])
+
+    def testNormalizeThreeCollision(self):
+        # the OP info flag is fake
+        vcf_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4    3       .       T       C     20      PASS    .       GT      0/1\n
+chr4    3       .       T       TCTTC     20      PASS    OP=1       GT      0/1\n
+chr4    3       .       TCTC    T        20      PASS     OP=2        GT     0/1\n
+"""
+        norm_iter = normalize(get_reference(),self.getVcf(vcf_str))
+        r1 = norm_iter.next()
+        r2 = norm_iter.next()
+        r3 = norm_iter.next()
+        self.assertEqual(r1.POS,3)
+        self.assertEqual(r2.POS,4)
+        self.assertEqual(r2.REF,"C")
+        self.assertEqual(r2.ALT,["CTTCC"])
+        #self.assertEqual(r3.POS,5)
 
 if __name__ == '__main__':
     unittest.main()
