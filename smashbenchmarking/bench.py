@@ -43,7 +43,7 @@ from parsers.genome import Genome
 from vcf_eval.variants import Variants,evaluate_variants,output_errors
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
-from normalize_vcf import NormalizeIterator
+from normalize_vcf import normalize
 
 # this needs to move to another class
 tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN']
@@ -234,12 +234,12 @@ def main(params):
     with open(args.true_vcf) as f:
         true_vcf = vcf.Reader(f)
         if args.normalize:
-            true_vcf = NormalizeIterator(ref,true_vcf)
+            true_vcf = normalize(ref,true_vcf)
         true_vars = Variants(true_vcf, MAX_INDEL_LEN)
     with open(args.predicted_vcf) as f:
         pred_vcf = vcf.Reader(f)
         if args.normalize:
-            pred_vcf = NormalizeIterator(ref,pred_vcf)
+            pred_vcf = normalize(ref,pred_vcf)
         pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
 
 

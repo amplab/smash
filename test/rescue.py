@@ -29,7 +29,7 @@ import vcf
 import unittest
 import StringIO
 
-from test_helper import MAX_INDEL_LEN,vcf_to_ChromVariants,get_empty_ChromVariants,get_reference
+from test_helper import MAX_INDEL_LEN,vcf_to_ChromVariants,get_empty_ChromVariants,get_reference,normalize_vcf_to_ChromVariants
 
 sys.path.insert(0,'..')
 from smashbenchmarking.vcf_eval.rectify_seq import *
@@ -215,6 +215,23 @@ chr4   5   .       TC    T       20      PASS    .       GT      1/1\n
         fp_vars = vcf_to_ChromVariants(fp_str,'chr4')
         tp_vars = vcf_to_ChromVariants(tp_str,'chr4')
         rescuer = SequenceRescuer('chr4',3,fn_vars,fp_vars,tp_vars,get_reference(),50)
+        self.assertTrue(rescuer.rescued)
+
+    def testNormalizedVariants(self):
+        fp_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4    4       .       C       CTC     20      PASS    .       GT      0/1\n
+chr4    6       .       C       CTC     20      PASS    .       GT      0/1\n
+"""
+        fn_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4    2       .       A       ATCTC     20      PASS    .       GT      0/1\n
+"""
+        fp_vars = normalize_vcf_to_ChromVariants(fp_str,'chr4')
+        fn_vars = vcf_to_ChromVariants(fn_str,'chr4')
+        rescuer = SequenceRescuer('chr4',2,fn_vars,fp_vars,get_empty_ChromVariants('chr4'),get_reference(),50)
         self.assertTrue(rescuer.rescued)
 
 
