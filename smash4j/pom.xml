@@ -10,6 +10,7 @@
     <modules>
         <module>smash4j-benchmarker</module>
         <module>vcfparser</module>
+        <module>fastaparser</module>
     </modules>
     <build>
         <plugins>
