@@ -105,13 +105,13 @@ def genotype(vcfrecord):
     # return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
     # PyVCF's gt_type field only contains the values above. Pass the actual gt string through
     # to avoid converting other values, e.g. "2/1" to "0/1"
-    # if vcfrecord.samples[0].gt_type == 1:
-    return vcfrecord.samples[0].gt_nums
-    # return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
+    if vcfrecord.samples[0].gt_type == 1:
+        return vcfrecord.samples[0].gt_nums
+    return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
 
 def write(record, writer):
     return writer.write_record(record.CHROM, record.POS, '.',
-                               record.REF, ','.join(map(lambda a: str(a),record.ALT)), genotype(record),infoToStr(record.INFO)) # TODO: more gtypes.
+                               record.REF, ','.join(map(lambda a: str(a),record.ALT)), record.samples[0].gt_nums,infoToStr(record.INFO)) # TODO: more gtypes.
 
 
 left_slides = []
@@ -157,6 +157,9 @@ def shift_until_not_overlapping(var_one,var_two,ref_genome):
     def same_last_base(alleles):
         last_bases = map(lambda allele: allele[-1], alleles)
         return len(set(last_bases)) == 1
+    def same_first_base(alleles):
+        first_bases = map(lambda allele: allele[0], alleles)
+        return len(set(first_bases)) == 1
     def slide(pos,ref_allele,sliding_allele):
         right_endpoint = pos + len(ref_allele) - 1
         right_base = ref_genome.ref(var_two.CHROM,right_endpoint,right_endpoint+1)
@@ -169,6 +172,7 @@ def shift_until_not_overlapping(var_one,var_two,ref_genome):
         two_alt_alleles = map(lambda a: slide(two_pos,two_ref_allele,a),two_alt_alleles)
         two_ref_allele = slide(two_pos,two_ref_allele,two_ref_allele)
         assert(same_last_base([two_ref_allele] + two_alt_alleles))
+        assert(same_first_base([two_ref_allele] + two_alt_alleles))
     var_two.POS = two_pos + 1 # back to 1-based coord
     var_two.REF = two_ref_allele
     var_two.ALT = map(lambda a: vcf.model._Substitution(a),two_alt_alleles)
