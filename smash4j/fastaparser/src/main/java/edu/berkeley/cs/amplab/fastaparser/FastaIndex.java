@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 
 public class FastaIndex {
 
-  private static final class Entry implements Comparable<Entry> {
+  public static final class Entry implements Comparable<Entry> {
 
     private static final Comparator<Entry> COMPARATOR = Ordering.natural()
         .onResultOf(
