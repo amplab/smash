@@ -34,7 +34,7 @@ INDEL INSERTION Results
 	# missed = 0
 	# false pos = 0
 	percent correct = 100.0
-	non reference discrepancy = 0.0
+	non reference discrepancy = 50.0
 
 
 ------------------------

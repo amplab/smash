@@ -51,7 +51,7 @@ SMASHVERSION = 1.0
 date_run = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # this needs to move to another class
-tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN']
+tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
 
 def tsv_row(variant_name,stats,err):
     return [variant_name,
@@ -61,8 +61,15 @@ def tsv_row(variant_name,stats,err):
     interval(*bound_recall(stats['good_predictions'],stats['false_negatives'],err)),
     stats['good_predictions'],
     stats['false_negatives'],
-    stats['false_positives']
+    stats['false_positives'],
+    get_nrd(stats)
     ]
+
+def get_nrd(stats):
+    if stats['num_true'] > 0:
+        return ratio(stats['nrd_wrong'],stats['nrd_total'])*100
+    else:
+        return 0.0
 
 def nonzero_float(n):
     return float(n) if n != 0 else 1.0
