@@ -43,6 +43,6 @@ public class FastaIndexTest {
         .build());
     ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     expected.write(buffer);
-    assertEquals(expected, FastaIndex.create(new ByteArrayInputStream(buffer.toByteArray())));
+    assertEquals(expected, FastaIndex.read(new ByteArrayInputStream(buffer.toByteArray())));
   }
 }

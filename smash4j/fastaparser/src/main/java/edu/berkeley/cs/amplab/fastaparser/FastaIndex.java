@@ -2,8 +2,11 @@ package edu.berkeley.cs.amplab.fastaparser;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.PeekingIterator;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -142,17 +145,84 @@ public class FastaIndex {
     }
   }
 
-  public static FastaIndex create(File file) throws IOException {
-    try (Reader in = new FileReader(file)) {
-      return create(in);
+  public static FastaIndex create(File fastaFile) throws IOException {
+    class ExceptionWrapper extends RuntimeException {
+
+      ExceptionWrapper(IOException cause) {
+        super(cause);
+      }
+
+      @Override public IOException getCause() {
+        return (IOException) super.getCause();
+      }
+    }
+    try {
+      try (final BufferedReader in = new BufferedReader(new FileReader(fastaFile))) {
+        ImmutableSortedSet.Builder<FastaIndex.Entry> entries = ImmutableSortedSet.naturalOrder();
+        String name = null;
+        long length = 0;
+        long offset1 = 0;
+        long offset2 = 0;
+        int bases = 0;
+        for (
+            PeekingIterator<String> iterator = Iterators.peekingIterator(
+                new AbstractIterator<String>() {
+                  @Override protected String computeNext() {
+                    try {
+                      String line = in.readLine();
+                      return null == line ? endOfData() : line;
+                    } catch (IOException e) {
+                      throw new ExceptionWrapper(e);
+                    }
+                  }
+                });
+            iterator.hasNext();) {
+          String line = iterator.next();
+          int lineLength = line.length();
+          offset2 += lineLength + 1;
+          if (line.startsWith(">")) {
+            if (null != name) {
+              entries.add(FastaIndex.Entry.create(name, length, offset1, bases, bases + 1));
+            }
+            name = line.substring(1).split("\\p{Space}+?")[0];
+            length = 0;
+            offset1 = offset2;
+            bases = 0;
+          } else {
+            if (0 == bases) {
+              bases = lineLength;
+            } else if (bases != lineLength
+                && iterator.hasNext()
+                && !iterator.peek().startsWith(">")) {
+              throw new IllegalStateException(String.format(
+                  "Inconsistent line lengths at contig \"%s\", offset %d",
+                  name,
+                  offset2 - lineLength - 1));
+            }
+            length += lineLength;
+          }
+        }
+        if (null != name) {
+          entries.add(FastaIndex.Entry.create(name, length, offset1, bases, bases + 1));
+        }
+        return FastaIndex.create(entries.build());
+      }
+    } catch (ExceptionWrapper e) {
+      throw e.getCause();
     }
   }
 
-  public static FastaIndex create(InputStream in) throws IOException {
-    return create(new InputStreamReader(in));
+  public static FastaIndex open(File file) throws IOException {
+    try (Reader in = new FileReader(file)) {
+      return read(in);
+    }
   }
 
-  public static FastaIndex create(Reader reader) throws IOException {
+  public static FastaIndex read(InputStream in) throws IOException {
+    return read(new InputStreamReader(in));
+  }
+
+  public static FastaIndex read(Reader reader) throws IOException {
     @SuppressWarnings("resource") BufferedReader in = reader instanceof BufferedReader
         ? (BufferedReader) reader
         : new BufferedReader(reader);
@@ -173,22 +243,26 @@ public class FastaIndex {
     this.entries = entries;
   }
 
+  public SortedSet<Entry> entries() {
+    return entries;
+  }
+
   @Override
   public boolean equals(Object obj) {
     return this == obj
         || null != obj
         && FastaIndex.class == obj.getClass()
-        && Objects.equals(entries, ((FastaIndex) obj).entries);
+        && Objects.equals(entries(), ((FastaIndex) obj).entries());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(entries);
+    return Objects.hashCode(entries());
   }
 
   @Override
   public String toString() {
-    return String.format("%s%n", Joiner.on(String.format("%n")).join(entries));
+    return Joiner.on(String.format("%n")).join(entries());
   }
 
   public FastaIndex write(File file) throws IOException {
@@ -202,7 +276,7 @@ public class FastaIndex {
   }
 
   public FastaIndex write(Writer writer) throws IOException {
-    PrintWriter out = writer instanceof PrintWriter
+    @SuppressWarnings("resource") PrintWriter out = writer instanceof PrintWriter
         ? (PrintWriter) writer
         : new PrintWriter(writer);
     out.print(this);
