@@ -229,6 +229,7 @@ chr1   4   .      A      G       20      PASS     .      GT      1/1\n
         r1 = output_vcf.next()
         self.assertEqual(r1.POS,2)
 
+
     def testCollidingVariants(self):
         vcf_str = """##fileformat=VCFv4.0
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
@@ -300,23 +301,26 @@ chr4    6       .       C       CTC     20      PASS    .       GT      0/1\n
         self.assertEqual(r2.ALT,["TCT"])
 
     def testNormalizeThreeCollision(self):
-        # the OP info flag is fake
+        # the OP info flag is fake to force vars to right-slide
         vcf_str = """##fileformat=VCFv4.0
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
-chr4    3       .       T       C     20      PASS    .       GT      0/1\n
-chr4    3       .       T       TCTTC     20      PASS    OP=1       GT      0/1\n
-chr4    3       .       TCTC    T        20      PASS     OP=2        GT     0/1\n
+chr4    2       .       A       ATCTT     20      PASS    OP=1       GT      0/1\n
+chr4    2       .       A       T     20      PASS    .       GT      0/1\n
+chr4    2       .       ATCTC    T        20      PASS     OP=2        GT     0/1\n
 """
         norm_iter = normalize(get_reference(),self.getVcf(vcf_str))
         r1 = norm_iter.next()
         r2 = norm_iter.next()
         r3 = norm_iter.next()
-        self.assertEqual(r1.POS,3)
-        self.assertEqual(r2.POS,4)
-        self.assertEqual(r2.REF,"C")
-        self.assertEqual(r2.ALT,["CTTCC"])
-        #self.assertEqual(r3.POS,5)
+        r1,r2,r3 = sorted([r1,r2,r3],key=lambda x: x.POS) # order of vars from same pos not guaranteed
+        self.assertEqual(r1.POS,2)
+        self.assertEqual(r2.POS,3)
+        self.assertEqual(r2.REF,"T")
+        self.assertEqual(r2.ALT,["TCTTT"])
+        self.assertEqual(r3.POS,4)
+        self.assertEqual(r3.REF,"CTCTC")
+        self.assertEqual(r3.ALT,["C"])
 
 if __name__ == '__main__':
     unittest.main()
