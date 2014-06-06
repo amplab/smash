@@ -38,12 +38,17 @@ import vcf
 import csv
 import sys
 import argparse
+import datetime
 
 from parsers.genome import Genome
 from vcf_eval.variants import Variants,evaluate_variants,output_errors
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
 from normalize_vcf import normalize
+
+# metadata
+SMASHVERSION = 1.0
+date_run = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # this needs to move to another class
 tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN']
@@ -219,6 +224,9 @@ def get_sv_err(true_vars, sv_err_rate):
         true_vars.var_num(VARIANT_TYPE.SV_OTH)
         ]) * sv_err_rate
 
+def get_text_header(params):
+    return "# SMaSH version %s, run %s\n# cmdline args: %s" % (SMASHVERSION,date_run," ".join(params))
+
 def main(params):
     args = parse_args(params)
     if args.normalize and not args.reference:
@@ -272,6 +280,7 @@ def main(params):
         )
 
     if args.output == "tsv":
+        print(get_text_header(params),file=sys.stdout)
         tsvwriter = csv.writer(sys.stdout, delimiter='\t')
         tsvwriter.writerow(tsv_header)
         tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err))
@@ -282,6 +291,7 @@ def main(params):
         tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),sv_err))
         tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),sv_err))
     else:
+        print(get_text_header(params),file=sys.stdout)
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
         print_snp_stats(snp_stats, snp_err, known_fp_vars)
         def print_sv(var_type, description):
