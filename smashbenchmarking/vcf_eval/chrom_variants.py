@@ -36,7 +36,7 @@ class Enum(set):
             return name
         raise AttributeError(name)
 
-VARIANT_TYPE = Enum(["SNP","INDEL_DEL","INDEL_INS","INDEL_OTH","SV_DEL","SV_INS","SV_OTH"])
+VARIANT_TYPE = Enum(["SNP","INDEL_DEL","INDEL_INS","INDEL_OTH","SV_DEL","SV_INS","SV_OTH","INDEL_INV"])
 GENOTYPE_TYPE = Enum(["HOM_REF","HET","HOM_VAR","NO_CALL","UNAVAILABLE"])
 
 # this maps the PyVCF representation to this enum representation
@@ -74,6 +74,10 @@ def is_sv(record,maxSize):
     if ( any(map(lambda t: t>maxSize,altSizes)) ):
         return True
     return symbolic
+
+def is_inversion(record,maxSize):
+    return (len(record.REF) > 1 or len(record.ALT[0]) > 1) \
+        and not is_sv(record,maxSize) and record.REF == str(record.ALT[0])[::-1] # this is crazy python for reversing a string
 
 class ChromVariants:
 
@@ -209,17 +213,17 @@ class ChromVariants:
         add_appropriate_variant(VARIANT_TYPE.INDEL_DEL,VARIANT_TYPE.SV_DEL)
       elif len_ref == 1:
         add_appropriate_variant(VARIANT_TYPE.INDEL_INS,VARIANT_TYPE.SV_INS)
+      elif is_inversion(record,self._max_indel_len):
+        add_variant(VARIANT_TYPE.INDEL_INV)
       else:
         add_appropriate_variant(VARIANT_TYPE.INDEL_OTH,VARIANT_TYPE.SV_OTH)
-        # Other now contains MNP, inversions
+        # Other now contains MNP
         # MNP question: can ref/alt be of different lengths?
         # MNP: all indels that are not currently being handled?
         # Short inversions may be MNPs
-        # Inversion: ACGT -> ATGC
         # This is all dependent on our validation data.
 
         # MNP: many to many shorter than indel constant
-        # inversion: many to many longer than indel constant that are reversed
         # all others: still falls in other buckets
 
     if record.is_snp:

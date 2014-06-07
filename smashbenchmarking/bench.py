@@ -293,6 +293,7 @@ def main(params):
         tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err))
         tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),indel_err))
         tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),indel_err))
+        tsvwriter.writerow(tsv_row("Indel Inversions",stat_reporter(VARIANT_TYPE.INDEL_INV),indel_err))
         tsvwriter.writerow(tsv_row("Indel Other",stat_reporter(VARIANT_TYPE.INDEL_OTH),indel_err))
         tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),sv_err))
         tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),sv_err))
@@ -311,6 +312,7 @@ def main(params):
     
         print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
         print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
+        print_sv(VARIANT_TYPE.INDEL_INV, 'INDEL INVERSION')
         print_oth(VARIANT_TYPE.INDEL_OTH, 'INDEL OTHER')
         print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION'),
         print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),

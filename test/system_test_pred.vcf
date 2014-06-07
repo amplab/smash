@@ -4,5 +4,6 @@
 chr1   6   .       c     cg       20      PASS    .       GT      0/1
 chr2   3   .       G     A        20      PASS    .       GT      1/1
 chr2   4   .       C     T        20      PASS    .       GT      1/1
+chr3   2   .     TCG    GCT       20      PASS    .       GT      1/1
 chr4   9   .       G     A         20      PASS    .       GT      1/1
 chr4   11   .       G     GGG       20      PASS    .       GT      1/1
