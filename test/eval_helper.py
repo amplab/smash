@@ -76,7 +76,7 @@ chr1   8000   .       G     GC       20      PASS    .       GT      1/1\n
 """
         true_vars = vcf_to_ChromVariants(fn_str,'chr1')
         pred_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        num_new_tp,num_removed_fn = rescue_mission(true_vars,pred_vars,get_empty_ChromVariants('chr1'),8000,get_reference(),100)
+        num_new_tp,num_removed_fn,rescuedvars = rescue_mission(true_vars,pred_vars,get_empty_ChromVariants('chr1'),8000,get_reference(),100)
         self.assertFalse(any(map(lambda x: x > 0, num_new_tp.itervalues())))
         self.assertFalse(any(map(lambda x: x > 0, num_removed_fn.itervalues())))
         # variant couldn't be rescued; no change to counts or ChromVariants
@@ -95,11 +95,12 @@ chr1   4   .       A     C       20      PASS    .       GT      1/1\n
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr1')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr1')
-        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,get_empty_ChromVariants('chr1'),2,get_reference(),100)
+        num_new_tp,num_removed_fn,rescuedvars = rescue_mission(fn_vars,fp_vars,get_empty_ChromVariants('chr1'),2,get_reference(),100)
         self.assertFalse(any(map(lambda x: x > 0, num_new_tp.itervalues())))
         self.assertFalse(any(map(lambda x: x > 0, num_removed_fn.itervalues())))
         self.assertEqual(len(fn_vars.all_locations),2)
         self.assertEqual(len(fp_vars.all_locations),1)
+        self.assertEqual(rescuedvars,[])
         # variant is rescued; counts change; variants are removed from fn/fp
         fn_str = """##fileformat=VCFv4.0\n
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
@@ -114,11 +115,12 @@ chr2   4   .       C     T       20      PASS    .       GT      1/1\n
 """
         fn_vars = vcf_to_ChromVariants(fn_str,'chr2')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr2')
-        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,get_empty_ChromVariants('chr2'),2,get_reference(),100)
+        num_new_tp,num_removed_fn,rescuedvars = rescue_mission(fn_vars,fp_vars,get_empty_ChromVariants('chr2'),2,get_reference(),100)
         self.assertEqual(num_new_tp[VARIANT_TYPE.INDEL_OTH],1)
         self.assertEqual(num_removed_fn[VARIANT_TYPE.SNP],2)
         self.assertEqual(len(fn_vars.all_locations),0)
         self.assertEqual(len(fp_vars.all_locations),0)
+        self.assertEqual(map(lambda r: r.pos,rescuedvars),[3,4])
     def testChromEvaluateVariants(self):
         # TODO refactor this method
         # TODO test known false positive functionality
@@ -322,13 +324,14 @@ chr4   5   .       TC    T       20      PASS    .       GT      1/1\n
         fn_vars = vcf_to_ChromVariants(fn_str,'chr4')
         fp_vars = vcf_to_ChromVariants(fp_str,'chr4')
         tp_vars = vcf_to_ChromVariants(tp_str,'chr4')
-        num_new_tp,num_removed_fn = rescue_mission(fn_vars,fp_vars,tp_vars,3,get_reference(),100)
+        num_new_tp,num_removed_fn,rescuedvars = rescue_mission(fn_vars,fp_vars,tp_vars,3,get_reference(),100)
         self.assertEqual(num_new_tp[VARIANT_TYPE.SNP],1)
         self.assertEqual(num_new_tp[VARIANT_TYPE.INDEL_DEL],1)
         self.assertEqual(num_removed_fn[VARIANT_TYPE.SNP],1)
         self.assertEqual(num_removed_fn[VARIANT_TYPE.INDEL_DEL],1)
         self.assertFalse(fn_vars.all_locations)
         self.assertFalse(fp_vars.all_locations)
+        self.assertEqual(map(lambda r: r.pos,rescuedvars),[4,7])
 
 
 class ChromVariantStatsTestCase(unittest.TestCase):

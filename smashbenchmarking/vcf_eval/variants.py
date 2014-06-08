@@ -92,13 +92,15 @@ def _aggregate(stats_by_chrom):
    var_iterator = []
    for chrom in filter(lambda t: t in stats_by_chrom_dict.keys(),chrom_order):
      cv_stats = stats_by_chrom_dict[chrom]
-     fp_iter = cv_stats.false_positives._vcf_iterator("err_type=FP",cv_stats.false_positives.all_locations)
-     fn_iter = cv_stats.false_negatives._vcf_iterator("err_type=FN",cv_stats.false_negatives.all_locations)
+     tp_iter = cv_stats.true_positives._vcf_iterator("source_file=1;smash_type=TP",cv_stats.true_positives.all_locations)
+     fp_iter = cv_stats.false_positives._vcf_iterator("source_file=2;smash_type=FP",cv_stats.false_positives.all_locations)
+     fn_iter = cv_stats.false_negatives._vcf_iterator("source_file=1;smash_type=FN",cv_stats.false_negatives.all_locations)
+     rescued_iter = cv_stats.rescued_vars._vcf_iterator("source_file=2;smash_type=rescued",cv_stats.rescued_vars.all_locations)
      if ( cv_stats.known_fp_variants != None ):
       known_fp_iter = cv_stats.known_fp_variants._vcf_iterator("err_type=FP_known",cv_stats.known_fp_variants.all_locations)
      else:
       known_fp_iter = [].__iter__()
-     var_iterator = chain(var_iterator,vcf_by_position([fp_iter,fn_iter,known_fp_iter]))
+     var_iterator = chain(var_iterator,vcf_by_position([tp_iter,fp_iter,fn_iter,known_fp_iter,rescued_iter]))
    return var_iterator
 
   return aggregator,errors
@@ -119,9 +121,12 @@ def evaluate_variants(true_variants,pred_variants,eps,eps_bp,ref,window,known_fp
       return chrom_evaluate_variants(true,pred,eps,eps_bp,ref,window,known_fp)
     return _eval_aggregate(true_variants,pred_variants,known_fp,evaluate)
 
+
 def output_errors(err_aggregate,contig_ordering,outVCF):
     # write the header
     outVCF.write("##fileformat=VCFv4.1\n")
+    outVCF.write("##INFO=<ID=smash_type,Type=String,Description=\"classify variant as TP,FP,FN,or rescued\">\n")
+    outVCF.write("##INFO=<ID=source_file,Type=Integer,Description=\"variant originally in first or second vcf passed to SMaSH\">\n")
     outVCF.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
     for rec in err_aggregate(contig_ordering):
       outVCF.write("%s\n" % rec )

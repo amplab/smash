@@ -51,13 +51,12 @@ import vcf
 import parsers.vcfwriter
 from parsers.genome import Genome
 from vcf_eval.chrom_variants import is_sv
-#from vcf_eval.normalize import find_redundancy
 
 info_norm_tag = "OP"
 
 normalize_header = """##fileformat=VCFv4.0
 ##source=VCFWriter
-##INFO=<ID=OP,Number=1,Type=Integer,Description="Original position before normalization">
+##INFO=<ID=""" + info_norm_tag + """,Number=1,Type=Integer,Description="Original position before normalization">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 #CHROM  POS ID  REF ALT QUAL    FILTER  INFO    FORMAT  """
 
