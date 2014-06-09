@@ -20,6 +20,8 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.SortedSet;
@@ -145,6 +147,9 @@ public class FastaIndex {
     }
   }
 
+  private static final int NEWLINE_SIZE_IN_BYTES =
+      StandardCharsets.UTF_8.encode(CharBuffer.wrap(String.format("%n"))).limit();
+
   public static FastaIndex create(File fastaFile) throws IOException {
     class ExceptionWrapper extends RuntimeException {
 
@@ -178,10 +183,11 @@ public class FastaIndex {
           iterator.hasNext();) {
         String line = iterator.next();
         int lineLength = line.length();
-        offset2 += lineLength + 1;
+        offset2 += lineLength + NEWLINE_SIZE_IN_BYTES;
         if (line.startsWith(">")) {
           if (null != name) {
-            entries.add(FastaIndex.Entry.create(name, length, offset1, bases, bases + 1));
+            entries.add(FastaIndex.Entry.create(
+                name, length, offset1, bases, bases + NEWLINE_SIZE_IN_BYTES));
           }
           name = line.substring(1).split("\\p{Space}+?")[0];
           length = 0;
@@ -196,13 +202,14 @@ public class FastaIndex {
             throw new IllegalStateException(String.format(
                 "Inconsistent line lengths at contig \"%s\", offset %d",
                 name,
-                offset2 - lineLength - 1));
+                offset2 - lineLength - NEWLINE_SIZE_IN_BYTES));
           }
           length += lineLength;
         }
       }
       if (null != name) {
-        entries.add(FastaIndex.Entry.create(name, length, offset1, bases, bases + 1));
+        entries.add(FastaIndex.Entry.create(
+            name, length, offset1, bases, bases + NEWLINE_SIZE_IN_BYTES));
       }
       return FastaIndex.create(entries.build());
     } catch (ExceptionWrapper e) {
