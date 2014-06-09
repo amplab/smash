@@ -34,6 +34,19 @@ INDEL INSERTION Results
 	# missed = 0
 	# false pos = 0
 	percent correct = 100.0
+	non reference discrepancy = 50.0
+
+
+------------------------
+INDEL INVERSION Results
+------------------------
+# True = 1; # Predicted = 1
+	# precision = 100.0 +/- 0.0000
+	# recall = 100.0 +/- 0.0000
+	# correct = 1
+	# missed = 0
+	# false pos = 0
+	percent correct = 100.0
 	non reference discrepancy = 0.0
 
 

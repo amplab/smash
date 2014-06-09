@@ -68,10 +68,10 @@ def rescue_mission(false_negatives,false_positives,true_positives,loc,ref,window
     if false_negatives.all_variants[loc].var_type.startswith("SV"):
         # don't try to rescue SVs (if they could've been rescued, they were marked true
         # by having some breakpoint within the window
-        return num_new_tp,num_fp_removed
+        return num_new_tp,num_fp_removed,[]
     rescuer = SequenceRescuer(false_negatives.chrom,loc,false_negatives,false_positives,true_positives,ref,window)
     if not rescuer or not rescuer.rescued:
-        return num_new_tp,num_fp_removed
+        return num_new_tp,num_fp_removed,[]
 
     # now the whole truth window becomes true positives
     # and the whole predicted window is removed from false positives
@@ -79,10 +79,12 @@ def rescue_mission(false_negatives,false_positives,true_positives,loc,ref,window
     for variant in rescuer.truthWindowQueue[rescuer.windowsRescued[0]]:
         false_negatives._remove_variant(variant.pos)
         num_new_tp[variant.var_type] += 1
+
     for variant in rescuer.predictWindowQueue[rescuer.windowsRescued[1]]:
         false_positives._remove_variant(variant.pos)
         num_fp_removed[variant.var_type] += 1
-    return num_new_tp,num_fp_removed
+
+    return num_new_tp,num_fp_removed,rescuer.predictWindowQueue[rescuer.windowsRescued[1]]
 # NB the next four functions test equality of variants in slightly different ways. Careful!
 def var_match_at_loc(true_variants,pred_variants,loc):
     def get_var(variants):
@@ -139,9 +141,10 @@ class ChromVariantStats:
         self.num_tp = _type_dict() # true positives as int
         self.num_fp = _type_dict()
         self.num_fn = _type_dict()
-        self.false_positives = self._extract(pred_var,false_positives,self.num_fp) #chromvariants
-        self.false_negatives = self._extract(true_var,false_negatives,self.num_fn) #chromvariants
-        self.true_positives = self._extract(true_var,true_positives,self.num_tp) #chromvariants
+        self.false_positives = self._extract(pred_var,false_positives,self.num_fp) # chromvariants
+        self.false_negatives = self._extract(true_var,false_negatives,self.num_fn) # chromvariants
+        self.true_positives = self._extract(true_var,true_positives,self.num_tp) # chromvariants
+        self.rescued_vars = ChromVariants(self.chrom,self.false_positives._max_indel_len) # populate with rescued vars
         self.intersect_bad = None # set externally
         self.known_fp = None # set externally
         self.calls_at_known_fp = None # set externally
@@ -181,7 +184,7 @@ class ChromVariantStats:
         # note we needed to force a copy here, since rescue_mission is modifying the false-negative sets
         for loc in locs_to_rescue:
             if ( loc in self.false_negatives.all_variants ): # if the element is still in the set of false negatives
-                new_tp,rm_fp = rescue_mission(self.false_negatives,self.false_positives,self.true_positives,loc,ref,window)
+                new_tp,rm_fp,rescued_vars = rescue_mission(self.false_negatives,self.false_positives,self.true_positives,loc,ref,window)
                 for t in VARIANT_TYPE:
                     # seemingly odd accounting. The number of predicted variants *changes* as a result of rescuing.
                     # e.g. 2 predicted FPs are in fact 1 FN. So
@@ -194,6 +197,8 @@ class ChromVariantStats:
                     self.num_pred[t] += new_tp[t]
                     self.num_fn[t] -= new_tp[t]
                     self.num_tp[t] += new_tp[t]
+                for v in rescued_vars:
+                    self.rescued_vars._add_variant(v)
 
     def _nrd_counts(self,var_type):
         genoGenoCounts = self.genotype_concordance[var_type]

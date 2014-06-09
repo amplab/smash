@@ -15,7 +15,7 @@ tmp_dir=`mktemp -d /tmp/systest.XXXX`
     2> /dev/null
 
 # Diff against golden output
-diff $test_dir/system_test.golden_output $tmp_dir/output > $tmp_dir/diff_output
+diff $test_dir/system_test.golden_output $tmp_dir/output --ignore-matching-lines=^# > $tmp_dir/diff_output
 exit_code=$?
 
 if [ $exit_code -eq 0 ]; then

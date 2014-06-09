@@ -38,15 +38,20 @@ import vcf
 import csv
 import sys
 import argparse
+import datetime
 
 from parsers.genome import Genome
-from vcf_eval.variants import Variants,evaluate_variants,output_errors
+from vcf_eval.variants import Variants,evaluate_variants,output_annotated_variants
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
 from normalize_vcf import normalize
 
+# metadata
+SMASHVERSION = "1.0"
+date_run = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
 # this needs to move to another class
-tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN']
+tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
 
 def tsv_row(variant_name,stats,err):
     return [variant_name,
@@ -56,8 +61,15 @@ def tsv_row(variant_name,stats,err):
     interval(*bound_recall(stats['good_predictions'],stats['false_negatives'],err)),
     stats['good_predictions'],
     stats['false_negatives'],
-    stats['false_positives']
+    stats['false_positives'],
+    get_nrd(stats)
     ]
+
+def get_nrd(stats):
+    if stats['num_true'] > 0:
+        return ratio(stats['nrd_wrong'],stats['nrd_total'])*100
+    else:
+        return 0.0
 
 def nonzero_float(n):
     return float(n) if n != 0 else 1.0
@@ -192,9 +204,8 @@ def parse_args(params):
             help="The error rate of SVs in the ground truth data")
     parser.add_argument("-w","--rescue_window_size",dest="window",type=int,
             default=50,help="The size of the window for rescuing")
-    parser.add_argument("--err_vcf",dest="err_vcf",action="store",
-            help="""An optional output VCF to hold detected
-            false-negatives and false-positives""")
+    parser.add_argument("--output_vcf",dest="output_vcf",action="store",
+            help="""An optional output VCF to hold annotated variants from both source files""")
     parser.add_argument("--normalize",action="store_true",
             help="Optionally normalize variants before evaluating them; requires reference file")
     parser.add_argument("--output",action="store",
@@ -218,6 +229,12 @@ def get_sv_err(true_vars, sv_err_rate):
         true_vars.var_num(VARIANT_TYPE.SV_DEL),
         true_vars.var_num(VARIANT_TYPE.SV_OTH)
         ]) * sv_err_rate
+
+def get_text_header(params):
+    return "# SMaSH version %s, run %s\n# cmdline args: %s" % (SMASHVERSION,date_run," ".join(params))
+
+def get_vcf_header_lines(params):
+    return ["##SMaSH version %s" % SMASHVERSION, "##Date run %s" % date_run, "##cmdline args: %s" % " ".join(params)]
 
 def main(params):
     args = parse_args(params)
@@ -261,7 +278,7 @@ def main(params):
 
     sv_eps = args.sv_eps
 
-    stat_reporter, errors = evaluate_variants(
+    stat_reporter, annotated_vars = evaluate_variants(
         true_vars,
         pred_vars,
         sv_eps,
@@ -272,16 +289,19 @@ def main(params):
         )
 
     if args.output == "tsv":
+        print(get_text_header(params),file=sys.stdout)
         tsvwriter = csv.writer(sys.stdout, delimiter='\t')
         tsvwriter.writerow(tsv_header)
         tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err))
         tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),indel_err))
         tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),indel_err))
+        tsvwriter.writerow(tsv_row("Indel Inversions",stat_reporter(VARIANT_TYPE.INDEL_INV),indel_err))
         tsvwriter.writerow(tsv_row("Indel Other",stat_reporter(VARIANT_TYPE.INDEL_OTH),indel_err))
         tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),sv_err))
         tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),sv_err))
         tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),sv_err))
     else:
+        print(get_text_header(params),file=sys.stdout)
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
         print_snp_stats(snp_stats, snp_err, known_fp_vars)
         def print_sv(var_type, description):
@@ -294,13 +314,14 @@ def main(params):
     
         print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
         print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
+        print_sv(VARIANT_TYPE.INDEL_INV, 'INDEL INVERSION')
         print_oth(VARIANT_TYPE.INDEL_OTH, 'INDEL OTHER')
         print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION'),
         print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),
         print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
 
-    if args.err_vcf :
-        output_errors(errors,ref.keys() if ref != None else None, open(args.err_vcf,'w'))
+    if args.output_vcf :
+        output_annotated_variants(annotated_vars,ref.keys() if ref != None else None, open(args.output_vcf,'w'),get_vcf_header_lines(params))
 
 if __name__ == '__main__':
     main(params=sys.argv[1:])
