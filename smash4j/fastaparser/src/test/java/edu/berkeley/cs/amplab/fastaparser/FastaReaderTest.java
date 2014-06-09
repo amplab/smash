@@ -98,9 +98,7 @@ public class FastaReaderTest {
         out.format(">%s%n", entry.getKey());
         String contig = entry.getValue();
         int contigLength = contig.length(), fullLines = contigLength / BASES_PER_LINE;
-        for (
-            int i = 0;
-            i < fullLines;
+        for (int i = 0; i < fullLines;
             out.println(contig.substring(BASES_PER_LINE * i, BASES_PER_LINE * (++i))));
         if (0 < contigLength % BASES_PER_LINE) {
           out.println(contig.substring(BASES_PER_LINE * fullLines));

@@ -45,35 +45,23 @@ public class FastaReader {
   }
 
   public <X> X read(Callback<? extends X> callback) throws Exception {
-    class Contig {
-
-      final CharSequence contig;
-      final int basesPerLine;
-
-      Contig(CharSequence contig, int basesPerLine) {
-        this.contig = contig;
-        this.basesPerLine = basesPerLine;
-      }
-    }
     try (RandomAccessFile file = new RandomAccessFile(fastaFile, "r")) {
       try (FileChannel channel = file.getChannel()) {
-        final ImmutableMap.Builder<String, Contig> builder = ImmutableMap.builder();
-        for (FastaIndex.Entry entry : index.entries()) {
-          long length = entry.length();
-          int bases = entry.bases();
-          builder.put(
-              entry.name(),
-              new Contig(
-                  StandardCharsets.UTF_8.decode(channel.map(
-                      FileChannel.MapMode.READ_ONLY,
-                      entry.offset(),
-                      (length / bases) * entry.bytes() + length % bases)),
-                  entry.bases()));
-        }
         return callback.read(
             new Callback.FastaFile() {
 
-              private final Map<String, Contig> chromosomes = builder.build();
+              class Contig {
+
+                final CharSequence contig;
+                final int basesPerLine;
+
+                Contig(CharSequence contig, int basesPerLine) {
+                  this.contig = contig;
+                  this.basesPerLine = basesPerLine;
+                }
+              }
+
+              private final Map<String, Contig> chromosomes = chromosomes();
 
               @Override public Optional<String> get(
                   String contig, final int beginIndex, final int endIndex) {
@@ -104,6 +92,23 @@ public class FastaReader {
                             return builder.toString();
                           }
                         });
+              }
+
+              private Map<String, Contig> chromosomes() throws IOException {
+                final ImmutableMap.Builder<String, Contig> chromosomes = ImmutableMap.builder();
+                for (FastaIndex.Entry entry : index.entries()) {
+                  long length = entry.length();
+                  int bases = entry.bases();
+                  chromosomes.put(
+                      entry.name(),
+                      new Contig(
+                          StandardCharsets.UTF_8.decode(channel.map(
+                              FileChannel.MapMode.READ_ONLY,
+                              entry.offset(),
+                              (length / bases) * entry.bytes() + length % bases)),
+                          entry.bases()));
+                }
+                return chromosomes.build();
               }
             });
       }
