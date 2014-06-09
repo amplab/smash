@@ -41,13 +41,13 @@ import argparse
 import datetime
 
 from parsers.genome import Genome
-from vcf_eval.variants import Variants,evaluate_variants,output_errors
+from vcf_eval.variants import Variants,evaluate_variants,output_annotated_variants
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
 from normalize_vcf import normalize
 
 # metadata
-SMASHVERSION = 1.0
+SMASHVERSION = "1.0"
 date_run = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # this needs to move to another class
@@ -204,9 +204,8 @@ def parse_args(params):
             help="The error rate of SVs in the ground truth data")
     parser.add_argument("-w","--rescue_window_size",dest="window",type=int,
             default=50,help="The size of the window for rescuing")
-    parser.add_argument("--err_vcf",dest="err_vcf",action="store",
-            help="""An optional output VCF to hold detected
-            false-negatives and false-positives""")
+    parser.add_argument("--output_vcf",dest="output_vcf",action="store",
+            help="""An optional output VCF to hold annotated variants from both source files""")
     parser.add_argument("--normalize",action="store_true",
             help="Optionally normalize variants before evaluating them; requires reference file")
     parser.add_argument("--output",action="store",
@@ -233,6 +232,9 @@ def get_sv_err(true_vars, sv_err_rate):
 
 def get_text_header(params):
     return "# SMaSH version %s, run %s\n# cmdline args: %s" % (SMASHVERSION,date_run," ".join(params))
+
+def get_vcf_header_lines(params):
+    return ["##SMaSH version %s" % SMASHVERSION, "##Date run %s" % date_run, "##cmdline args: %s" % " ".join(params)]
 
 def main(params):
     args = parse_args(params)
@@ -276,7 +278,7 @@ def main(params):
 
     sv_eps = args.sv_eps
 
-    stat_reporter, errors = evaluate_variants(
+    stat_reporter, annotated_vars = evaluate_variants(
         true_vars,
         pred_vars,
         sv_eps,
@@ -318,8 +320,8 @@ def main(params):
         print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),
         print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
 
-    if args.err_vcf :
-        output_errors(errors,ref.keys() if ref != None else None, open(args.err_vcf,'w'))
+    if args.output_vcf :
+        output_annotated_variants(annotated_vars,ref.keys() if ref != None else None, open(args.output_vcf,'w'),get_vcf_header_lines(params))
 
 if __name__ == '__main__':
     main(params=sys.argv[1:])
