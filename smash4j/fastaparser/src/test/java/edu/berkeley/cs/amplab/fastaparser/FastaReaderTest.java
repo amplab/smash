@@ -67,7 +67,8 @@ public class FastaReaderTest {
                   queryEnd = queryStart + queryLength;
               assertEquals(
                   fasta.get(contigName).substring(queryStart, queryEnd),
-                  fastaFile.get(contigName, queryStart, queryEnd));
+                  fastaFile.get(contigName, queryStart, queryEnd,
+                      FastaReader.Callback.FastaFile.Orientation.FORWARD));
             }
             return FastaReaderTest.this;
           }

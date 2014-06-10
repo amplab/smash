@@ -16,7 +16,45 @@ public class FastaReader {
   public interface Callback<X> {
 
     public interface FastaFile {
-      String get(String contigName, int beginIndex, int endIndex);
+
+      public enum Orientation {
+
+        FORWARD {
+          @Override public String apply(String sequence) {
+            return sequence;
+          }
+        },
+
+        REVERSE {
+
+          @Override public String apply(String sequence) {
+            StringBuilder builder = new StringBuilder();
+            for (
+                int i = sequence.length() - 1;
+                0 <= i;
+                builder.append(compliment(sequence.charAt(i--))));
+            return builder.toString();
+          }
+
+          private char compliment(char c) {
+            switch (c) {
+              case 'A': return 'T';
+              case 'a': return 't';
+              case 'C': return 'G';
+              case 'c': return 'g';
+              case 'T': return 'A';
+              case 't': return 'a';
+              case 'G': return 'C';
+              case 'g': return 'c';
+              default : return c;
+            }
+          }
+        };
+
+        abstract String apply(String sequence);
+      }
+
+      String get(String contigName, int beginIndex, int endIndex, Orientation orientation);
     }
 
     X read(Map<String, Integer> info, FastaFile fastaFile) throws Exception;
@@ -100,9 +138,9 @@ public class FastaReader {
                   }
                 }),
             new Callback.FastaFile() {
-              @Override
-              public String get(String contigName, final int beginIndex, final int endIndex) {
-                return chromosomes.get(contigName).get(beginIndex, endIndex);
+              @Override public String get(String contigName, int beginIndex, int endIndex,
+                  Callback.FastaFile.Orientation orientation) {
+                return orientation.apply(chromosomes.get(contigName).get(beginIndex, endIndex));
               }
             });
       }
