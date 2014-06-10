@@ -284,7 +284,7 @@ public class FastaIndex {
     @SuppressWarnings("resource") PrintWriter out = writer instanceof PrintWriter
         ? (PrintWriter) writer
         : new PrintWriter(writer);
-    out.print(this);
+    out.println(this);
     if (out.checkError()) {
       throw new IOException();
     }
