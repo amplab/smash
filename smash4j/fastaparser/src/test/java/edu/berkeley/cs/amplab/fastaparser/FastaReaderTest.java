@@ -2,9 +2,7 @@ package edu.berkeley.cs.amplab.fastaparser;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -58,8 +56,8 @@ public class FastaReaderTest {
               index = ImmutableList.copyOf(fasta.entrySet());
           private final int indexSize = index.size();
 
-          @Override public FastaReaderTest read(FastaReader.Callback.FastaFile fastaFile)
-              throws Exception {
+          @Override public FastaReaderTest read(Map<String, Integer> info,
+              FastaReader.Callback.FastaFile fastaFile) throws Exception {
             int numberOfQueries = NUMBER_OF_QUERIES.nextInt();
             for (int i = 0; i < numberOfQueries; ++i) {
               Map.Entry<String, String> entry = index.get(RANDOM.nextInt(indexSize));
@@ -67,9 +65,9 @@ public class FastaReaderTest {
               int queryLength = QUERY_LENGTH.nextInt(),
                   queryStart = Random.create(0, contig.length() - queryLength - 1).nextInt(),
                   queryEnd = queryStart + queryLength;
-              Optional<String> optional = fastaFile.get(contigName, queryStart, queryEnd);
-              assertTrue(optional.isPresent());
-              assertEquals(fasta.get(contigName).substring(queryStart, queryEnd), optional.get());
+              assertEquals(
+                  fasta.get(contigName).substring(queryStart, queryEnd),
+                  fastaFile.get(contigName, queryStart, queryEnd));
             }
             return FastaReaderTest.this;
           }
