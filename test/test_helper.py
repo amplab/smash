@@ -36,6 +36,11 @@ from smashbenchmarking.normalize_vcf import normalize
 
 MAX_INDEL_LEN = 50
 
+def vcf_to_Variants(vcf_str):
+    str_io = StringIO.StringIO(vcf_str)
+    str_vcf = vcf.Reader(str_io)
+    return Variants(str_vcf,MAX_INDEL_LEN)
+
 def vcf_to_ChromVariants(vcf_str,chrom):
     str_io = StringIO.StringIO(vcf_str)
     str_vcf = vcf.Reader(str_io)

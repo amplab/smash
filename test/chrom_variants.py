@@ -148,6 +148,22 @@ chr19   30  .       AAAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGC
         self.assertEqual(len(newChromVar._var_locations[VARIANT_TYPE.SV_DEL]),1)
         self.assertEqual(len(newChromVar._var_dict(VARIANT_TYPE.SV_DEL)),1)
 
+    def testKnownFalsePositives(self):
+        vcf_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    7       .       G       .       20      PASS    .       GT       0/0\n
+"""
+        newChromVar = ChromVariants('chr1',MAX_INDEL_LEN,knownFP=True)
+        vcf_io = StringIO.StringIO(vcf_str)
+        vcfr = vcf.Reader(vcf_io)
+        for r in vcfr:
+            newChromVar.add_record(r)
+        self.assertEqual(newChromVar.all_locations,[7])
+        var = newChromVar.all_variants[7]
+        self.assertEqual(var.ref,'G')
+        self.assertEqual(var.alt[0], 'None')
+
 #test rando helper methods
 class ChromVariantHelperMethodsTestCase(unittest.TestCase):
     def testExtractRange(self):

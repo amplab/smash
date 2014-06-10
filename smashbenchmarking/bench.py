@@ -51,19 +51,36 @@ SMASHVERSION = "1.0"
 date_run = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # this needs to move to another class
-tsv_header = ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
+def get_tsv_header(knownFP=False):
+    if knownFP:
+        return ['VariantType','#True','#Pred','Precision', 'FP Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
+    else:
+        return ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
 
-def tsv_row(variant_name,stats,err):
-    return [variant_name,
-    stats['num_true'],
-    stats['num_pred'],
-    interval(*bound_precision(stats['good_predictions'],stats['false_positives'],err)),
-    interval(*bound_recall(stats['good_predictions'],stats['false_negatives'],err)),
-    stats['good_predictions'],
-    stats['false_negatives'],
-    stats['false_positives'],
-    get_nrd(stats)
-    ]
+def tsv_row(variant_name,stats,err,knownFP=False):
+    if knownFP:
+        return [variant_name,
+        stats['num_true'],
+        stats['num_pred'],
+        interval(*bound_precision(stats['good_predictions'],stats['false_positives'],err)),
+        interval(*bound_precision(stats['good_predictions'],stats['calls_at_known_fp'],err)),
+        interval(*bound_recall(stats['good_predictions'],stats['false_negatives'],err)),
+        stats['good_predictions'],
+        stats['calls_at_known_fp'],
+        stats['false_negatives'],
+        get_nrd(stats)
+        ]
+    else:
+        return [variant_name,
+        stats['num_true'],
+        stats['num_pred'],
+        interval(*bound_precision(stats['good_predictions'],stats['false_positives'],err)),
+        interval(*bound_recall(stats['good_predictions'],stats['false_negatives'],err)),
+        stats['good_predictions'],
+        stats['false_positives'],
+        stats['false_negatives'],
+        get_nrd(stats)
+        ]
 
 def get_nrd(stats):
     if stats['num_true'] > 0:
@@ -103,7 +120,7 @@ def bound_precision(tp, fp, e):
         return 0, 0
     return (tp - e) / p, (tp + e) / p
 
-def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_prec, err, known_fp_vars=False):
+def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_calls, err, known_fp_vars=False):
     print("\n-----------")
     print("SNP Results")
     print("-----------")
@@ -113,7 +130,7 @@ def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, k
     assert tp + num_fp <= num_pred
     print("\t# precision =", interval(*bound_precision(tp, num_fp, err)))
     if known_fp_vars:
-        print("\t# precision (known FP) = %.1f" % (100*known_fp_prec) )
+        print("\t# precision (known FP) =", interval(*bound_precision(tp,known_fp_calls,err)) )
     print("\t# recall =", interval(*bound_recall(tp, num_fn, err)))
     print("\t# allele mismatch = %d" % num_ib)
     print("\t# correct = %d" % num_ig)
@@ -126,7 +143,7 @@ def print_snp_stats(stats, err, known_fp_vars=False):
     print_snp_results(stats['num_true'], stats['num_pred'],
                     stats['false_positives'], stats['false_negatives'],
                     stats['intersect_bad'], stats['good_predictions'],ratio(stats['nrd_wrong'],stats['nrd_total']),
-                    1-ratio(stats['known_fp_calls'],stats['known_fp']),err, known_fp_vars)
+                    stats['known_fp_calls'],err, known_fp_vars)
 
 def ratio(a,b,sig=5):
     if b == 0:
@@ -135,14 +152,14 @@ def ratio(a,b,sig=5):
         return 0.0
     return float(int(10**sig*(float(a)/b)))/10**sig
 
-def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_prec, err, known_fp_vars=False):
+def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_calls, err, known_fp_vars=False):
     print("\n\n------------------------")
     print("%s Results" % var_type_str)
     print("------------------------")
     print("# True = %d; # Predicted = %d" % (num_true, num_pred))
     print("\t# precision =", interval(*bound_precision(num_gp, num_fp, err)))
     if known_fp_vars:
-        print("\t# precision (known FP) = %.1f" % (100*known_fp_prec) )
+        print("\t# precision (known FP) = ", interval(*bound_precision(num_gp,known_fp_calls,err)) )
     print("\t# recall =", interval(*bound_recall(num_true - num_fn, num_fn, err)))
     #print "\t# multiple matches = %d" % num_mm
     print("\t# correct = %d" % num_gp)
@@ -161,7 +178,7 @@ def print_sv_stats(description, stats, err):
                    stats['false_positives'], stats['false_negatives'],
                    #stats['mult_matches'],
                    0, stats['good_predictions'], ratio(stats['nrd_wrong'],stats['nrd_total']),
-                   1-ratio(stats['known_fp_calls'],stats['known_fp']), err)
+                   stats['known_fp_calls'], err)
 
 def print_sv_other_results(var_type_str, num_true, num_pred):
     print("\n\n------------------------")
@@ -265,7 +282,7 @@ def main(params):
         with open(args.knownFP) as f:
             known_fp_vcf = vcf.Reader(f)
             known_fp_vars = Variants(known_fp_vcf,
-                    MAX_INDEL_LEN, knownFp=True)
+                    MAX_INDEL_LEN, knownFP=True)
     else:
         known_fp_vars = None
 
@@ -291,7 +308,7 @@ def main(params):
     if args.output == "tsv":
         print(get_text_header(params),file=sys.stdout)
         tsvwriter = csv.writer(sys.stdout, delimiter='\t')
-        tsvwriter.writerow(tsv_header)
+        tsvwriter.writerow(get_tsv_header(args.knownFP))
         tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err))
         tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),indel_err))
         tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),indel_err))

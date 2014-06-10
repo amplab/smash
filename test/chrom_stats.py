@@ -29,7 +29,7 @@ import vcf
 import unittest
 import StringIO
 
-from test_helper import MAX_INDEL_LEN
+from test_helper import MAX_INDEL_LEN,vcf_to_Variants,get_reference
 
 sys.path.insert(0,'..')
 from smashbenchmarking import Variants,evaluate_variants
@@ -356,6 +356,46 @@ chr19   269852  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
         self.assertEqual(sv_ins_stats['nrd_wrong'],0)
 
         self.trueNegative(stat_reporter,VARIANT_TYPE.SV_DEL)
+
+    def test_known_false_positives(self):
+        true_vcf = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+##source=TVsim\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    1       .       T       A       20      PASS    .       GT       0/1\n
+chr1    8       .       A       C       20      PASS    .       GT       1/1\n
+"""
+        pred_vcf = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+##source=TVsim\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    3       .       G       C       20      PASS     .      GT      1/1\n
+chr1    5       .       C       G       20      PASS     .      GT      0/1\n
+chr1    8       .       A       C       20      PASS     .      GT      1/1\n
+"""
+        known_fp_vcf = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+##source=TVsim\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    3       .       G       .       20      PASS    .       GT      0/0\n
+chr1    5       .       C       G       20      PASS    .       GT      0/0\n
+chr1    9       .       T       .       20      PASS    .       GT      0/0\n
+"""
+        known_fp_io = StringIO.StringIO(known_fp_vcf)
+        known_fp_vars = Variants(vcf.Reader(known_fp_io),MAX_INDEL_LEN,knownFP=True)
+
+        stat_reporter, vcf_output = evaluate_variants(vcf_to_Variants(true_vcf),vcf_to_Variants(pred_vcf),sv_eps,sv_eps, \
+            get_reference(),50,known_fp_vars)
+
+        snp_stats = stat_reporter(VARIANT_TYPE.SNP)
+
+        self.assertEqual(snp_stats['num_true'],2)
+        self.assertEqual(snp_stats['num_pred'],3)
+        self.assertEqual(snp_stats['good_predictions'],1)
+        self.assertEqual(snp_stats['false_positives'],2) # predicted vars not in ground truth
+        self.assertEqual(snp_stats['false_negatives'],1)
+        self.assertEqual(snp_stats['known_fp_calls'],2)
+        self.assertEqual(snp_stats['known_fp'],2)
 
 if __name__ == '__main__':
     unittest.main()

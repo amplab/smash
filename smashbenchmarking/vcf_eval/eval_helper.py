@@ -127,6 +127,9 @@ def structural_match(true_variant,pred_vars_all,sv_eps,sv_eps_bp):
         matches = get_closest(true_variant,matches)
     return matches
 
+def vartype_match_at_location(fp_vars,pred_vars,loc):
+    return fp_vars.all_variants[loc].ref == pred_vars.all_variants[loc].ref
+
 class ChromVariantStats:
 
     """Stats for a certain contig's worth of variants."""
@@ -256,12 +259,12 @@ def chrom_evaluate_variants(true_var,pred_var,sv_eps,sv_eps_bp,ref,window,known_
     all_known_fp = _type_dict()
     if known_fp:
         for loc in pred_loc.intersection(known_fp.all_locations):
-            vartype = known_fp.all_variants[loc].var_type
-            match = any_var_match_at_loc(known_fp,pred_var,loc)
+            match = vartype_match_at_location(known_fp,pred_var,loc)
             if match:
                 calls_at_known_fp[vartype] += 1
                 known_fp_calls_positions.append(loc)
-            all_known_fp[vartype] += 1
+            vartype = known_fp.all_variants[loc].var_type
+            all_known_fp[vartype] += 1 # note this only holds known fp sharing a location with pred var, NOT all
 
     # structural variants are a special case if not matching exactly
     for loc in (true_loc - pred_loc):
@@ -288,7 +291,7 @@ def chrom_evaluate_variants(true_var,pred_var,sv_eps,sv_eps_bp,ref,window,known_
     if ( known_fp ):
         variant_stats.known_fp = all_known_fp
         variant_stats.calls_at_known_fp = calls_at_known_fp
-        variant_stats.known_fp_variants = variant_stats._extract(variant_stats.pred_var,known_fp_calls_positions,None)
+        variant_stats.known_fp_variants = variant_stats._extract(variant_stats.pred_var,known_fp_calls_positions,_type_dict())
     variant_stats.intersect_bad = intersect_bad_dict
     #stats = variant_stats.to_dict()
     #stats['intersect_bad'] = len(intersect_bad)

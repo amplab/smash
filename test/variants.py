@@ -6,23 +6,14 @@ import vcf
 import unittest
 import StringIO
 
+from test_helper import MAX_INDEL_LEN,vcf_to_ChromVariants,get_reference
+
 sys.path.insert(0,'..')
 from smashbenchmarking.vcf_eval.variants import *
 from smashbenchmarking.vcf_eval.variants import _aggregate
 from smashbenchmarking.vcf_eval.chrom_variants import VARIANT_TYPE,GENOTYPE_TYPE
 from smashbenchmarking.vcf_eval.eval_helper import chrom_evaluate_variants,ChromVariantStats,_genotype_concordance_dict
 from smashbenchmarking.parsers.genome import Genome
-
-MAX_INDEL_LEN = 50
-
-def vcf_to_ChromVariants(vcf_str,chrom):
-    str_io = StringIO.StringIO(vcf_str)
-    str_vcf = vcf.Reader(str_io)
-    str_vars = Variants(str_vcf,MAX_INDEL_LEN)
-    return str_vars.on_chrom(chrom)
-
-def get_reference():
-    return Genome('ref.fasta',lambda t: t.split()[0])
 
 class VariantsTestCase(unittest.TestCase):
     def testInit(self):
@@ -36,11 +27,24 @@ chr20   22   .       ATT       A         20      PASS    .       GT      0/1\n
 """
         vcf_io = StringIO.StringIO(vcf_str)
         newvcf = vcf.Reader(vcf_io)
-        newvars = Variants(newvcf, 50)
+        newvars = Variants(newvcf, MAX_INDEL_LEN)
         self.assertEqual(len(newvars.chroms),2)
         self.assertEqual(newvars.var_num(VARIANT_TYPE.SNP),1)
         self.assertEqual(newvars.var_num(VARIANT_TYPE.INDEL_DEL),2)
         self.assertEqual(newvars.var_num(VARIANT_TYPE.INDEL_INS),1)
+
+    def testKnownFalsePositives(self):
+        vcf_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    7       .       G       .       20      PASS    .       GT       0/0\n
+"""
+        vcf_io = StringIO.StringIO(vcf_str)
+        newvcf = vcf.Reader(vcf_io)
+        newvars = Variants(newvcf,MAX_INDEL_LEN,knownFP=True)
+        chromvars = newvars.on_chrom('chr1')
+        self.assertEqual(chromvars.all_locations,[7])
+        self.assertEqual(chromvars.all_variants[7].alt[0],'None')
 
 
 class VariantsHelpersTestCase(unittest.TestCase):
