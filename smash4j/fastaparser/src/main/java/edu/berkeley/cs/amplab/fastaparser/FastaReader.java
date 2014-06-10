@@ -3,6 +3,7 @@ package edu.berkeley.cs.amplab.fastaparser;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +17,9 @@ public class FastaReader {
   public interface Callback<X> {
 
     public interface FastaFile {
+
+      Map<String, Integer> info();
+
       Optional<String> get(String contig, int beginIndex, int endIndex);
     }
 
@@ -61,7 +65,19 @@ public class FastaReader {
                 }
               }
 
+              private final Function<Contig, Integer> length =
+                  new Function<Contig, Integer>() {
+                    @Override public Integer apply(Contig contig) {
+                      return contig.contig.length();
+                    }
+                  };
+
               private final Map<String, Contig> chromosomes = chromosomes();
+
+              @Override
+              public Map<String, Integer> info() {
+                return Maps.transformValues(chromosomes, length);
+              }
 
               @Override public Optional<String> get(
                   String contig, final int beginIndex, final int endIndex) {

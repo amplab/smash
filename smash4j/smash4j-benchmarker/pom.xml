@@ -20,6 +20,11 @@
       <version>0.1</version>
     </dependency>
     <dependency>
+      <groupId>edu.berkeley.cs.amplab</groupId>
+      <artifactId>fastaparser</artifactId>
+      <version>0.1</version>
+    </dependency>
+    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
       <version>1.35</version>
