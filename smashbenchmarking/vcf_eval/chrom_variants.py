@@ -182,7 +182,7 @@ class ChromVariants:
       raise AssertionError("VCF contains lower-case bases in the reference: " + record.REF+ " at "+str(record.POS))
 
     alt = map(str, record.ALT)
-    if _lacks_alt_alleles(record):
+    if _lacks_alt_alleles(record) and not self._args.get('knownFP',None):
       raise Exception("Monomorphic records (no alt allele) are not supported.")
 
     len_ref = len(ref)
@@ -227,6 +227,8 @@ class ChromVariants:
         # all others: still falls in other buckets
 
     if record.is_snp:
+      add_variant(VARIANT_TYPE.SNP)
+    elif self._args.get('knownFP',None) and len(record.REF) == 1 and not record.ALT[0]: # is_snp False if no alt allele
       add_variant(VARIANT_TYPE.SNP)
     else:
       allele_lengths = map(len, alt) + [len_ref]

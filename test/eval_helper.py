@@ -35,6 +35,7 @@ sys.path.insert(0,'..')
 from smashbenchmarking.vcf_eval.eval_helper import *
 from smashbenchmarking.vcf_eval.eval_helper import _genotype_concordance_dict
 from smashbenchmarking.vcf_eval.chrom_variants import Variant,VARIANT_TYPE,GENOTYPE_TYPE
+from smashbenchmarking.vcf_eval.variants import Variants
 
 EPS_BP = 10
 EPS_LEN = 10
@@ -169,35 +170,36 @@ chr1    9       .       A       G       20      PASS     .      GT      1|1\n
         self.assertEqual(cvs.genotype_concordance[VARIANT_TYPE.SNP][GENOTYPE_TYPE.HOM_VAR][GENOTYPE_TYPE.HOM_VAR],1)
         self.assertEqual(cvs._nrd_counts(VARIANT_TYPE.SNP),(0,2))
 
+    def testChromEvaluateVariantsKnownFP(self):
+        # one known true variant
+        true_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    2       .       A       T       20      PASS     .      GT      0/1\n
+        """
+        # call var where known fp is, where true var is, where nothing is known
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    2       .       A       T       20      PASS    .       GT      0/1\n
+chr1    4       .       G       C       20      PASS    .       GT      1/1\n
+chr1    7       .       G       A       20      PASS    .       GT      0/1\n
+        """
+        # known locations with NO variant
+        known_fp_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr1    1       .       A       T       20      PASS    .       GT       ./.\n
+chr1    7       .       G       .       20      PASS    .       GT       0/0\n
+        """
+        true_vars = vcf_to_ChromVariants(true_str,'chr1')
+        pred_vars = vcf_to_ChromVariants(pred_str,'chr1')
+        known_fp_io = StringIO.StringIO(known_fp_str)
+        known_fp = Variants(vcf.Reader(known_fp_io),MAX_INDEL_LEN,knownFP=True)
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50,known_fp.on_chrom('chr1'))
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.SNP],2) # usual definition, in pred vars but not in true
+        self.assertEqual(cvs.calls_at_known_fp[VARIANT_TYPE.SNP],1) # call at location known to NOT have SNP
 
-#     def testChromEvaluateVariantsKnownFP(self):
-#         # one known true variant
-#         true_str = """##fileformat=VCFv4.0\n
-# ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
-# #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
-# chr1    2       .       A       T       20      PASS     .      GT      0/1\n
-#         """
-#         # call var where known fp is, where true var is, where nothing is known
-#         pred_str = """##fileformat=VCFv4.0\n
-# ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
-# #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
-# chr1    2       .       A       T       20      PASS    .       GT      0/1\n
-# chr1    4       .       GCC     G       20      PASS    .       GT      1/1\n
-# chr1    7       .       G       A       20      PASS    .       GT      0/1\n
-#         """
-#         # known location with NO variant
-#         known_fp_str = """##fileformat=VCFv4.0\n
-# ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
-# #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
-# chr1    7       .       G       .       20      PASS    .       GT       0/0\n
-#         """
-#         true_vars = vcf_to_ChromVariants(true_str,'chr1')
-#         pred_vars = vcf_to_ChromVariants(pred_str,'chr1')
-#         known_fp = vcf_to_ChromVariants(known_fp_str,'chr1',True)
-#         cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50,known_fp)
-#         print(cvs.known_fp)
-#         print(cvs.calls_at_known_fp)
-#         print(cvs.known_fp_vars)
     def testChromEvaluateVariantsSV(self):
         #NB: SVs aren't rescued, just checked for within breakpoint tolerance
         true_str = """##fileformat=VCFv4.0\n
@@ -454,6 +456,8 @@ chr4   7   .       TC    T       20      PASS    .       GT      1/1\n
         self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_DEL],0)
         self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_DEL],2)
         self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_DEL],0)
+
+
 
 
 if __name__ == "__main__":
