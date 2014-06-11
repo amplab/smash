@@ -57,7 +57,7 @@ def get_tsv_header(knownFP=False):
     else:
         return ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
 
-def tsv_row(variant_name,stats,err,knownFP=False):
+def tsv_row(variant_name,stats,err,knownFP=False,hideFP=False):
     if knownFP:
         return [variant_name,
         stats['num_true'],
@@ -71,13 +71,19 @@ def tsv_row(variant_name,stats,err,knownFP=False):
         get_nrd(stats)
         ]
     else:
+        if hideFP:
+            precision = "--"
+            false_positives = "--"
+        else:
+            precision = interval(*bound_precision(stats['good_predictions'],stats['false_positives'],err))
+            false_positives = stats['false_positives']
         return [variant_name,
         stats['num_true'],
         stats['num_pred'],
-        interval(*bound_precision(stats['good_predictions'],stats['false_positives'],err)),
+        precision,
         interval(*bound_recall(stats['good_predictions'],stats['false_negatives'],err)),
         stats['good_predictions'],
-        stats['false_positives'],
+        false_positives,
         stats['false_negatives'],
         get_nrd(stats)
         ]
@@ -120,7 +126,7 @@ def bound_precision(tp, fp, e):
         return 0, 0
     return (tp - e) / p, (tp + e) / p
 
-def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_calls, err, known_fp_vars=False):
+def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_calls, err, known_fp_vars=False,hideFP=False):
     print("\n-----------")
     print("SNP Results")
     print("-----------")
@@ -128,7 +134,8 @@ def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, k
     tp = num_ig
     assert tp + num_fn <= num_true
     assert tp + num_fp <= num_pred
-    print("\t# precision =", interval(*bound_precision(tp, num_fp, err)))
+    if not hideFP:
+        print("\t# precision =", interval(*bound_precision(tp, num_fp, err)))
     if known_fp_vars:
         print("\t# precision (known FP) =", interval(*bound_precision(tp,known_fp_calls,err)) )
     print("\t# recall =", interval(*bound_recall(tp, num_fn, err)))
@@ -139,11 +146,11 @@ def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, k
     print("\tpercent correct = %.1f" % (100 * num_ig / nonzero_float(num_true)))
     print("\tnon reference discrepancy = %1f" % (100*nrd))
 
-def print_snp_stats(stats, err, known_fp_vars=False):
+def print_snp_stats(stats, err, known_fp_vars=False,hideFP=False):
     print_snp_results(stats['num_true'], stats['num_pred'],
                     stats['false_positives'], stats['false_negatives'],
                     stats['intersect_bad'], stats['good_predictions'],ratio(stats['nrd_wrong'],stats['nrd_total']),
-                    stats['known_fp_calls'],err, known_fp_vars)
+                    stats['known_fp_calls'],err, known_fp_vars,hideFP)
 
 def ratio(a,b,sig=5):
     if b == 0:
@@ -152,19 +159,21 @@ def ratio(a,b,sig=5):
         return 0.0
     return float(int(10**sig*(float(a)/b)))/10**sig
 
-def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_calls, err, known_fp_vars=False):
+def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_calls, err, known_fp_vars=False,hideFP=False):
     print("\n\n------------------------")
     print("%s Results" % var_type_str)
     print("------------------------")
     print("# True = %d; # Predicted = %d" % (num_true, num_pred))
-    print("\t# precision =", interval(*bound_precision(num_gp, num_fp, err)))
+    if not hideFP:
+        print("\t# precision =", interval(*bound_precision(num_gp, num_fp, err)))
     if known_fp_vars:
         print("\t# precision (known FP) = ", interval(*bound_precision(num_gp,known_fp_calls,err)) )
     print("\t# recall =", interval(*bound_recall(num_true - num_fn, num_fn, err)))
     #print "\t# multiple matches = %d" % num_mm
     print("\t# correct = %d" % num_gp)
     print("\t# missed = %d" % num_fn)
-    print("\t# false pos = %d" % num_fp)
+    if not hideFP:
+        print("\t# false pos = %d" % num_fp)
     if num_true > 0:
         print("\tpercent correct = %.1f" % (100 * num_gp / nonzero_float(num_true)))
         print("\tnon reference discrepancy = %.1f" % (100*nrd))
@@ -173,12 +182,12 @@ def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, n
     assert num_gp + num_fn <= num_true
     assert num_gp + num_fp <= num_pred
 
-def print_sv_stats(description, stats, err):
+def print_sv_stats(description, stats, err,args):
     print_sv_results(description, stats['num_true'], stats['num_pred'],
                    stats['false_positives'], stats['false_negatives'],
                    #stats['mult_matches'],
                    0, stats['good_predictions'], ratio(stats['nrd_wrong'],stats['nrd_total']),
-                   stats['known_fp_calls'], err)
+                   stats['known_fp_calls'], err,args.knownFP,args.hideFP)
 
 def print_sv_other_results(var_type_str, num_true, num_pred):
     print("\n\n------------------------")
@@ -227,6 +236,8 @@ def parse_args(params):
             help="Optionally normalize variants before evaluating them; requires reference file")
     parser.add_argument("--output",action="store",
             help="Specify output type: plain text or TSV", default="text")
+    parser.add_argument("--hide_fp",dest="hideFP",action="store_true",
+            help="Don't show FP-related stats (for non-comprehensive ground truth files")
     args = parser.parse_args(params)
     return args
 
@@ -309,32 +320,32 @@ def main(params):
         print(get_text_header(params),file=sys.stdout)
         tsvwriter = csv.writer(sys.stdout, delimiter='\t')
         tsvwriter.writerow(get_tsv_header(args.knownFP))
-        tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err))
-        tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),indel_err))
-        tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),indel_err))
-        tsvwriter.writerow(tsv_row("Indel Inversions",stat_reporter(VARIANT_TYPE.INDEL_INV),indel_err))
-        tsvwriter.writerow(tsv_row("Indel Other",stat_reporter(VARIANT_TYPE.INDEL_OTH),indel_err))
-        tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),sv_err))
-        tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),sv_err))
-        tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),sv_err))
+        tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),indel_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),indel_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Inversions",stat_reporter(VARIANT_TYPE.INDEL_INV),indel_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Other",stat_reporter(VARIANT_TYPE.INDEL_OTH),indel_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),sv_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),sv_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),sv_err,args.knownFP,args.hideFP))
     else:
         print(get_text_header(params),file=sys.stdout)
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
-        print_snp_stats(snp_stats, snp_err, known_fp_vars)
-        def print_sv(var_type, description):
+        print_snp_stats(snp_stats, snp_err, known_fp_vars,args.hideFP)
+        def print_sv(var_type, description,args):
             assert 'INDEL' in var_type or 'SV' in var_type
             err = indel_err if 'INDEL' in var_type else sv_err
-            print_sv_stats(description, stat_reporter(var_type), err)
+            print_sv_stats(description, stat_reporter(var_type), err,args)
     
         def print_oth(var_type, description):
             print_sv_other_results(description, stat_reporter(var_type)['num_true'], stat_reporter(var_type)['num_pred'])
     
-        print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION')
-        print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION')
-        print_sv(VARIANT_TYPE.INDEL_INV, 'INDEL INVERSION')
+        print_sv(VARIANT_TYPE.INDEL_DEL, 'INDEL DELETION',args)
+        print_sv(VARIANT_TYPE.INDEL_INS, 'INDEL INSERTION',args)
+        print_sv(VARIANT_TYPE.INDEL_INV, 'INDEL INVERSION',args)
         print_oth(VARIANT_TYPE.INDEL_OTH, 'INDEL OTHER')
-        print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION'),
-        print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION'),
+        print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION',args),
+        print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION',args),
         print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
 
     if args.output_vcf :
