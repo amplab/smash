@@ -39,6 +39,7 @@ SMaSH also includes a normalization script which first cleans the VCF by upper-c
 
 ## Assumptions and Limitations
 
+* There is presently no way to limit parts of the genome evaluated (e.g. the exome, etc).
 * At present SMaSH does not evaluate phasing.
 * SMaSH does not handle compound heterozygous variants.
 
