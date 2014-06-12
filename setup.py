@@ -9,7 +9,7 @@ def read(*paths):
 
 setup(
     name='smashbenchmarking',
-    version='1.0',
+    version='1.0.1',
     packages=find_packages(exclude=["tests*","scripts*"]),
     description='Check the accuracy of one VCF callset against another',
     long_description=(read('README.md')),
