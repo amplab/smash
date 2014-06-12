@@ -19,6 +19,9 @@ First, SMaSH checks all locations where both the true VCF and predicted VCF have
 
 However, the same underlying variants can be represented in different ways in the VCF format. SMaSH addresses this ambiguity through its rescue algorithm: for each variant in the truth VCF not matched in the predicted VCF, SMaSH expands the sequence described by the true and predicted callsets to a defined window size (can be specified at runtime, defaults to 100bp). If the sequences match, the true callset variants are marked as true positives, and the predicted callset variants are removed from the set of false positives.
 
+## Error rates
+For non-synthetic datasets, the SMaSH output should express the likelihood that a given call in the ground truth VCF is incorrect. For example, if we bound the rate of incorrect calls for indels at 1 in 500, we pass that information to the benchmarking script with the option --indel_err 0.002 (SNP and SV error rates are passed similarly with --snp_err and --sv_err.) These error rates will be used to calculate error bars on the precision and recall rates in SMaSH output.
+
 ## Outputs
 
 After evaluation, SMaSH reports results as human-readable text (default) or as tab-delimited output. The results include 
@@ -27,6 +30,8 @@ counts of true positives, false positives, and false negatives; as well as preci
 ## Known False Positive Mode
 
 For cases in which we do not have validated truth calls for the entire genome, SMaSH may be called with an additional known true positive VCF. With this option, SMaSH will further mark predicted calls as conflicting with known false positives if they are at the same location, of the same variant type, and have the same ref sequence. Precision will also be calculated with this false positive count.
+
+If the ground truth data is not comprehensive, but we do not have a set of known false positive variants in VCF format, we can hide false positive-related stats in the output with the --hide_fp flag.
 
 ## Normalization
 
