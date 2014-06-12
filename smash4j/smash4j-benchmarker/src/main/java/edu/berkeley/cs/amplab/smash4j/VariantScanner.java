@@ -71,7 +71,7 @@ public abstract class VariantScanner {
     return new VariantScanner() {
           @Override public <X> X scan(Callback<X> callback) throws Exception {
             try (InputStream in = new FileInputStream(file)) {
-              return scan(in, callback);
+              return protoScan(in, callback);
             }
           }
         };
@@ -80,7 +80,7 @@ public abstract class VariantScanner {
   public static VariantScanner fromVariantProtoInputStream(final InputStream in) {
     return new VariantScanner() {
           @Override public <X> X scan(Callback<X> callback) throws Exception {
-            return scan(in, callback);
+            return protoScan(in, callback);
           }
         };
   }
@@ -97,7 +97,7 @@ public abstract class VariantScanner {
     return new VariantScanner() {
           @Override public <X> X scan(Callback<X> callback) throws Exception {
             try (Reader in = new FileReader(file)) {
-              return scan(VcfReader.from(in), callback);
+              return vcfScan(VcfReader.from(in), callback);
             }
           }
         };
@@ -106,12 +106,12 @@ public abstract class VariantScanner {
   public static VariantScanner fromVcfReader(final VcfReader reader) {
     return new VariantScanner() {
           @Override public <X> X scan(final Callback<X> callback) throws Exception {
-            return scan(reader, callback);
+            return vcfScan(reader, callback);
           }
         };
   }
 
-  private static <X> X scan(final InputStream in, Callback<X> callback) throws Exception,
+  private static <X> X protoScan(final InputStream in, Callback<X> callback) throws Exception,
       IOException {
     class ExceptionWrapper extends RuntimeException {
 
@@ -144,7 +144,8 @@ public abstract class VariantScanner {
     }
   }
 
-  private static <X> X scan(final VcfReader reader, final Callback<X> callback) throws Exception {
+  private static <X> X vcfScan(final VcfReader reader, final Callback<X> callback)
+      throws Exception {
     return reader.read(
         new VcfReader.Callback<X>() {
           @Override public X readVcf(MetaInformation metaInformation, Header header,
