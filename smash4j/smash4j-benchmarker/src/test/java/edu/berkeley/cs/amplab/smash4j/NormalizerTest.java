@@ -112,21 +112,21 @@ public class NormalizerTest {
   @Test
   public void testNormalizingAnInsertion() throws Exception {
     assertEquals(
-        variant("chr1", 6, "C", Collections.singletonList("CG"), "0/1"),
+        variant("chr1", 6, "C", Collections.singletonList("CG"), "0/1", 9),
         normalize(variant("chr1", 9, "a", Collections.singletonList("ga"), "0/1")).get());
   }
 
   @Test
   public void testNormalizingADeletion() throws Exception {
     assertEquals(
-        variant("chr1", 4, "GC", Collections.singletonList("G"), "0/1"),
+        variant("chr1", 4, "GC", Collections.singletonList("G"), "0/1", 5),
         normalize(variant("chr1", 5, "cc", Collections.singletonList("c"), "0/1")).get());
   }
 
   @Test
   public void testMultipleAltAlleles() throws Exception {
     assertEquals(
-        variant("chr2", 3, "G", Collections.singletonList("GC"), "0/1"),
+        variant("chr2", 3, "G", Collections.singletonList("GC"), "0/1", 6),
         normalize(variant("chr2", 6, "G", Collections.singletonList("CG"), "0/1")).get());
     VariantProto variant = variant("chr2", 3, "G", Arrays.asList("CG", "C"), "0/1");
     assertEquals(variant, normalize(variant).get());
@@ -134,7 +134,17 @@ public class NormalizerTest {
 
   private static VariantProto variant(
       String chrom, int pos, String ref, List<String> alts, String genotype) {
-    return VariantProto.newBuilder()
+    return variant(chrom, pos, ref, alts, genotype, Optional.<Integer>absent());
+  }
+
+  private static VariantProto variant(
+      String chrom, int pos, String ref, List<String> alts, String genotype, int originalPos) {
+    return variant(chrom, pos, ref, alts, genotype, Optional.of(originalPos));
+  }
+
+  private static VariantProto variant(String chrom, int pos, String ref, List<String> alts,
+      String genotype, Optional<Integer> originalPos) {
+    VariantProto.Builder builder = VariantProto.newBuilder()
         .setContig(chrom)
         .setPosition(pos)
         .setReferenceBases(ref)
@@ -142,7 +152,13 @@ public class NormalizerTest {
         .addCall(VariantProto.Multimap.newBuilder()
             .addEntry(VariantProto.Multimap.Entry.newBuilder()
                 .setKey("GT")
-                .addValue(genotype))).build();
+                .addValue(genotype)));
+    if (originalPos.isPresent()) {
+      builder.getInfoBuilder().addEntry(VariantProto.Multimap.Entry.newBuilder()
+          .setKey(Normalizer.NORM_INFO_TAG)
+          .addValue(String.valueOf(originalPos.get())));
+    }
+    return builder.build();
   }
 
   private static Optional<VariantProto> normalize(VariantProto variant) throws Exception {

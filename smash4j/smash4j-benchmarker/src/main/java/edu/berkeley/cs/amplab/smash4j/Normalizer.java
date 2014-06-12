@@ -73,6 +73,8 @@ public class Normalizer {
         }
       };
 
+  static final String NORM_INFO_TAG = "OP";
+
   public static Normalizer cleanOnly(int maxIndelSize, FastaReader.Callback.FastaFile fastaFile) {
     return new Normalizer(maxIndelSize, fastaFile, true);
   }
@@ -120,6 +122,10 @@ public class Normalizer {
         };
   }
 
+  private final boolean cleanOnly;
+
+  private final FastaReader.Callback.FastaFile fastaFile;
+  private final int maxIndelSize;
   private final Function<VariantProto, VariantProto> normalize =
       new Function<VariantProto, VariantProto>() {
 
@@ -140,7 +146,7 @@ public class Normalizer {
           alts = FluentIterable.from(alts)
               .transform(chopper)
               .toList();
-          int pos = (int) variant.getPosition() - 1;
+          int originalPosition = (int) variant.getPosition(), pos = originalPosition - 1;
           for (
               String contig = variant.getContig();
               sameLastBase(Iterables.concat(Collections.singletonList(ref), alts));) {
@@ -160,12 +166,18 @@ public class Normalizer {
             ref = slider.apply(ref);
             alts = FluentIterable.from(alts).transform(slider).toList();
           }
-          return variant.toBuilder()
-              .setPosition(pos + 1)
+          int newPosition = pos + 1;
+          VariantProto.Builder builder = variant.toBuilder()
+              .setPosition(newPosition)
               .setReferenceBases(ref)
               .clearAlternateBases()
-              .addAllAlternateBases(alts)
-              .build();
+              .addAllAlternateBases(alts);
+          if (newPosition < originalPosition) {
+            builder.getInfoBuilder().addEntry(VariantProto.Multimap.Entry.newBuilder()
+                .setKey(NORM_INFO_TAG)
+                .addValue(String.valueOf(originalPosition)));
+          }
+          return builder.build();
         }
 
         private boolean sameLastBase(Iterable<String> strings) {
@@ -184,10 +196,6 @@ public class Normalizer {
           return null != lastBase;
         }
       };
-
-  private final boolean cleanOnly;
-  private final FastaReader.Callback.FastaFile fastaFile;
-  private final int maxIndelSize;
 
   private Normalizer(
       int maxIndelSize, FastaReader.Callback.FastaFile fastaFile, boolean cleanOnly) {
