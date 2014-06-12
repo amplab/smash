@@ -126,8 +126,12 @@ public class FastaReader {
           long length = entry.length();
           int bases = entry.bases();
           String name = entry.name();
-          builder.put(name, new Contig(channel.map(FileChannel.MapMode.READ_ONLY, entry.offset(),
-              (length / bases) * entry.bytes() + length % bases), name, entry.bases()));
+          long position = entry.offset();
+          long size = (length / bases) * entry.bytes() + length % bases;
+          // handle case where FASTA has no trailing newline
+          size -= position + size - 1 == file.length() ? 1 : 0;
+          builder.put(name, new Contig(
+              channel.map(FileChannel.MapMode.READ_ONLY, position, size), name, entry.bases()));
         }
         final Map<String, Contig> chromosomes = builder.build();
         return callback.read(

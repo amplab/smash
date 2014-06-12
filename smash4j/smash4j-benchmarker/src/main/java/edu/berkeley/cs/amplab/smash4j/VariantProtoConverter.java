@@ -7,6 +7,7 @@ import com.google.common.base.Functions;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 import edu.berkeley.cs.amplab.vcfparser.VcfRecord;
 
@@ -15,6 +16,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 public abstract class VariantProtoConverter<X> implements Function<X, VariantProto> {
 
@@ -35,7 +37,10 @@ public abstract class VariantProtoConverter<X> implements Function<X, VariantPro
 
         @Override public VariantProto.Multimap apply(Map<String, List<String>> multimap) {
           return VariantProto.Multimap.newBuilder()
-              .addAllEntry(Iterables.transform(multimap.entrySet(), convertEntry))
+              .addAllEntry(Iterables.transform(
+                  Optional.fromNullable(multimap.entrySet())
+                      .or(Collections.<Entry<String, List<String>>>emptySet()),
+                  convertEntry))
               .build();
         }
       };
