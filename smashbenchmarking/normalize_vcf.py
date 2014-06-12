@@ -280,13 +280,13 @@ def handle_position_collisions(variants,ref_genome):
     return final_vars
 
 def main():
-    vcf_reader = vcf.Reader(sys.stdin)
-    ref = sys.argv[1]
-    person = sys.argv[2]
+    vcf_reader = vcf.Reader(open(sys.argv[1]))
+    ref = sys.argv[2]
+    person = sys.argv[3]
     max_indel_length = 50
-    if len(sys.argv) > 3:
-        max_indel_length = sys.argv[3]
-    cleanOnly = len(sys.argv) > 4 and sys.argv[4] == "cleanonly"
+    if len(sys.argv) > 4:
+        max_indel_length = sys.argv[4]
+    cleanOnly = len(sys.argv) > 5 and sys.argv[5] == "cleanonly"
     if cleanOnly:
         vcf_writer = parsers.vcfwriter.VCFWriter(ref, person, sys.stdout)
     else:
