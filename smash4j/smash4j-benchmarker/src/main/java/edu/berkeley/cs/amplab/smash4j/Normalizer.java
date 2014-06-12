@@ -6,16 +6,109 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Normalizer {
+
+  private class PositionCollisionFilter implements Iterable<PositionCollisionFilter.Contig> {
+
+    class Contig implements Iterable<Contig.Position> {
+
+      class Position implements Iterable<VariantProto> {
+
+        private final Map.Entry<Long, Collection<VariantProto>> entry;
+
+        private Position(Map.Entry<Long, Collection<VariantProto>> entry) {
+          this.entry = entry;
+        }
+
+        @Override public Iterator<VariantProto> iterator() {
+          return entry.getValue().iterator();
+        }
+      }
+
+      private final Map.Entry<String, Map<Long, Collection<VariantProto>>> entry;
+
+      final Function<Map.Entry<Long, Collection<VariantProto>>, Position> newPosition =
+          new Function<Map.Entry<Long, Collection<VariantProto>>, Position>() {
+            @Override public Position apply(Map.Entry<Long, Collection<VariantProto>> entry) {
+              return new Position(entry);
+            }
+          };
+
+      private Contig(Map.Entry<String, Map<Long, Collection<VariantProto>>> entry) {
+        this.entry = entry;
+      }
+
+      @Override public Iterator<Position> iterator() {
+        return Iterators.transform(entry.getValue().entrySet().iterator(), newPosition);
+      }
+    }
+
+    private final Map<String, Map<Long, Collection<VariantProto>>> cache;
+
+    final Function<Map.Entry<String, Map<Long, Collection<VariantProto>>>, Contig> newContig =
+        new Function<Map.Entry<String, Map<Long, Collection<VariantProto>>>, Contig>() {
+          @Override public Contig apply(
+              Map.Entry<String, Map<Long, Collection<VariantProto>>> entry) {
+            return new Contig(entry);
+          }
+        };
+
+    private PositionCollisionFilter(Map<String, Map<Long, Collection<VariantProto>>> cache) {
+      this.cache = cache;
+    }
+
+    @Override public Iterator<Contig> iterator() {
+      return Iterators.transform(cache.entrySet().iterator(), newContig);
+    }
+  }
+
+  private enum SameBaseTester {
+
+    FIRST_BASE {
+      @Override int index(String string) {
+        return 0;
+      }
+    },
+
+    LAST_BASE {
+      @Override int index(String string) {
+        return string.length() - 1;
+      }
+    };
+
+    abstract int index(String string);
+
+    final boolean sameBase(Iterable<String> strings) {
+      Character base = null;
+      for (String string : strings) {
+        if (string.isEmpty()) {
+          return false;
+        }
+        char c = string.charAt(index(string));
+        if (null == base) {
+          base = c;
+        } else if (!base.equals(c)) {
+          return false;
+        }
+      }
+      return null != base;
+    }
+  }
 
   private static class VariantFilter implements Predicate<VariantProto> {
 
@@ -66,14 +159,14 @@ public class Normalizer {
     }
   }
 
+  static final String NORM_INFO_TAG = "OP";
+
   private static final Function<String, String> TO_UPPER_CASE =
       new Function<String, String>() {
         @Override public String apply(String string) {
           return string.toUpperCase();
         }
       };
-
-  static final String NORM_INFO_TAG = "OP";
 
   public static Normalizer cleanOnly(int maxIndelSize, FastaReader.Callback.FastaFile fastaFile) {
     return new Normalizer(maxIndelSize, fastaFile, true);
@@ -123,9 +216,9 @@ public class Normalizer {
   }
 
   private final boolean cleanOnly;
-
   private final FastaReader.Callback.FastaFile fastaFile;
   private final int maxIndelSize;
+
   private final Function<VariantProto, VariantProto> normalize =
       new Function<VariantProto, VariantProto>() {
 
@@ -147,9 +240,8 @@ public class Normalizer {
               .transform(chopper)
               .toList();
           int originalPosition = (int) variant.getPosition(), pos = originalPosition - 1;
-          for (
-              String contig = variant.getContig();
-              sameLastBase(Iterables.concat(Collections.singletonList(ref), alts));) {
+          for (String contig = variant.getContig(); SameBaseTester.LAST_BASE.sameBase(
+              Iterables.concat(Collections.singletonList(ref), alts));) {
             final String prevBase = TO_UPPER_CASE.apply(fastaFile.get(
                 contig,
                 --pos,
@@ -179,22 +271,6 @@ public class Normalizer {
           }
           return builder.build();
         }
-
-        private boolean sameLastBase(Iterable<String> strings) {
-          Character lastBase = null;
-          for (String string : strings) {
-            if (string.isEmpty()) {
-              return false;
-            }
-            char c = string.charAt(string.length() - 1);
-            if (null == lastBase) {
-              lastBase = c;
-            } else if (!lastBase.equals(c)) {
-              return false;
-            }
-          }
-          return null != lastBase;
-        }
       };
 
   private Normalizer(
@@ -204,9 +280,28 @@ public class Normalizer {
     this.cleanOnly = cleanOnly;
   }
 
+  private PositionCollisionFilter createPositionCollisionFilter(Iterable<VariantProto> variants) {
+    Map<String, Map<Long, Collection<VariantProto>>> cache = new TreeMap<>();
+    for (VariantProto variant : variants) {
+      String contig = variant.getContig();
+      long position = variant.getPosition();
+      Map<Long, Collection<VariantProto>> map = cache.get(contig);
+      if (null == map) {
+        cache.put(contig, map = new TreeMap<>());
+      }
+      Collection<VariantProto> list = map.get(position);
+      if (null == list) {
+        map.put(position, list = new ArrayList<>());
+      }
+      list.add(variant);
+    }
+    return new PositionCollisionFilter(cache);
+  }
+
   public FluentIterable<VariantProto> normalize(Iterable<VariantProto> variants) {
-    return FluentIterable.from(variants)
-        .filter(VariantFilter.create(maxIndelSize))
-        .transform(normalize);
+    return FluentIterable.from(Iterables.concat(Iterables.concat(createPositionCollisionFilter(
+        FluentIterable.from(variants)
+            .filter(VariantFilter.create(maxIndelSize))
+            .transform(normalize)))));
   }
 }
