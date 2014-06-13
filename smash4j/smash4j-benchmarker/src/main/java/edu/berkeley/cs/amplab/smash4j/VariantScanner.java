@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +84,7 @@ public abstract class VariantScanner {
         };
   }
 
-  public static VariantScanner fromVariantProtos(final Collection<VariantProto> variants) {
+  public static VariantScanner fromVariantProtos(final Iterable<VariantProto> variants) {
     return new VariantScanner() {
           @Override public <X> X scan(Callback<X> callback) throws Exception {
             return callback.scan(FluentIterable.from(variants));

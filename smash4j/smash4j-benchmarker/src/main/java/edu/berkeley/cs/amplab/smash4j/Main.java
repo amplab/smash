@@ -1,8 +1,16 @@
 package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.FluentIterable;
+
+import edu.berkeley.cs.amplab.fastaparser.FastaReader;
+import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.Map;
 import java.util.prefs.Preferences;
 
 public class Main {
@@ -65,6 +73,43 @@ public class Main {
           System.out.format("%s:%s = %s%n",
               PREFERENCES_PATH, key, null == value ? null : String.format("\"%s\"", value));
         }
+      }
+
+      @Override
+      protected void normalize(final NormalizeCommand command) throws Exception {
+        File fasta = command.referenceFasta();
+        Optional<File> index = command.referenceFastaIndex();
+        (index.isPresent() ? FastaReader.create(fasta, index.get()) : FastaReader.create(fasta))
+            .read(new FastaReader.Callback<Void>() {
+              @Override public Void read(Map<String, Integer> info,
+                  final FastaReader.Callback.FastaFile fastaFile) throws Exception {
+                Optional<String> callset = command.callset();
+                Optional<File> vcf = command.vcf();
+                final VariantScanner scanner;
+                if (callset.isPresent() && !vcf.isPresent()) {
+                  scanner = VariantScanner.fromCallsets(Collections.singletonList(callset.get()));
+                } else if (!callset.isPresent() && vcf.isPresent()) {
+                  scanner = VariantScanner.fromVcfFile(vcf.get());
+                } else {
+                  throw new IllegalStateException();
+                }
+                return scanner.scan(
+                    new VariantScanner.Callback<Void>() {
+                      @Override
+                      public Void scan(FluentIterable<VariantProto> variants) throws Exception {
+                        try (OutputStream out = new FileOutputStream(command.out())) {
+                          int maxIndelSize = command.maxIndexSize().or(50);
+                          VariantWriter.create(out).writeVariants(VariantScanner.fromVariantProtos(
+                              (command.cleanOnly()
+                                  ? Normalizer.cleanOnly(maxIndelSize, fastaFile)
+                                  : Normalizer.create(maxIndelSize, fastaFile))
+                                  .normalize(variants)));
+                          return null;
+                        }
+                      }
+                    });
+              }
+            });
       }
 
       @Override protected void main(MainCommand command) throws Exception {
