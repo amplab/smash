@@ -75,7 +75,8 @@ public abstract class VariantProtoConverter<X> implements Function<X, VariantPro
                             }
                           })))
               .setContig(record.chrom())
-              .setInfo(CONVERT_MULTIMAP.apply(record.info()))
+              .setInfo(CONVERT_MULTIMAP.apply(Optional.fromNullable(
+                  record.info()).or(Collections.<String, List<String>>emptyMap())))
               .addAllNames(emptyForNull(record.ids()))
               .setPosition(record.pos())
               .setReferenceBases(record.ref())
