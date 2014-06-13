@@ -28,7 +28,7 @@ public class Normalizer {
 
   private static final Logger LOGGER = Logger.getLogger(Normalizer.class.getName());
 
-  private class PositionCollisionFilter implements Iterable<PositionCollisionFilter.Contig> {
+  private class PositionCollisionHandler implements Iterable<PositionCollisionHandler.Contig> {
 
     class Contig implements Iterable<Contig.Position> {
 
@@ -172,7 +172,7 @@ public class Normalizer {
           }
         };
 
-    private PositionCollisionFilter(Map<String, Map<Long, Collection<VariantProto>>> cache) {
+    private PositionCollisionHandler(Map<String, Map<Long, Collection<VariantProto>>> cache) {
       this.cache = cache;
     }
 
@@ -384,7 +384,7 @@ public class Normalizer {
     this.cleanOnly = cleanOnly;
   }
 
-  private PositionCollisionFilter createPositionCollisionFilter(Iterable<VariantProto> variants) {
+  private PositionCollisionHandler createPositionCollisionHandler(Iterable<VariantProto> variants) {
     Map<String, Map<Long, Collection<VariantProto>>> cache = new TreeMap<>();
     for (VariantProto variant : variants) {
       String contig = variant.getContig();
@@ -399,13 +399,16 @@ public class Normalizer {
       }
       list.add(variant);
     }
-    return new PositionCollisionFilter(cache);
+    return new PositionCollisionHandler(cache);
   }
 
   public FluentIterable<VariantProto> normalize(Iterable<VariantProto> variants) {
-    return FluentIterable.from(Iterables.concat(Iterables.concat(createPositionCollisionFilter(
-        FluentIterable.from(variants)
-            .filter(VariantFilter.create(maxIndelSize))
-            .transform(normalize)))));
+    FluentIterable<VariantProto> intermediate = FluentIterable.from(variants)
+        .filter(VariantFilter.create(maxIndelSize))
+        .transform(normalize);
+    return cleanOnly
+        ? intermediate
+        : FluentIterable.from(
+            Iterables.concat(Iterables.concat(createPositionCollisionHandler(intermediate))));
   }
 }
