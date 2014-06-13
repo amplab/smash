@@ -1,7 +1,9 @@
 package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -18,10 +20,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Normalizer {
+
+  private static final Logger LOGGER = Logger.getLogger(Normalizer.class.getName());
 
   private class PositionCollisionFilter implements Iterable<PositionCollisionFilter.Contig> {
 
@@ -36,7 +41,106 @@ public class Normalizer {
         }
 
         @Override public Iterator<VariantProto> iterator() {
-          return entry.getValue().iterator();
+          Collection<VariantProto> value = entry.getValue();
+          if (1 == value.size()) {
+            return value.iterator();
+          }
+          List<VariantProto>
+              normed = new ArrayList<>(),
+              notnormed = new ArrayList<>();
+          OUTER: for (VariantProto variant : value) {
+            for (VariantProto.Multimap.Entry entry : variant.getInfo().getEntryList()) {
+              if (NORM_INFO_TAG.equals(entry.getKey())) {
+                normed.add(variant);
+                continue OUTER;
+              }
+            }
+            notnormed.add(variant);
+          }
+          VariantProto basevar;
+          if (!notnormed.isEmpty()) {
+            basevar = Preconditions.checkNotNull(Iterables.getFirst(notnormed, null));
+            for (VariantProto variant : Iterables.skip(notnormed, 1)) {
+              String chrom = variant.getContig();
+              long pos = variant.getPosition();
+              LOGGER.warning(String.format(
+                  "Variant already exists on %s at %d; discarding variant %s %d %s/%s",
+                  chrom,
+                  pos,
+                  chrom,
+                  pos,
+                  variant.getReferenceBases(),
+                  Joiner.on(",").join(variant.getAlternateBasesList())));
+            }
+          } else {
+            basevar = Preconditions.checkNotNull(Iterables.getFirst(normed, null));
+            normed = ImmutableList.copyOf(Iterables.skip(normed, 1));
+          }
+          List<VariantProto> finalVars = new ArrayList<>();
+          for (VariantProto variant : normed) {
+            try {
+              finalVars.add(basevar);
+              basevar = shiftUntilNotOverlapping(basevar, variant);
+            } catch (AssertionError e) {
+              VariantProto first = Preconditions.checkNotNull(Iterables.getFirst(normed, null));
+              LOGGER.warning(
+                  String.format("failed denorm at %s %d", first.getContig(), first.getPosition()));
+            }
+          }
+          finalVars.add(basevar);
+          return finalVars.iterator();
+        }
+
+        private VariantProto shiftUntilNotOverlapping(
+            VariantProto varOne, final VariantProto varTwo) {
+          final String varTwoContig = varTwo.getContig();
+          int
+              onePos = (int) varOne.getPosition() - 1,
+              twoPos = (int) varTwo.getPosition() - 1;
+          String twoRefAllele = varTwo.getReferenceBases();
+          List<String> twoAltAlleles = varTwo.getAlternateBasesList();
+          for (int varOneLastPos = onePos + varOne.getReferenceBases().length();
+              twoPos < varOneLastPos;) {
+            final int twoPosCopy = ++twoPos;
+            final String twoRefAlleleCopy = twoRefAllele;
+            twoRefAllele = slide(varTwoContig, twoPos, twoRefAllele, twoRefAllele);
+            twoAltAlleles = FluentIterable.from(twoAltAlleles)
+                .transform(
+                    new Function<String, String>() {
+                      @Override public String apply(String slidingAllele) {
+                        return slide(
+                            varTwoContig, twoPosCopy, twoRefAlleleCopy, slidingAllele);
+                      }
+                    })
+                .toList();
+            assert sameFirstAndLastBase(twoRefAllele, twoAltAlleles);
+          }
+          return varTwo.toBuilder()
+              .setPosition(twoPos + 1)
+              .setReferenceBases(twoRefAllele)
+              .clearAlternateBases()
+              .addAllAlternateBases(twoAltAlleles)
+              .build();
+        }
+
+        private String slide(String contig, int pos, String refAllele, String slidingAllele) {
+          int rightEndpoint = pos + refAllele.length() - 1;
+          return slidingAllele.substring(1)
+              + fastaFile.get(
+                  contig,
+                  rightEndpoint,
+                  rightEndpoint + 1,
+                  FastaReader.Callback.FastaFile.Orientation.FORWARD);
+        }
+
+        private boolean sameFirstAndLastBase(String refAllele, List<String> altAlleles) {
+          Collection<String> allAlleles =
+              ImmutableList.copyOf(Iterables.concat(Collections.singleton(refAllele), altAlleles));
+          boolean b = true;
+          for (SameBaseTester tester : SameBaseTester.values()) {
+            b &= tester.sameBase(allAlleles);
+          }
+          return b;
         }
       }
 
