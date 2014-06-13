@@ -99,11 +99,11 @@ public class Main {
                       public Void scan(FluentIterable<VariantProto> variants) throws Exception {
                         try (OutputStream out = new FileOutputStream(command.out())) {
                           int maxIndelSize = command.maxIndexSize().or(50);
-                          VariantWriter.create(out).writeVariants(VariantScanner.fromVariantProtos(
-                              (command.cleanOnly()
-                                  ? Normalizer.cleanOnly(maxIndelSize, fastaFile)
-                                  : Normalizer.create(maxIndelSize, fastaFile))
-                                  .normalize(variants)));
+                          Normalizer normalizer = command.cleanOnly()
+                              ? Normalizer.cleanOnly(maxIndelSize, fastaFile)
+                              : Normalizer.create(maxIndelSize, fastaFile);
+                          VariantWriter.create(out).writeVariants(
+                              VariantScanner.fromVariantProtos(normalizer.normalize(variants)));
                           return null;
                         }
                       }
