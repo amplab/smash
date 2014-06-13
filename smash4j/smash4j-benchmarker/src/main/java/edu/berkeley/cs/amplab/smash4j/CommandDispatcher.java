@@ -201,7 +201,7 @@ public abstract class CommandDispatcher {
     @Parameter(
         names = { "--out" },
         converter = FileConverter.class)
-    private String out;
+    private File out;
 
     public File referenceFasta() {
       return referenceFasta;
@@ -227,8 +227,8 @@ public abstract class CommandDispatcher {
       return Optional.fromNullable(vcf);
     }
 
-    public String out() {
-      return out;
+    public Optional<File> out() {
+      return Optional.fromNullable(out);
     }
 
     NormalizeCommand validate() {

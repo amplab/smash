@@ -97,7 +97,7 @@ public class Main {
                     new VariantScanner.Callback<Void>() {
                       @Override
                       public Void scan(FluentIterable<VariantProto> variants) throws Exception {
-                        try (OutputStream out = new FileOutputStream(command.out())) {
+                        try (OutputStream out = new FileOutputStream(command.out().get())) {
                           int maxIndelSize = command.maxIndexSize().or(50);
                           Normalizer normalizer = command.cleanOnly()
                               ? Normalizer.cleanOnly(maxIndelSize, fastaFile)
