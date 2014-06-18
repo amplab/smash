@@ -2,7 +2,6 @@ package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -216,22 +215,17 @@ public class Normalizer {
 
   private static class VariantFilter implements Predicate<VariantProto> {
 
-    private static final Function<VariantProto.Multimap, Boolean> NOT_HOMREF =
-        new Function<VariantProto.Multimap, Boolean>() {
-          @Override public Boolean apply(VariantProto.Multimap call) {
-            for (VariantProto.Multimap.Entry entry : call.getEntryList()) {
-              if ("GT".equals(entry.getKey())) {
-                switch (Iterables.getOnlyElement(entry.getValueList())) {
-                  case ".":
-                  case "0/0":
-                  case "0|0":
-                    return false;
-                  default:
-                    return true;
-                }
-              }
+    private static final Function<String, Boolean> NOT_HOMREF =
+        new Function<String, Boolean>() {
+          @Override public Boolean apply(String genotype) {
+            switch (genotype) {
+              case ".":
+              case "0/0":
+              case "0|0":
+                return false;
+              default:
+                return true;
             }
-            throw new IllegalStateException("Missing \"GT\" INFO value");
           }
         };
 
@@ -257,7 +251,7 @@ public class Normalizer {
           return true;
         }
       }
-      return Optional.fromNullable(Iterables.getFirst(variant.getCallList(), null))
+      return GenotypeExtractor.INSTANCE.getGenotype(variant)
           .transform(NOT_HOMREF)
           .or(Boolean.FALSE);
     }
