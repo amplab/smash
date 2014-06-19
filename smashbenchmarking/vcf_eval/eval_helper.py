@@ -127,7 +127,7 @@ def structural_match(true_variant,pred_vars_all,sv_eps,sv_eps_bp):
         matches = get_closest(true_variant,matches)
     return matches
 
-def vartype_match_at_location(fp_vars,pred_vars,loc):
+def ref_match_at_location(fp_vars,pred_vars,loc):
     return fp_vars.all_variants[loc].ref == pred_vars.all_variants[loc].ref
 
 class ChromVariantStats:
@@ -259,11 +259,11 @@ def chrom_evaluate_variants(true_var,pred_var,sv_eps,sv_eps_bp,ref,window,known_
     all_known_fp = _type_dict()
     if known_fp:
         for loc in pred_loc.intersection(known_fp.all_locations):
-            match = vartype_match_at_location(known_fp,pred_var,loc)
+            match = ref_match_at_location(known_fp,pred_var,loc)
+            vartype = known_fp.all_variants[loc].var_type
             if match:
                 calls_at_known_fp[vartype] += 1
                 known_fp_calls_positions.append(loc)
-            vartype = known_fp.all_variants[loc].var_type
             all_known_fp[vartype] += 1 # note this only holds known fp sharing a location with pred var, NOT all
 
     # structural variants are a special case if not matching exactly
