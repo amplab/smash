@@ -29,7 +29,7 @@ counts of true positives, false positives, and false negatives; as well as preci
 
 ## Known False Positive Mode
 
-For cases in which we do not have validated truth calls for the entire genome, SMaSH may be called with an additional known true positive VCF. With this option, SMaSH will further mark predicted calls as conflicting with known false positives if they are at the same location, of the same variant type, and have the same ref sequence. Precision will also be calculated with this false positive count.
+For cases in which we do not have validated truth calls for the entire genome, SMaSH may be called with an additional known false positive VCF. With this option, SMaSH will further mark predicted calls as conflicting with known false positives if they are at the same location, of the same variant type, and have the same ref sequence. Precision will also be calculated with this false positive count.
 
 If the ground truth data is not comprehensive, but we do not have a set of known false positive variants in VCF format, we can hide false positive-related stats in the output with the --hide_fp flag.
 
