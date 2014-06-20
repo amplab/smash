@@ -10,7 +10,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Multiset;
@@ -238,7 +238,83 @@ public class VariantEvaluator {
       return predictedVariants;
     }
 
-    ContigStats rectify(FastaReader.Callback.FastaFile reference, int rescueWindowSize) {
+    private static class RescueMission {
+
+      static RescueMission create(
+          FastaReader.Callback.FastaFile reference,
+          int rescueWindowSize,
+          VariantProto variant,
+          NavigableMap<Long, VariantProto> truePositives,
+          NavigableMap<Long, VariantProto> falsePositives,
+          NavigableMap<Long, VariantProto> falseNegatives) {
+        //  num_new_tp = _type_dict()
+        //  num_fp_removed = _type_dict()
+        //  rescuer = SequenceRescuer(false_negatives.chrom,loc,false_negatives,false_positives,true_positives,ref,window)
+        //  if not rescuer or not rescuer.rescued:
+        //      return num_new_tp,num_fp_removed,[]
+        //  # now the whole truth window becomes true positives
+        //  # and the whole predicted window is removed from false positives
+        //  for variant in rescuer.truthWindowQueue[rescuer.windowsRescued[0]]:
+        //      false_negatives._remove_variant(variant.pos)
+        //      num_new_tp[variant.var_type] += 1
+        //  for variant in rescuer.predictWindowQueue[rescuer.windowsRescued[1]]:
+        //      false_positives._remove_variant(variant.pos)
+        //      num_fp_removed[variant.var_type] += 1
+        //  return num_new_tp,num_fp_removed,rescuer.predictWindowQueue[rescuer.windowsRescued[1]]
+        throw new UnsupportedOperationException();
+      }
+
+      private final Multiset<VariantProto> newTruePositives;
+      private final Multiset<VariantProto> removeFalsePositives;
+      private final NavigableMap<Long, VariantProto> rescuedVariants;
+
+      private RescueMission(
+          Multiset<VariantProto> newTruePositives,
+          Multiset<VariantProto> removeFalsePositives,
+          NavigableMap<Long, VariantProto> rescuedVariants) {
+        this.newTruePositives = newTruePositives;
+        this.removeFalsePositives = removeFalsePositives;
+        this.rescuedVariants = rescuedVariants;
+      }
+
+      Multiset<VariantProto> newTruePositives() {
+        return newTruePositives;
+      }
+
+      Multiset<VariantProto> removeFalsePositives() {
+        return removeFalsePositives;
+      }
+
+      NavigableMap<Long, VariantProto> rescuedVariants() {
+        return rescuedVariants;
+      }
+    }
+
+    ContigStats rescue(FastaReader.Callback.FastaFile reference, int rescueWindowSize) {
+      for (Map.Entry<Long, VariantProto> entry : Maps.newTreeMap(this.falseNegatives).entrySet()) {
+        if (this.falseNegatives.containsKey(entry.getKey())) {
+          VariantProto variant = entry.getValue();
+          if (!VariantType.getType(variant).isStructuralVariant()) {
+            RescueMission mission = RescueMission.create(reference, rescueWindowSize,
+                variant, this.truePositives, this.falsePositives, this.falseNegatives);
+            Multiset<VariantProto>
+                newTruePositives = mission.newTruePositives(),
+                removeFalsePositives = mission.removeFalsePositives();
+            NavigableMap<Long, VariantProto> rescuedVariants = mission.rescuedVariants();
+            for (VariantType type : VariantType.values()) {
+              int newTruePositiveCount = newTruePositives.count(type),
+                  removeFalsePositiveCount = removeFalsePositives.count(type);
+              this.predictedVariantCounts.remove(type, removeFalsePositiveCount);
+              this.falsePositiveCounts.remove(type, removeFalsePositiveCount);
+              this.predictedVariantCounts.add(type, newTruePositiveCount);
+              this.falseNegativeCounts.remove(type, newTruePositiveCount);
+              this.truePositiveCounts.remove(type, newTruePositiveCount);
+            }
+            this.rescuedVariants = Optional.of(rescuedVariants);
+            this.rescuedVariantCounts = Optional.of(countByType(rescuedVariants));
+          }
+        }
+      }
       throw new UnsupportedOperationException();
     }
 
@@ -676,7 +752,7 @@ public class VariantEvaluator {
         allKnownFalsePositiveLocations.add(location);
       }
     }
-    for (Long location : Lists.newArrayList(falseNegativeLocations)) {
+    for (Long location : difference(predictedVariantLocations, trueVariantLocations)) {
       VariantProto trueVariant = trueVariants.get(location);
       VariantType trueVariantType = VariantType.getType(trueVariant);
       if (trueVariantType.isStructuralVariant()) {
@@ -701,7 +777,7 @@ public class VariantEvaluator {
         truePositiveLocations, falsePositiveLocations, falseNegativeLocations, incorrectPredictions,
         concordance);
     if (reference.isPresent()) {
-      variantStats.rectify(reference.get(), rescueWindowSize);
+      variantStats.rescue(reference.get(), rescueWindowSize);
     }
     if (knownFalsePositivesPresent) {
       variantStats.setKnownFalsePositives(
