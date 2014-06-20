@@ -1,31 +1,29 @@
 package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Multiset;
-import com.google.common.collect.Sets;
-
-import com.beust.jcommander.internal.Lists;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
@@ -86,100 +84,200 @@ public class VariantEvaluator {
 
   public static class ContigStats {
 
-    static class Builder {
-
-      private final NavigableMap<Long, VariantProto> true_var;
-      private final NavigableMap<Long, VariantProto> pred_var;
-      private final ImmutableList.Builder<Long> intersect_good;
-      private final NavigableSet<Long> false_positives;
-      private final NavigableSet<Long> false_negatives;
-      private final GenotypeConcordance.Builder genotype_concordance;
-      private Multimap<VariantType, Long> intersect_bad;
-      private Optional<Multiset<VariantType>> known_fp = Optional.absent();
-      private Optional<Multiset<VariantType>> calls_at_known_fp = Optional.absent();
-      private Optional<List<Long>> known_fp_calls_positions = Optional.absent();
-
-      private Builder(
-          NavigableMap<Long, VariantProto> true_var,
-          NavigableMap<Long, VariantProto> pred_var,
-          ImmutableList.Builder<Long> intersect_good,
-          NavigableSet<Long> false_positives,
-          NavigableSet<Long> false_negatives,
-          GenotypeConcordance.Builder genotype_concordance) {
-        this.true_var = true_var;
-        this.pred_var = pred_var;
-        this.intersect_good = intersect_good;
-        this.false_positives = false_positives;
-        this.false_negatives = false_negatives;
-        this.genotype_concordance = genotype_concordance;
+    private static Multiset<VariantType> countByType(NavigableMap<?, VariantProto> variants) {
+      Multiset<VariantType> counts = HashMultiset.create();
+      for (Map.Entry<?, VariantProto> entry : variants.entrySet()) {
+        counts.add(VariantType.getType(entry.getValue()));
       }
-
-      Builder rectify(FastaReader.Callback.FastaFile reference, int rescueWindowSize) {
-        Collection<Long> locs_to_rescue = Lists.newArrayList(false_negatives);
-        for (Long loc : locs_to_rescue) {
-          if (false_negatives.contains(loc)) {
-//          new_tp,rm_fp,rescued_vars = rescue_mission(self.false_negatives,self.false_positives,self.true_positives,loc,ref,window)
-//          for t in VARIANT_TYPE:
-//              # seemingly odd accounting. The number of predicted variants *changes* as a result of rescuing.
-//              # e.g. 2 predicted FPs are in fact 1 FN. So
-//              #  -- remove 2 predicted variants
-//              #  -- remove 2 false positives
-//              #  -- remove 1 false negative
-//              #  -- add 1 true positive
-//              self.num_pred[t] -= rm_fp[t]
-//              self.num_fp[t] -= rm_fp[t]
-//              self.num_pred[t] += new_tp[t]
-//              self.num_fn[t] -= new_tp[t]
-//              self.num_tp[t] += new_tp[t]
-//          for v in rescued_vars:
-//              self.rescued_vars._add_variant(v)
-          }
-        }
-        return this;
-      }
-
-      Builder setIntersectBad(Multimap<VariantType, Long> intersect_bad) {
-        this.intersect_bad = intersect_bad;
-        return this;
-      }
-
-      Builder setKnownFp(Multiset<VariantType> known_fp) {
-        this.known_fp = Optional.of(known_fp);
-        return this;
-      }
-
-      Builder setCallsAtKnownFp(Multiset<VariantType> calls_at_known_fp) {
-        this.calls_at_known_fp = Optional.of(calls_at_known_fp);
-        return this;
-      }
-
-      Builder setKnownFpCallsPositions(List<Long> known_fp_calls_positions) {
-        this.known_fp_calls_positions = Optional.of(known_fp_calls_positions);
-        return this;
-      }
-
-      ContigStats build() {
-        return new ContigStats();
-      }
+      return counts;
     }
 
-    static Builder builder(
-        NavigableMap<Long, VariantProto> true_var,
-        NavigableMap<Long, VariantProto> pred_var,
-        ImmutableList.Builder<Long> intersect_good,
-        NavigableSet<Long> false_positives,
-        NavigableSet<Long> false_negatives,
-        GenotypeConcordance.Builder genotype_concordance) {
-      return new Builder(
-          true_var,
-          pred_var,
-          intersect_good,
-          false_positives,
-          false_negatives,
-          genotype_concordance);
+    static ContigStats create(
+        String contig,
+        NavigableMap<Long, VariantProto> trueVariants,
+        NavigableMap<Long, VariantProto> predictedVariants,
+        Iterable<Long> truePositiveLocations,
+        Iterable<Long> falsePositiveLocations,
+        Iterable<Long> falseNegativeLocations,
+        Iterable<Long> incorrectPredictions,
+        GenotypeConcordance concordance) {
+      NavigableMap<Long, VariantProto>
+          truePositives = filter(predictedVariants, truePositiveLocations),
+          falsePositives = filter(predictedVariants, falsePositiveLocations),
+          falseNegatives = filter(trueVariants, falseNegativeLocations);
+      Multimap<VariantType, Long> incorrectPredictionsMultimap = ArrayListMultimap.create();
+      for (Long location : incorrectPredictions) {
+        incorrectPredictionsMultimap.put(
+            VariantType.getType(predictedVariants.get(location)),
+            location);
+      }
+      return new ContigStats(
+          contig,
+          trueVariants,
+          predictedVariants,
+          truePositives,
+          falsePositives,
+          falseNegatives,
+          countByType(trueVariants),
+          countByType(predictedVariants),
+          countByType(truePositives),
+          countByType(falsePositives),
+          countByType(falseNegatives),
+          incorrectPredictionsMultimap,
+          concordance);
     }
 
-    private ContigStats() {}
+    private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y> filter(
+        Map<? super X, ? extends Y> map,
+        Iterable<? extends X> keys) {
+      NavigableMap<X, Y> filtered = new TreeMap<>();
+      for (X key : keys) {
+        filtered.put(key, map.get(key));
+      }
+      return filtered;
+    }
+
+    private Optional<Multiset<VariantType>> allKnownFalsePositiveCounts = Optional.absent();
+    private final GenotypeConcordance concordance;
+    private final String contig;
+    private Optional<Multiset<VariantType>> correctKnownFalsePositiveCounts = Optional.absent();
+    private final Multiset<VariantType> falseNegativeCounts;
+    private final NavigableMap<Long, VariantProto> falseNegatives;
+    private final Multiset<VariantType> falsePositiveCounts;
+    private final NavigableMap<Long, VariantProto> falsePositives;
+    private final Multimap<VariantType, Long> incorrectPredictions;
+    private Optional<Multiset<VariantType>> knownFalsePositiveCounts = Optional.absent();
+    private Optional<NavigableMap<Long, VariantProto>> knownFalsePositives = Optional.absent();
+    private final Multiset<VariantType> predictedVariantCounts;
+    private final NavigableMap<Long, VariantProto> predictedVariants;
+    private Optional<Multiset<VariantType>> rescuedVariantCounts = Optional.absent();
+    private Optional<NavigableMap<Long, VariantProto>> rescuedVariants = Optional.absent();
+    private final Multiset<VariantType> truePositiveCounts;
+    private final NavigableMap<Long, VariantProto> truePositives;
+    private final Multiset<VariantType> trueVariantCounts;
+    private final NavigableMap<Long, VariantProto> trueVariants;
+
+    private ContigStats(
+        String contig,
+        NavigableMap<Long, VariantProto> trueVariants,
+        NavigableMap<Long, VariantProto> predictedVariants,
+        NavigableMap<Long, VariantProto> truePositives,
+        NavigableMap<Long, VariantProto> falsePositives,
+        NavigableMap<Long, VariantProto> falseNegatives,
+        Multiset<VariantType> trueVariantCounts,
+        Multiset<VariantType> predictedVariantCounts,
+        Multiset<VariantType> truePositiveCounts,
+        Multiset<VariantType> falsePositiveCounts,
+        Multiset<VariantType> falseNegativeCounts,
+        Multimap<VariantType, Long> incorrectPredictions,
+        GenotypeConcordance concordance) {
+      this.contig = contig;
+      this.trueVariants = trueVariants;
+      this.predictedVariants = predictedVariants;
+      this.truePositives = truePositives;
+      this.falsePositives = falsePositives;
+      this.falseNegatives = falseNegatives;
+      this.trueVariantCounts = trueVariantCounts;
+      this.predictedVariantCounts = predictedVariantCounts;
+      this.truePositiveCounts = truePositiveCounts;
+      this.falsePositiveCounts = falsePositiveCounts;
+      this.falseNegativeCounts = falseNegativeCounts;
+      this.incorrectPredictions = incorrectPredictions;
+      this.concordance = concordance;
+    }
+
+    public Optional<Multiset<VariantType>> allKnownFalsePositiveCounts() {
+      return allKnownFalsePositiveCounts;
+    }
+
+    public GenotypeConcordance concordance() {
+      return concordance;
+    }
+
+    public String contig() {
+      return contig;
+    }
+
+    public Optional<Multiset<VariantType>> correctKnownFalsePositiveCounts() {
+      return correctKnownFalsePositiveCounts;
+    }
+
+    public Multiset<VariantType> falseNegativeCounts() {
+      return falseNegativeCounts;
+    }
+
+    public NavigableMap<Long, VariantProto> falseNegatives() {
+      return falseNegatives;
+    }
+
+    public Multiset<VariantType> falsePositiveCounts() {
+      return falsePositiveCounts;
+    }
+
+    public NavigableMap<Long, VariantProto> falsePositives() {
+      return falsePositives;
+    }
+
+    public Multimap<VariantType, Long> incorrectPredictions() {
+      return incorrectPredictions;
+    }
+
+    public Optional<Multiset<VariantType>> knownFalsePositiveCounts() {
+      return knownFalsePositiveCounts;
+    }
+
+    public Optional<NavigableMap<Long, VariantProto>> knownFalsePositives() {
+      return knownFalsePositives;
+    }
+
+    public Multiset<VariantType> predictedVariantCounts() {
+      return predictedVariantCounts;
+    }
+
+    public NavigableMap<Long, VariantProto> predictedVariants() {
+      return predictedVariants;
+    }
+
+    ContigStats rectify(FastaReader.Callback.FastaFile reference, int rescueWindowSize) {
+      throw new UnsupportedOperationException();
+    }
+
+    public Optional<Multiset<VariantType>> rescuedVariantCounts() {
+      return rescuedVariantCounts;
+    }
+
+    public Optional<NavigableMap<Long, VariantProto>> rescuedVariants() {
+      return rescuedVariants;
+    }
+
+    ContigStats setKnownFalsePositives(
+        NavigableMap<Long, VariantProto> knownFalsePositives,
+        Iterable<Long> correctKnownFalsePositiveLocations,
+        Iterable<Long> allKnownFalsePositiveLocations) {
+      this.knownFalsePositives =
+          Optional.of(knownFalsePositives);
+      this.correctKnownFalsePositiveCounts =
+          Optional.of(countByType(filter(knownFalsePositives, correctKnownFalsePositiveLocations)));
+      this.allKnownFalsePositiveCounts =
+          Optional.of(countByType(filter(knownFalsePositives, allKnownFalsePositiveLocations)));
+      return this;
+    }
+
+    public Multiset<VariantType> truePositiveCounts() {
+      return truePositiveCounts;
+    }
+
+    public NavigableMap<Long, VariantProto> truePositives() {
+      return truePositives;
+    }
+
+    public Multiset<VariantType> trueVariantCounts() {
+      return trueVariantCounts;
+    }
+
+    public NavigableMap<Long, VariantProto> trueVariants() {
+      return trueVariants;
+    }
   }
 
   public enum Genotype {
@@ -216,73 +314,28 @@ public class VariantEvaluator {
 
   public static class GenotypeConcordance {
 
-    static class Builder {
+    static GenotypeConcordance create() {
+      return new GenotypeConcordance();
+    }
 
-      private static final
-          Function<
-              Map<Genotype, ImmutableMultiset.Builder<Genotype>>,
-              Map<Genotype, Multiset<Genotype>>>
-          BUILD =
-          new Function<
-              Map<Genotype, ImmutableMultiset.Builder<Genotype>>,
-              Map<Genotype, Multiset<Genotype>>>() {
+    private final Map<VariantType, Map<Genotype, Multiset<Genotype>>> concordance = new HashMap<>();
 
-            private final Function<ImmutableMultiset.Builder<Genotype>, Multiset<Genotype>> build =
-                new Function<ImmutableMultiset.Builder<Genotype>, Multiset<Genotype>>() {
-                  @Override public Multiset<Genotype> apply(
-                      ImmutableMultiset.Builder<Genotype> builder) {
-                    return builder.build();
-                  }
-                };
-
-            @Override public Map<Genotype, Multiset<Genotype>> apply(
-                Map<Genotype, ImmutableMultiset.Builder<Genotype>> map) {
-              return Maps.transformValues(map, build);
-            }
-          };
-
-      private final
-          Map<VariantType, Map<Genotype, ImmutableMultiset.Builder<Genotype>>> concordance;
-
-      private Builder() {
-        ImmutableMap.Builder<VariantType, Map<Genotype, ImmutableMultiset.Builder<Genotype>>>
-            concordance = ImmutableMap.builder();
-        for (VariantType variantType : VariantType.values()) {
-          ImmutableMap.Builder<Genotype, ImmutableMultiset.Builder<Genotype>>
-              builder = ImmutableMap.builder();
-          for (Genotype genotype : Genotype.values()) {
-            builder.put(genotype, ImmutableMultiset.<Genotype>builder());
-          }
-          concordance.put(variantType, builder.build());
+    private GenotypeConcordance() {
+      for (VariantType variantType : VariantType.values()) {
+        Map<Genotype, Multiset<Genotype>> map = new HashMap<>();
+        for (Genotype genotype : Genotype.values()) {
+          map.put(genotype, HashMultiset.<Genotype>create());
         }
-        this.concordance = concordance.build();
+        concordance.put(variantType, map);
       }
-
-      GenotypeConcordance build() {
-        return new GenotypeConcordance(Maps.transformValues(concordance, BUILD));
-      }
-
-      Builder increment(
-          VariantType variantType,
-          Genotype trueGenotype,
-          Genotype predictedGenotype) {
-        concordance.get(variantType).get(trueGenotype).add(predictedGenotype);
-        return this;
-      }
-    }
-
-    static Builder builder() {
-      return new Builder();
-    }
-
-    private final Map<VariantType, Map<Genotype, Multiset<Genotype>>> concordance;
-
-    private GenotypeConcordance(Map<VariantType, Map<Genotype, Multiset<Genotype>>> concordance) {
-      this.concordance = concordance;
     }
 
     public int get(VariantType variantType, Genotype trueGenotype, Genotype predictedGenotype) {
       return concordance.get(variantType).get(trueGenotype).count(predictedGenotype);
+    }
+
+    void increment(VariantType variantType, Genotype trueGenotype, Genotype predictedGenotype) {
+      concordance.get(variantType).get(trueGenotype).add(predictedGenotype);
     }
   }
 
@@ -304,7 +357,7 @@ public class VariantEvaluator {
     public static VariantType getType(VariantProto variant) {
       return isSnp(variant)
           ? SNP
-          : isSv(variant)
+          : isStructuralVariant(variant)
               ? hasSingleAlt(variant)
                   ? isInsertion(variant)
                       ? SV_INSERTION
@@ -357,7 +410,7 @@ public class VariantEvaluator {
       return false;
     }
 
-    private static boolean isSv(VariantProto variant) {
+    private static boolean isStructuralVariant(VariantProto variant) {
       for (VariantProto.Multimap.Entry entry : variant.getInfo().getEntryList()) {
         if ("SVTYPE".equals(entry.getKey())) {
           return true;
@@ -372,19 +425,19 @@ public class VariantEvaluator {
     private final boolean isInversion;
     private final boolean isOther;
     private final boolean isSnp;
-    private final boolean isSv;
+    private final boolean isStructuralVariant;
 
     private VariantType(
         boolean isSnp,
         boolean isIndel,
-        boolean isSv,
+        boolean isStructuralVariant,
         boolean isInsertion,
         boolean isDeletion,
         boolean isInversion,
         boolean isOther) {
       this.isSnp = isSnp;
       this.isIndel = isIndel;
-      this.isSv = isSv;
+      this.isStructuralVariant = isStructuralVariant;
       this.isInsertion = isInsertion;
       this.isDeletion = isDeletion;
       this.isInversion = isInversion;
@@ -415,17 +468,10 @@ public class VariantEvaluator {
       return isSnp;
     }
 
-    public boolean isSv() {
-      return isSv;
+    public boolean isStructuralVariant() {
+      return isStructuralVariant;
     }
   }
-
-  private static final Function<VariantProto, String> GET_CONTIG =
-      new Function<VariantProto, String>() {
-        @Override public String apply(VariantProto variant) {
-          return variant.getContig();
-        }
-      };
 
   private static final Function<VariantProto, Long> GET_POSITION =
       new Function<VariantProto, Long>() {
@@ -434,17 +480,88 @@ public class VariantEvaluator {
         }
       };
 
+  private static final Function<Iterable<VariantProto>, Multimap<String, VariantProto>>
+      INDEX_BY_CONTIG =
+      new Function<Iterable<VariantProto>, Multimap<String, VariantProto>>() {
+
+        private final Function<VariantProto, String> getContig =
+            new Function<VariantProto, String>() {
+              @Override public String apply(VariantProto variant) {
+                return variant.getContig();
+              }
+            };
+
+        @Override public Multimap<String, VariantProto> apply(Iterable<VariantProto> variants) {
+          return Multimaps.index(variants, getContig);
+        }
+      };
+
+  private static final Function<Iterable<VariantProto>, NavigableMap<Long, VariantProto>>
+      INDEX_BY_POSITION = uniqueIndex(
+          new Function<VariantProto, Long>() {
+            @Override public Long apply(VariantProto variant) {
+              return variant.getPosition();
+            }
+          });
+
+  private static final Function<Multimap<String, ?>, Set<String>>
+      KEY_SET = keySetFunction();
+
   public static Builder builder() {
     return new Builder();
   }
 
-  private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y> uniqueIndex(
-      Iterable<Y> iterable, Function<? super Y, X> function) {
-    NavigableMap<X, Y> result = new TreeMap<>();
-    for (Y object : iterable) {
-      result.put(function.apply(object), object);
+  private static <X extends Comparable<? super X>> NavigableSet<X>
+      difference(Set<? extends X> lhs, Set<? extends X> rhs) {
+    NavigableSet<X> difference = new TreeSet<>();
+    difference.addAll(lhs);
+    difference.removeAll(rhs);
+    return difference;
+  }
+
+  @SafeVarargs
+  private static <X extends Comparable<? super X>> NavigableSet<X>
+      intersection(Set<? extends X>... sets) {
+    NavigableSet<X> intersection = new TreeSet<>();
+    Collection<Set<? extends X>> collection = Arrays.asList(sets);
+    for (Set<? extends X> set : Iterables.limit(collection, 1)) {
+      intersection.addAll(set);
     }
-    return result;
+    for (Set<? extends X> set : Iterables.skip(collection, 1)) {
+      intersection.retainAll(set);
+    }
+    return intersection;
+  }
+
+  private static <X> Function<Multimap<X, ?>, Set<X>> keySetFunction() {
+    return new Function<Multimap<X, ?>, Set<X>>() {
+          @Override public Set<X> apply(Multimap<X, ?> multimap) {
+            return multimap.keySet();
+          }
+        };
+  }
+
+  @SafeVarargs
+  private static <X extends Comparable<? super X>> NavigableSet<X>
+      union(Set<? extends X>... sets) {
+    NavigableSet<X> union = new TreeSet<>();
+    for (Set<? extends X> set : sets) {
+      union.addAll(set);
+    }
+    return union;
+  }
+
+  private static <X extends Comparable<? super X>, Y> Function<Iterable<Y>, NavigableMap<X, Y>>
+      uniqueIndex(final Function<? super Y, X> function) {
+    return new Function<Iterable<Y>, NavigableMap<X, Y>>() {
+          @Override public NavigableMap<X, Y> apply(Iterable<Y> iterable) {
+            NavigableMap<X, Y> result = new TreeMap<>();
+            for (Y object : iterable) {
+              result.put(function.apply(object), object);
+            }
+            return result;
+          }
+        };
   }
 
   private final int maxIndelLength;
@@ -468,163 +585,150 @@ public class VariantEvaluator {
 
   public Map<String, ContigStats> evaluate(
       Iterable<VariantProto> trueVariants,
+      Iterable<VariantProto> predictedVariants) {
+    return evaluate(trueVariants, predictedVariants, Optional.<Iterable<VariantProto>>absent());
+  }
+
+  public Map<String, ContigStats> evaluate(
+      Iterable<VariantProto> trueVariants,
       Iterable<VariantProto> predictedVariants,
       Iterable<VariantProto> knownFalsePositives) {
-    ListMultimap<String, VariantProto>
-        trueVars = Multimaps.index(trueVariants, GET_CONTIG),
-        predVars = Multimaps.index(predictedVariants, GET_CONTIG),
-        knownFps = Multimaps.index(knownFalsePositives, GET_CONTIG);
+    return evaluate(trueVariants, predictedVariants, Optional.of(knownFalsePositives));
+  }
+
+  private Map<String, ContigStats> evaluate(
+      Iterable<VariantProto> trueVariants,
+      Iterable<VariantProto> predictedVariants,
+      Optional<Iterable<VariantProto>> knownFalsePositives) {
+    Multimap<String, VariantProto>
+        trueVars = INDEX_BY_CONTIG.apply(trueVariants),
+        predVars = INDEX_BY_CONTIG.apply(predictedVariants);
+    Optional<Multimap<String, VariantProto>>
+        knownFps = knownFalsePositives.transform(INDEX_BY_CONTIG);
     ImmutableMap.Builder<String, ContigStats> result = ImmutableMap.builder();
-    for (String contig :
-        Sets.union(Sets.union(trueVars.keySet(), predVars.keySet()), knownFps.keySet())) {
+    for (final String contig : union(
+        KEY_SET.apply(trueVars),
+        KEY_SET.apply(predVars),
+        knownFps.transform(KEY_SET).or(Collections.<String>emptySet()))) {
+      Function<Multimap<String, VariantProto>, NavigableMap<Long, VariantProto>> indexByPosition =
+          Functions.compose(
+              INDEX_BY_POSITION,
+              new Function<Multimap<String, VariantProto>, Iterable<VariantProto>>() {
+                @Override public Iterable<VariantProto> apply(
+                    Multimap<String, VariantProto> multimap) {
+                  return multimap.get(contig);
+                }
+              });
       result.put(
           contig,
           evaluate(
               contig,
-              uniqueIndex(trueVars.get(contig), GET_POSITION),
-              uniqueIndex(predVars.get(contig), GET_POSITION),
-              uniqueIndex(knownFps.get(contig), GET_POSITION)));
+              indexByPosition.apply(trueVars),
+              indexByPosition.apply(predVars),
+              knownFps.transform(indexByPosition)));
     }
     return result.build();
   }
 
-  @SafeVarargs
-  private static <X extends Comparable<? super X>> NavigableSet<X> intersection(
-      Set<? extends X>... sets) {
-    NavigableSet<X> intersection = new TreeSet<>();
-    Collection<Set<? extends X>> collection = Arrays.asList(sets);
-    for (Set<? extends X> set : Iterables.limit(collection, 1)) {
-      intersection.addAll(set);
-    }
-    for (Set<? extends X> set : Iterables.skip(collection, 1)) {
-      intersection.retainAll(set);
-    }
-    return intersection;
-  }
-
-  private static <X extends Comparable<? super X>> NavigableSet<X> difference(
-      Set<? extends X> lhs, Set<? extends X> rhs) {
-    NavigableSet<X> difference = new TreeSet<>();
-    difference.addAll(lhs);
-    difference.removeAll(rhs);
-    return difference;
-  }
-
   private ContigStats evaluate(
       String contig,
-      NavigableMap<Long, VariantProto> true_var,
-      NavigableMap<Long, VariantProto> pred_var,
-      NavigableMap<Long, VariantProto> known_fp) {
-    NavigableSet<Long>
-        true_loc = true_var.navigableKeySet(),
-        pred_loc = pred_var.navigableKeySet(),
-        false_positives = difference(pred_loc, true_loc),
-        false_negatives = difference(true_loc, pred_loc);
-    GenotypeConcordance.Builder
-        genotype_concordance = GenotypeConcordance.builder();
-    ImmutableList.Builder<Long>
-        intersect_good = ImmutableList.builder(),
-        intersect_bad = ImmutableList.builder(),
-        known_fp_calls_positions = ImmutableList.builder();
-    ImmutableMultimap.Builder<VariantType, Long>
-        intersect_bad_dict = ImmutableMultimap.builder();
-    ImmutableMultiset.Builder<VariantType>
-        calls_at_known_fp = ImmutableMultiset.builder(),
-        all_known_fp = ImmutableMultiset.builder();
-    boolean
-        hasKnownFp = !known_fp.isEmpty();
-    for (Long loc : intersection(pred_loc, true_loc)) {
+      NavigableMap<Long, VariantProto> trueVariants,
+      NavigableMap<Long, VariantProto> predictedVariants,
+      Optional<NavigableMap<Long, VariantProto>> knownFalsePositives) {
+    Set<Long>
+        trueVariantLocations = trueVariants.keySet(),
+        predictedVariantLocations = predictedVariants.keySet(),
+        truePositiveLocations = new HashSet<>(),
+        falsePositiveLocations = difference(predictedVariantLocations, trueVariantLocations),
+        falseNegativeLocations = difference(trueVariantLocations, predictedVariantLocations),
+        incorrectPredictions = new HashSet<>(),
+        correctKnownFalsePositiveLocations = new HashSet<>(),
+        allKnownFalsePositiveLocations = new HashSet<>();
+    GenotypeConcordance concordance = GenotypeConcordance.create();
+    boolean knownFalsePositivesPresent = knownFalsePositives.isPresent();
+    for (Long location : intersection(predictedVariantLocations, trueVariantLocations)) {
       VariantProto
-          t = true_var.get(loc),
-          p = pred_var.get(loc);
-      VariantType
-          vartype = VariantType.getType(t);
-      if (vartype == VariantType.getType(p)
-          && (vartype.isSv() || t.getAlternateBasesList().equals(p.getAlternateBasesList()))) {
-        intersect_good.add(loc);
-        genotype_concordance.increment(
-            vartype,
-            Genotype.getGenotype(t),
-            Genotype.getGenotype(p));
+          trueVariant = trueVariants.get(location),
+          predictedVariant = predictedVariants.get(location);
+      VariantType trueVariantType = VariantType.getType(trueVariant);
+      if (trueVariantType == VariantType.getType(predictedVariant)
+          && (trueVariantType.isStructuralVariant() ||trueVariant.getAlternateBasesList()
+              .equals(predictedVariant.getAlternateBasesList()))) {
+        truePositiveLocations.add(location);
+        concordance.increment(
+            trueVariantType,
+            Genotype.getGenotype(trueVariant),
+            Genotype.getGenotype(predictedVariant));
       } else {
-        intersect_bad.add(loc);
-        intersect_bad_dict.put(vartype, loc);
+        incorrectPredictions.add(location);
       }
     }
-    if (hasKnownFp) {
-      for (Long loc : intersection(pred_loc, known_fp.navigableKeySet())) {
-        VariantProto
-            k = known_fp.get(loc),
-            p = pred_var.get(loc);
-        VariantType
-            vartype = VariantType.getType(k);
-        if (Objects.equal(k.getReferenceBases(), p.getReferenceBases())) {
-          calls_at_known_fp.add(vartype);
-          known_fp_calls_positions.add(loc);
+    if (knownFalsePositivesPresent) {
+      NavigableMap<Long, VariantProto> knownFp = knownFalsePositives.get();
+      for (Long location :
+          intersection(predictedVariantLocations, knownFp.keySet())) {
+        VariantProto knownFalsePositive = knownFp.get(location);
+        if (Objects.equal(
+            knownFalsePositive.getReferenceBases(),
+            predictedVariants.get(location).getReferenceBases())) {
+          correctKnownFalsePositiveLocations.add(location);
         }
-        all_known_fp.add(vartype);
+        allKnownFalsePositiveLocations.add(location);
       }
     }
-    for (Long loc : false_negatives) {
-      VariantProto t = true_var.get(loc);
-      VariantType vartype = VariantType.getType(t);
-      if (vartype.isSv()) {
-        Optional<Long> optional = structuralMatch(t, pred_var);
-        if (optional.isPresent()) {
-          Long match = optional.get();
-          if (false_positives.contains(match)) {
-            intersect_good.add(loc);
-            false_positives.remove(match);
-            false_negatives.remove(loc);
-            genotype_concordance.increment(
-                vartype,
-                Genotype.getGenotype(t),
-                Genotype.getGenotype(pred_var.get(match)));
+    for (Long location : Lists.newArrayList(falseNegativeLocations)) {
+      VariantProto trueVariant = trueVariants.get(location);
+      VariantType trueVariantType = VariantType.getType(trueVariant);
+      if (trueVariantType.isStructuralVariant()) {
+        Optional<Long> structuralMatch = structuralMatch(trueVariant, predictedVariants);
+        if (structuralMatch.isPresent()) {
+          Long match = structuralMatch.get();
+          if (falsePositiveLocations.contains(match)) {
+            truePositiveLocations.add(location);
+            falsePositiveLocations.remove(match);
+            falseNegativeLocations.remove(location);
+            concordance.increment(
+                trueVariantType,
+                Genotype.getGenotype(trueVariant),
+                Genotype.getGenotype(predictedVariants.get(match)));
           }
         }
       }
     }
-    Collection<Long> ib = intersect_bad.build();
-    false_positives.addAll(ib);
-    false_negatives.addAll(ib);
-    ContigStats.Builder variant_stats = ContigStats.builder(
-        true_var,
-        pred_var,
-        intersect_good,
-        false_positives,
-        false_negatives,
-        genotype_concordance);
+    falsePositiveLocations.addAll(incorrectPredictions);
+    falseNegativeLocations.addAll(incorrectPredictions);
+    ContigStats variantStats = ContigStats.create(contig, trueVariants, predictedVariants,
+        truePositiveLocations, falsePositiveLocations, falseNegativeLocations, incorrectPredictions,
+        concordance);
     if (reference.isPresent()) {
-      variant_stats.rectify(reference.get(), rescueWindowSize);
+      variantStats.rectify(reference.get(), rescueWindowSize);
     }
-    if (hasKnownFp) {
-      variant_stats
-          .setKnownFp(all_known_fp.build())
-          .setCallsAtKnownFp(calls_at_known_fp.build())
-          .setKnownFpCallsPositions(known_fp_calls_positions.build());
+    if (knownFalsePositivesPresent) {
+      variantStats.setKnownFalsePositives(
+          knownFalsePositives.get(),
+          correctKnownFalsePositiveLocations,
+          allKnownFalsePositiveLocations);
     }
-    return variant_stats
-        .setIntersectBad(intersect_bad_dict.build())
-        .build();
+    return variantStats;
   }
 
   private Optional<Long> structuralMatch(
       final VariantProto trueVariant,
       NavigableMap<Long, VariantProto> predictedVariants) {
-    final long position = trueVariant.getPosition();
+    final long trueVariantPosition = trueVariant.getPosition();
     Collection<VariantProto> candidates = FluentIterable
         .from(predictedVariants
             .subMap(
-                position - maxSvBreakpointDistance, true,
-                position + maxSvBreakpointDistance, true)
+                trueVariantPosition - maxSvBreakpointDistance, true,
+                trueVariantPosition + maxSvBreakpointDistance, true)
             .values())
         .filter(
             new Predicate<VariantProto>() {
 
-              private final VariantType type = VariantType.getType(trueVariant);
+              private final VariantType trueVariantType = VariantType.getType(trueVariant);
 
               @Override public boolean apply(VariantProto predictedVariant) {
-                if (type == VariantType.getType(predictedVariant)) {
+                if (trueVariantType == VariantType.getType(predictedVariant)) {
                   int trueReferenceLength = trueVariant.getReferenceBases().length(),
                       predictedReferenceLength = predictedVariant.getReferenceBases().length();
                   for (String trueAlt : trueVariant.getAlternateBasesList()) {
@@ -646,8 +750,8 @@ public class VariantEvaluator {
         new Comparator<VariantProto>() {
           @Override public int compare(VariantProto lhs, VariantProto rhs) {
             return Long.compare(
-                Math.abs(position - lhs.getPosition()),
-                Math.abs(position - rhs.getPosition()));
+                Math.abs(trueVariantPosition - lhs.getPosition()),
+                Math.abs(trueVariantPosition - rhs.getPosition()));
           }
         });
     priorityQueue.addAll(candidates);
