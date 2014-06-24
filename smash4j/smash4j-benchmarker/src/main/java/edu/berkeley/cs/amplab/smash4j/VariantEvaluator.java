@@ -14,6 +14,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Multiset;
+import com.google.common.collect.Ordering;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
@@ -27,8 +28,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
-import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -39,7 +38,6 @@ public class VariantEvaluator {
 
   public static class Builder {
 
-    private int maxIndelLength = 50;
     private int maxSvBreakpointDistance = 100;
     private int maxVariantLengthDifference = 100;
     private Optional<FastaReader.Callback.FastaFile> reference = Optional.absent();
@@ -50,15 +48,9 @@ public class VariantEvaluator {
     public VariantEvaluator build() {
       return new VariantEvaluator(
           reference,
-          maxIndelLength,
           maxSvBreakpointDistance,
           maxVariantLengthDifference,
           rescueWindowSize);
-    }
-
-    public Builder setMaxIndelLength(int maxIndelLength) {
-      this.maxIndelLength = maxIndelLength;
-      return this;
     }
 
     public Builder setMaxSvBreakpointDistance(int maxSvBreakpointDistance) {
@@ -252,7 +244,7 @@ public class VariantEvaluator {
                 .setFalsePositives(falsePositives)
                 .setFalseNegatives(falseNegatives)
                 .build()
-                .rescue(variant);
+                .tryRescue(variant);
             if (optional.isPresent()) {
               SequenceRescuer.RescuedVariants rescuedVariants = optional.get();
               NavigableMap<Integer, VariantProto>
@@ -592,7 +584,6 @@ public class VariantEvaluator {
         };
   }
 
-  private final int maxIndelLength;
   private final int maxSvBreakpointDistance;
   private final int maxVariantLengthDifference;
   private final Optional<FastaReader.Callback.FastaFile> reference;
@@ -600,12 +591,10 @@ public class VariantEvaluator {
 
   private VariantEvaluator(
       Optional<FastaReader.Callback.FastaFile> reference,
-      int maxIndelLength,
       int maxSvBreakpointDistance,
       int maxVariantLengthDifference,
       int rescueWindowSize) {
     this.reference = reference;
-    this.maxIndelLength = maxIndelLength;
     this.maxSvBreakpointDistance = maxSvBreakpointDistance;
     this.maxVariantLengthDifference = maxVariantLengthDifference;
     this.rescueWindowSize = rescueWindowSize;
@@ -708,7 +697,8 @@ public class VariantEvaluator {
       VariantProto trueVariant = trueVariants.get(location);
       VariantType trueVariantType = VariantType.getType(trueVariant);
       if (trueVariantType.isStructuralVariant()) {
-        Optional<Integer> structuralMatch = structuralMatch(trueVariant, predictedVariants);
+        Optional<Integer> structuralMatch =
+            structuralMatch(trueVariant, predictedVariants).transform(GET_POSITION);
         if (structuralMatch.isPresent()) {
           Integer match = structuralMatch.get();
           if (falsePositiveLocations.contains(match)) {
@@ -740,7 +730,7 @@ public class VariantEvaluator {
     return variantStats;
   }
 
-  private Optional<Integer> structuralMatch(
+  private Optional<VariantProto> structuralMatch(
       final VariantProto trueVariant,
       NavigableMap<Integer, VariantProto> predictedVariants) {
     final int trueVariantPosition = trueVariant.getPosition();
@@ -774,15 +764,17 @@ public class VariantEvaluator {
               }
             })
         .toList();
-    Queue<VariantProto> priorityQueue = new PriorityQueue<>(Math.max(candidates.size(), 1),
-        new Comparator<VariantProto>() {
-          @Override public int compare(VariantProto lhs, VariantProto rhs) {
-            return Long.compare(
-                Math.abs(trueVariantPosition - lhs.getPosition()),
-                Math.abs(trueVariantPosition - rhs.getPosition()));
-          }
-        });
-    priorityQueue.addAll(candidates);
-    return Optional.fromNullable(priorityQueue.peek()).transform(GET_POSITION);
+    return candidates.isEmpty()
+        ? Optional.<VariantProto>absent()
+        : Optional.of(Ordering
+            .from(
+                new Comparator<VariantProto>() {
+                  @Override public int compare(VariantProto lhs, VariantProto rhs) {
+                    return Long.compare(
+                        Math.abs(trueVariantPosition - lhs.getPosition()),
+                        Math.abs(trueVariantPosition - rhs.getPosition()));
+                  }
+                })
+            .min(candidates));
   }
 }
