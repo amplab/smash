@@ -70,7 +70,7 @@ public class VariantProtoConverterTest {
           return new Variant()
               .setNames(proto.getNamesList())
               .setContig(proto.getContig())
-              .setPosition(proto.getPosition())
+              .setPosition(Long.valueOf(proto.getPosition()))
               .setReferenceBases(proto.getReferenceBases())
               .setAlternateBases(proto.getAlternateBasesList())
               .setInfo(extractMap(proto.getInfo()))

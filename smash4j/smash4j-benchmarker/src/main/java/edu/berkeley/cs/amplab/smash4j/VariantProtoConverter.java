@@ -93,7 +93,7 @@ public abstract class VariantProtoConverter<X> implements Function<X, VariantPro
               .setContig(variant.getContig())
               .setInfo(CONVERT_MULTIMAP.apply(variant.getInfo()))
               .addAllNames(emptyForNull(variant.getNames()))
-              .setPosition(variant.getPosition())
+              .setPosition(variant.getPosition().intValue())
               .setReferenceBases(variant.getReferenceBases())
               .build();
         }

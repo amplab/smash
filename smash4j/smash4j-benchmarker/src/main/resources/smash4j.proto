@@ -12,7 +12,7 @@ message VariantProto {
 
   repeated string names = 1;
   optional string contig = 2;
-  optional int64 position = 3;
+  optional int32 position = 3;
   optional string referenceBases = 4;
   repeated string alternateBases = 5;
   optional Multimap info = 6;
