@@ -125,15 +125,17 @@ public class VariantEvaluator {
 
     private Optional<NavigableMap<Integer, VariantProto>>
         allKnownFalsePositives = Optional.absent(),
-        correctKnownFalsePositives = Optional.absent();
-    private final GenotypeConcordance concordance;
-    private final String contig;
-    private final NavigableMap<Integer, VariantProto>
-        falseNegatives, falsePositives, predictedVariants, truePositives, trueVariants;
-    private final Multimap<VariantType, Integer> incorrectPredictions;
-    private Optional<NavigableMap<Integer, VariantProto>>
+        correctKnownFalsePositives = Optional.absent(),
         knownFalsePositives = Optional.absent(),
         rescuedVariants = Optional.absent();
+    private final GenotypeConcordance concordance;
+    private final String contig;
+    private final NavigableMap<Integer, VariantProto> falseNegatives;
+    private final NavigableMap<Integer, VariantProto> falsePositives;
+    private final Multimap<VariantType, Integer> incorrectPredictions;
+    private final NavigableMap<Integer, VariantProto> predictedVariants;
+    private final NavigableMap<Integer, VariantProto> truePositives;
+    private final NavigableMap<Integer, VariantProto> trueVariants;
 
     private ContigStats(
         String contig,
@@ -230,16 +232,6 @@ public class VariantEvaluator {
 
     public Optional<NavigableMap<Integer, VariantProto>> rescuedVariants() {
       return rescuedVariants;
-    }
-
-    public void setAllKnownFalsePositives(
-        Optional<NavigableMap<Integer, VariantProto>> allKnownFalsePositives) {
-      this.allKnownFalsePositives = allKnownFalsePositives;
-    }
-
-    public void setCorrectKnownFalsePositives(
-        Optional<NavigableMap<Integer, VariantProto>> correctKnownFalsePositives) {
-      this.correctKnownFalsePositives = correctKnownFalsePositives;
     }
 
     ContigStats setKnownFalsePositives(
