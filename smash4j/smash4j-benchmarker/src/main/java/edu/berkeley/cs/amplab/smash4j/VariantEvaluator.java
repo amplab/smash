@@ -76,7 +76,7 @@ public class VariantEvaluator {
 
   public static class ContigStats {
 
-    private static Multiset<VariantType> countByType(NavigableMap<?, VariantProto> variants) {
+    public static Multiset<VariantType> countByType(NavigableMap<?, VariantProto> variants) {
       Multiset<VariantType> counts = HashMultiset.create();
       for (Map.Entry<?, VariantProto> entry : variants.entrySet()) {
         counts.add(VariantType.getType(entry.getValue()));
@@ -110,18 +110,12 @@ public class VariantEvaluator {
           truePositives,
           falsePositives,
           falseNegatives,
-          countByType(trueVariants),
-          countByType(predictedVariants),
-          countByType(truePositives),
-          countByType(falsePositives),
-          countByType(falseNegatives),
           incorrectPredictionsMultimap,
           concordance);
     }
 
-    private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y> filter(
-        Map<? super X, ? extends Y> map,
-        Iterable<? extends X> keys) {
+    private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y>
+        filter(Map<? super X, ? extends Y> map, Iterable<? extends X> keys) {
       NavigableMap<X, Y> filtered = new TreeMap<>();
       for (X key : keys) {
         filtered.put(key, map.get(key));
@@ -129,25 +123,17 @@ public class VariantEvaluator {
       return filtered;
     }
 
-    private Optional<Multiset<VariantType>> allKnownFalsePositiveCounts = Optional.absent();
+    private Optional<NavigableMap<Integer, VariantProto>>
+        allKnownFalsePositives = Optional.absent(),
+        correctKnownFalsePositives = Optional.absent();
     private final GenotypeConcordance concordance;
     private final String contig;
-    private Optional<Multiset<VariantType>> correctKnownFalsePositiveCounts = Optional.absent();
-    private final Multiset<VariantType> falseNegativeCounts;
-    private final NavigableMap<Integer, VariantProto> falseNegatives;
-    private final Multiset<VariantType> falsePositiveCounts;
-    private final NavigableMap<Integer, VariantProto> falsePositives;
+    private final NavigableMap<Integer, VariantProto>
+        falseNegatives, falsePositives, predictedVariants, truePositives, trueVariants;
     private final Multimap<VariantType, Integer> incorrectPredictions;
-    private Optional<Multiset<VariantType>> knownFalsePositiveCounts = Optional.absent();
-    private Optional<NavigableMap<Integer, VariantProto>> knownFalsePositives = Optional.absent();
-    private final Multiset<VariantType> predictedVariantCounts;
-    private final NavigableMap<Integer, VariantProto> predictedVariants;
-    private Optional<Multiset<VariantType>> rescuedVariantCounts = Optional.absent();
-    private Optional<NavigableMap<Integer, VariantProto>> rescuedVariants = Optional.absent();
-    private final Multiset<VariantType> truePositiveCounts;
-    private final NavigableMap<Integer, VariantProto> truePositives;
-    private final Multiset<VariantType> trueVariantCounts;
-    private final NavigableMap<Integer, VariantProto> trueVariants;
+    private Optional<NavigableMap<Integer, VariantProto>>
+        knownFalsePositives = Optional.absent(),
+        rescuedVariants = Optional.absent();
 
     private ContigStats(
         String contig,
@@ -156,11 +142,6 @@ public class VariantEvaluator {
         NavigableMap<Integer, VariantProto> truePositives,
         NavigableMap<Integer, VariantProto> falsePositives,
         NavigableMap<Integer, VariantProto> falseNegatives,
-        Multiset<VariantType> trueVariantCounts,
-        Multiset<VariantType> predictedVariantCounts,
-        Multiset<VariantType> truePositiveCounts,
-        Multiset<VariantType> falsePositiveCounts,
-        Multiset<VariantType> falseNegativeCounts,
         Multimap<VariantType, Integer> incorrectPredictions,
         GenotypeConcordance concordance) {
       this.contig = contig;
@@ -169,17 +150,12 @@ public class VariantEvaluator {
       this.truePositives = truePositives;
       this.falsePositives = falsePositives;
       this.falseNegatives = falseNegatives;
-      this.trueVariantCounts = trueVariantCounts;
-      this.predictedVariantCounts = predictedVariantCounts;
-      this.truePositiveCounts = truePositiveCounts;
-      this.falsePositiveCounts = falsePositiveCounts;
-      this.falseNegativeCounts = falseNegativeCounts;
       this.incorrectPredictions = incorrectPredictions;
       this.concordance = concordance;
     }
 
-    public Optional<Multiset<VariantType>> allKnownFalsePositiveCounts() {
-      return allKnownFalsePositiveCounts;
+    public Optional<NavigableMap<Integer, VariantProto>> allKnownFalsePositives() {
+      return allKnownFalsePositives;
     }
 
     public GenotypeConcordance concordance() {
@@ -190,20 +166,12 @@ public class VariantEvaluator {
       return contig;
     }
 
-    public Optional<Multiset<VariantType>> correctKnownFalsePositiveCounts() {
-      return correctKnownFalsePositiveCounts;
-    }
-
-    public Multiset<VariantType> falseNegativeCounts() {
-      return falseNegativeCounts;
+    public Optional<NavigableMap<Integer, VariantProto>> correctKnownFalsePositives() {
+      return correctKnownFalsePositives;
     }
 
     public NavigableMap<Integer, VariantProto> falseNegatives() {
       return falseNegatives;
-    }
-
-    public Multiset<VariantType> falsePositiveCounts() {
-      return falsePositiveCounts;
     }
 
     public NavigableMap<Integer, VariantProto> falsePositives() {
@@ -214,16 +182,8 @@ public class VariantEvaluator {
       return incorrectPredictions;
     }
 
-    public Optional<Multiset<VariantType>> knownFalsePositiveCounts() {
-      return knownFalsePositiveCounts;
-    }
-
     public Optional<NavigableMap<Integer, VariantProto>> knownFalsePositives() {
       return knownFalsePositives;
-    }
-
-    public Multiset<VariantType> predictedVariantCounts() {
-      return predictedVariantCounts;
     }
 
     public NavigableMap<Integer, VariantProto> predictedVariants() {
@@ -248,18 +208,19 @@ public class VariantEvaluator {
             if (optional.isPresent()) {
               SequenceRescuer.RescuedVariants rescuedVariants = optional.get();
               NavigableMap<Integer, VariantProto>
-                  newTruePositives = rescuedVariants.newTruePositives();
-              int newTruePositiveCount = newTruePositives.size(),
-                  removeFalsePositiveCount = rescuedVariants.removeFalsePositives().size();
-              for (VariantType type : VariantType.values()) {
-                this.predictedVariantCounts.remove(type, removeFalsePositiveCount);
-                this.falsePositiveCounts.remove(type, removeFalsePositiveCount);
-                this.predictedVariantCounts.add(type, newTruePositiveCount);
-                this.falseNegativeCounts.remove(type, newTruePositiveCount);
-                this.truePositiveCounts.remove(type, newTruePositiveCount);
+                  newTruePositives = rescuedVariants.newTruePositives(),
+                  removeFalsePositives = rescuedVariants.removeFalsePositives();
+              for (Integer location : newTruePositives.keySet()) {
+                this.falseNegatives.remove(location);
               }
-              this.rescuedVariants = Optional.of(newTruePositives);
-              this.rescuedVariantCounts = Optional.of(countByType(newTruePositives));
+              for (Integer location : removeFalsePositives.keySet()) {
+                this.falsePositives.remove(location);
+              }
+              if (this.rescuedVariants.isPresent()) {
+                this.rescuedVariants.get().putAll(newTruePositives);
+              } else {
+                this.rescuedVariants = Optional.of(newTruePositives);
+              }
             }
           }
         }
@@ -267,12 +228,18 @@ public class VariantEvaluator {
       return this;
     }
 
-    public Optional<Multiset<VariantType>> rescuedVariantCounts() {
-      return rescuedVariantCounts;
-    }
-
     public Optional<NavigableMap<Integer, VariantProto>> rescuedVariants() {
       return rescuedVariants;
+    }
+
+    public void setAllKnownFalsePositives(
+        Optional<NavigableMap<Integer, VariantProto>> allKnownFalsePositives) {
+      this.allKnownFalsePositives = allKnownFalsePositives;
+    }
+
+    public void setCorrectKnownFalsePositives(
+        Optional<NavigableMap<Integer, VariantProto>> correctKnownFalsePositives) {
+      this.correctKnownFalsePositives = correctKnownFalsePositives;
     }
 
     ContigStats setKnownFalsePositives(
@@ -281,23 +248,15 @@ public class VariantEvaluator {
         Iterable<Integer> allKnownFalsePositiveLocations) {
       this.knownFalsePositives =
           Optional.of(knownFalsePositives);
-      this.correctKnownFalsePositiveCounts =
-          Optional.of(countByType(filter(knownFalsePositives, correctKnownFalsePositiveLocations)));
-      this.allKnownFalsePositiveCounts =
-          Optional.of(countByType(filter(knownFalsePositives, allKnownFalsePositiveLocations)));
+      this.correctKnownFalsePositives =
+          Optional.of(filter(knownFalsePositives, correctKnownFalsePositiveLocations));
+      this.allKnownFalsePositives =
+          Optional.of(filter(knownFalsePositives, allKnownFalsePositiveLocations));
       return this;
-    }
-
-    public Multiset<VariantType> truePositiveCounts() {
-      return truePositiveCounts;
     }
 
     public NavigableMap<Integer, VariantProto> truePositives() {
       return truePositives;
-    }
-
-    public Multiset<VariantType> trueVariantCounts() {
-      return trueVariantCounts;
     }
 
     public NavigableMap<Integer, VariantProto> trueVariants() {
@@ -366,14 +325,14 @@ public class VariantEvaluator {
 
   public enum VariantType {
 
-    INDEL_DELETION(false, true, false, false, true, false, false),
-    INDEL_INSERTION(false, true, false, true, false, false, false),
-    INDEL_INVERSION(false, true, false, false, false, true, false),
-    INDEL_OTHER(false, true, false, false, false, false, true),
-    SNP(true, false, false, false, false, false, false),
-    SV_DELETION(false, false, true, false, true, false, false),
-    SV_INSERTION(false, false, true, true, false, false, false),
-    SV_OTHER(false, false, true, false, false, false, true);
+    INDEL_DELETION(false),
+    INDEL_INSERTION(false),
+    INDEL_INVERSION(false),
+    INDEL_OTHER(false),
+    SNP(false),
+    SV_DELETION(true),
+    SV_INSERTION(true),
+    SV_OTHER(true);
 
     private static String getFirstAlt(VariantProto variant) {
       return Iterables.getOnlyElement(variant.getAlternateBasesList());
@@ -444,53 +403,10 @@ public class VariantEvaluator {
       return false;
     }
 
-    private final boolean isDeletion;
-    private final boolean isIndel;
-    private final boolean isInsertion;
-    private final boolean isInversion;
-    private final boolean isOther;
-    private final boolean isSnp;
     private final boolean isStructuralVariant;
 
-    private VariantType(
-        boolean isSnp,
-        boolean isIndel,
-        boolean isStructuralVariant,
-        boolean isInsertion,
-        boolean isDeletion,
-        boolean isInversion,
-        boolean isOther) {
-      this.isSnp = isSnp;
-      this.isIndel = isIndel;
+    private VariantType(boolean isStructuralVariant) {
       this.isStructuralVariant = isStructuralVariant;
-      this.isInsertion = isInsertion;
-      this.isDeletion = isDeletion;
-      this.isInversion = isInversion;
-      this.isOther = isOther;
-    }
-
-    public boolean isDeletion() {
-      return isDeletion;
-    }
-
-    public boolean isIndel() {
-      return isIndel;
-    }
-
-    public boolean isInsertion() {
-      return isInsertion;
-    }
-
-    public boolean isInversion() {
-      return isInversion;
-    }
-
-    public boolean isOther() {
-      return isOther;
-    }
-
-    public boolean isSnp() {
-      return isSnp;
     }
 
     public boolean isStructuralVariant() {
@@ -498,28 +414,29 @@ public class VariantEvaluator {
     }
   }
 
-  private static final Function<VariantProto, Integer> GET_POSITION =
-      new Function<VariantProto, Integer>() {
-        @Override public Integer apply(VariantProto variant) {
-          return variant.getPosition();
-        }
-      };
+  private static final Function<VariantProto, Integer>
+      GET_POSITION =
+          new Function<VariantProto, Integer>() {
+            @Override public Integer apply(VariantProto variant) {
+              return variant.getPosition();
+            }
+          };
 
   private static final Function<Iterable<VariantProto>, Multimap<String, VariantProto>>
       INDEX_BY_CONTIG =
-      new Function<Iterable<VariantProto>, Multimap<String, VariantProto>>() {
+          new Function<Iterable<VariantProto>, Multimap<String, VariantProto>>() {
 
-        private final Function<VariantProto, String> getContig =
-            new Function<VariantProto, String>() {
-              @Override public String apply(VariantProto variant) {
-                return variant.getContig();
-              }
-            };
+            private final Function<VariantProto, String> getContig =
+                new Function<VariantProto, String>() {
+                  @Override public String apply(VariantProto variant) {
+                    return variant.getContig();
+                  }
+                };
 
-        @Override public Multimap<String, VariantProto> apply(Iterable<VariantProto> variants) {
-          return Multimaps.index(variants, getContig);
-        }
-      };
+            @Override public Multimap<String, VariantProto> apply(Iterable<VariantProto> variants) {
+              return Multimaps.index(variants, getContig);
+            }
+          };
 
   private static final Function<Iterable<VariantProto>, NavigableMap<Integer, VariantProto>>
       INDEX_BY_POSITION = uniqueIndex(GET_POSITION);
@@ -669,7 +586,7 @@ public class VariantEvaluator {
           predictedVariant = predictedVariants.get(location);
       VariantType trueVariantType = VariantType.getType(trueVariant);
       if (trueVariantType == VariantType.getType(predictedVariant)
-          && (trueVariantType.isStructuralVariant() ||trueVariant.getAlternateBasesList()
+          && (trueVariantType.isStructuralVariant() || trueVariant.getAlternateBasesList()
               .equals(predictedVariant.getAlternateBasesList()))) {
         truePositiveLocations.add(location);
         concordance.increment(
