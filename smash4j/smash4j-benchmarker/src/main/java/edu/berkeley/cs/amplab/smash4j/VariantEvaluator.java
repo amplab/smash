@@ -326,6 +326,13 @@ public class VariantEvaluator {
     SV_INSERTION(true),
     SV_OTHER(true);
 
+    public static final Function<VariantProto, VariantType> GET_TYPE =
+        new Function<VariantProto, VariantType>() {
+          @Override public VariantType apply(VariantProto variant) {
+            return getType(variant);
+          }
+        };
+
     private static String getFirstAlt(VariantProto variant) {
       return Iterables.getOnlyElement(variant.getAlternateBasesList());
     }

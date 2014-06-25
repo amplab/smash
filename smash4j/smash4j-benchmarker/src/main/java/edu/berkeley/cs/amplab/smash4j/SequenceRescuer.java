@@ -5,18 +5,29 @@ import com.google.common.base.Functions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.AbstractSequentialIterator;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.PeekingIterator;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.fastaparser.FastaReader.Callback.FastaFile;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
+import edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.TreeMap;
 
 public class SequenceRescuer {
 
@@ -83,8 +94,7 @@ public class SequenceRescuer {
       return new RescuedVariants(truthLocations, predictedLocations);
     }
 
-    private final NavigableMap<Integer, VariantProto> predictedLocations;
-    private final NavigableMap<Integer, VariantProto> truthLocations;
+    private final NavigableMap<Integer, VariantProto> predictedLocations, truthLocations;
 
     private RescuedVariants(
         NavigableMap<Integer, VariantProto> truthLocations,
@@ -166,10 +176,8 @@ public class SequenceRescuer {
               };
         }
 
-        private NavigableMap<Integer, VariantProto> falseNegatives;
-        private NavigableMap<Integer, VariantProto> falsePositives;
+        private NavigableMap<Integer, VariantProto> falseNegatives, falsePositives, truePositives;
         private int size;
-        private NavigableMap<Integer, VariantProto> truePositives;
 
         Factory build() {
           return new Factory(fix(Functions.compose(Functions.compose(windowEnlarger(truePositives),
@@ -260,6 +268,15 @@ public class SequenceRescuer {
     }
   }
 
+  private static final
+      Function<Iterable<? extends VariantProto>, List<List<VariantProto>>>
+      GET_OVERLAPS = grouper(
+          new Function<VariantProto, Predicate<VariantProto>>() {
+            @Override public Predicate<VariantProto> apply(final VariantProto candidate) {
+              return strictlyOverlaps(candidate.getPosition());
+            }
+          });
+
   private static final Function<VariantProto, Integer>
       GET_START =
           new Function<VariantProto, Integer>() {
@@ -270,21 +287,149 @@ public class SequenceRescuer {
       GET_END =
           new Function<VariantProto, Integer>() {
             @Override public Integer apply(VariantProto variant) {
-              return variant.getPosition() + variant.getReferenceBases().length();
+              return GET_START.apply(variant) + variant.getReferenceBases().length();
             }
           };
+
+  private static final Predicate<VariantProto> NOT_SV = Predicates.not(Predicates.compose(
+      new Predicate<VariantType>() {
+        @Override public boolean apply(VariantType type) {
+          return type.isStructuralVariant();
+        }
+      },
+      VariantEvaluator.VariantType.GET_TYPE));
+
+  private static final int WINDOW_MAX_OVERLAPPING = 16;
 
   public static Builder builder() {
     return new Builder();
   }
 
+  private static List<VariantProto> extractRangeAndFilter(
+      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
+    NavigableMap<Integer, VariantProto> result = filter(window.restrict(variants), NOT_SV);
+    VariantProto variant = variants.get(location);
+    Predicate<VariantProto> predicate = Predicates.or(
+        Predicates.compose(Predicates.equalTo(location), GET_START),
+        Predicates.not(Predicates.or(
+            overlapsAllele(location),
+            overlapsAllele(location + Ordering.natural().max(losses(variant))))));
+    return ImmutableList.copyOf((null == variant ? result : filter(result, predicate)).values());
+  }
+
+  private static List<List<VariantProto>> extractVariantQueues(
+      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
+    List<VariantProto> variantsInWindow = extractRangeAndFilter(variants, window, location);
+    return variantsInWindow.isEmpty()
+        ? Collections.<List<VariantProto>>emptyList()
+        : getRestOfPath(new ArrayList<VariantProto>(), GET_OVERLAPS.apply(variantsInWindow));
+  }
+
+  private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y>
+      filter(Map<? extends X, ? extends Y> map, Predicate<? super Y> predicate) {
+    NavigableMap<X, Y> filtered = new TreeMap<>();
+    for (Map.Entry<? extends X, ? extends Y> entry : map.entrySet()) {
+      Y value = entry.getValue();
+      if (predicate.apply(value)) {
+        filtered.put(entry.getKey(), value);
+      }
+    }
+    return filtered;
+  }
+
+  private static List<List<VariantProto>> getRestOfPath(
+      final List<VariantProto> chosenSoFar,
+      final List<List<VariantProto>> remainingChoices) {
+    return remainingChoices.isEmpty()
+        ? Collections.singletonList(chosenSoFar)
+        : ImmutableList.copyOf(Iterables.concat(FluentIterable
+            .from(remainingChoices.get(0))
+            .filter(
+                new Predicate<VariantProto>() {
+                  @Override public boolean apply(VariantProto choice) {
+                    return !Iterables.any(chosenSoFar, strictlyOverlaps(choice.getPosition()));
+                  }
+                })
+            .transform(
+                new Function<VariantProto, List<List<VariantProto>>>() {
+                  @Override public List<List<VariantProto>> apply(VariantProto choice) {
+                    return getRestOfPath(
+                        ImmutableList.<VariantProto>builder()
+                            .addAll(chosenSoFar)
+                            .add(choice)
+                            .build(),
+                        remainingChoices.subList(1, remainingChoices.size()));
+                  }
+                })));
+  }
+
+  private static <X> Function<Iterable<? extends X>, List<List<X>>> grouper(
+      final Function<? super X, ? extends Predicate<? super X>> function) {
+    return new Function<Iterable<? extends X>, List<List<X>>>() {
+          @Override public List<List<X>> apply(final Iterable<? extends X> iterable) {
+            return ImmutableList.copyOf(
+                new AbstractIterator<List<X>>() {
+
+                  private final PeekingIterator<X>
+                      iterator = Iterators.peekingIterator(iterable.iterator());
+
+                  @Override protected List<X> computeNext() {
+                    if (iterator.hasNext()) {
+                      List<X> list = new ArrayList<>();
+                      for (list.add(iterator.next()); iterator.hasNext();) {
+                        if (Iterables.any(list, function.apply(iterator.peek()))) {
+                          list.add(iterator.next());
+                        }
+                      }
+                      return list;
+                    }
+                    return endOfData();
+                  }
+                });
+          }
+        };
+  }
+
+  private static List<Integer> losses(VariantProto variant) {
+    int referenceBasesLength = variant.getReferenceBases().length();
+    ImmutableList.Builder<Integer> losses = ImmutableList.builder();
+    for (String alternateBases : variant.getAlternateBasesList()) {
+      losses.add(Math.max(0, alternateBases.length() - referenceBasesLength));
+    }
+    return losses.build();
+  }
+
   private static Predicate<VariantProto> overlaps(final int location) {
     return new Predicate<VariantProto>() {
-      @Override public boolean apply(VariantProto variant) {
-        return GET_START.apply(variant) <= location
-            && location < GET_END.apply(variant);
-      }
-    };
+          @Override public boolean apply(VariantProto variant) {
+            return GET_START.apply(variant) <= location
+                && location < GET_END.apply(variant);
+          }
+        };
+  }
+
+  private static Predicate<VariantProto> overlapsAllele(final int location) {
+    return new Predicate<VariantProto>() {
+          @Override public boolean apply(VariantProto variant) {
+            int position = variant.getPosition();
+            for (Integer loss : losses(variant)) {
+              if (location - loss <= position && position <= location) {
+                return true;
+              }
+            }
+            return false;
+          }
+        };
+  }
+
+  private static Predicate<VariantProto> strictlyOverlaps(final int location) {
+    return new Predicate<VariantProto>() {
+          @Override public boolean apply(VariantProto variant) {
+            int position = variant.getPosition();
+            return position <= location
+                && location < position + variant.getReferenceBases().length();
+          }
+        };
   }
 
   private final String contig;
@@ -309,7 +454,27 @@ public class SequenceRescuer {
     this.windowFactory = windowFactory;
   }
 
-  public Optional<RescuedVariants> tryRescue(VariantProto variant) {
-    throw new UnsupportedOperationException();
+  public Optional<RescuedVariants> tryRescue(final VariantProto variant) {
+    return windowFactory.createWindow(variant.getPosition())
+        .transform(
+            new Function<Window, Optional<RescuedVariants>>() {
+              @Override public Optional<RescuedVariants> apply(Window window) {
+                return tryRescue(variant, window);
+              }
+            })
+        .or(Optional.<RescuedVariants>absent());
+  }
+
+  private Optional<RescuedVariants> tryRescue(VariantProto variant, Window window) {
+    int location = variant.getPosition();
+    List<List<VariantProto>>
+        truthWindowQueue = extractVariantQueues(this.falseNegatives, window, location),
+        predictWindowQueue = extractVariantQueues(this.falsePositives, window, location);
+    List<VariantProto>
+        truePositives = extractRangeAndFilter(this.truePositives, window, location);
+    if (truthWindowQueue.isEmpty() || predictWindowQueue.isEmpty() || WINDOW_MAX_OVERLAPPING < truthWindowQueue.size() * predictWindowQueue.size()) {
+      return Optional.absent();
+    }
+    return null;
   }
 }
