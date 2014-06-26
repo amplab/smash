@@ -102,9 +102,9 @@ public class FastaReader {
 
           String get(int beginIndex, int endIndex) {
             StringBuilder builder = new StringBuilder();
-            for (int end = accountForNewlines(endIndex), i = accountForNewlines(beginIndex);
-                i < end; ++i) {
-              char c = (char) contig.get(Math.min(Math.max(0, i), maxIndex));
+            for (int end = Math.min(maxIndex, accountForNewlines(endIndex)),
+                i = Math.max(0, accountForNewlines(beginIndex)); i < end; ++i) {
+              char c = (char) contig.get(i);
               if (Character.isAlphabetic(c) || '-' == c) {
                 builder.append(c);
               } else if ('\n' != c) {
