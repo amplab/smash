@@ -487,8 +487,23 @@ public class SequenceRescuer {
     this.windowFactory = windowFactory;
   }
 
+  private StringBuilder addRefBasesUntil(StringBuilder chunks, int begin, int end) {
+    return chunks.append(reference.get(
+        contig,
+        begin - 1,
+        end - 1,
+        FastaReader.Callback.FastaFile.Orientation.FORWARD));
+  }
+
   private String getSequence(Window window, List<VariantProto> variants) {
-    return null;
+    StringBuilder builder = new StringBuilder();
+    int homOffset = window.lowerBound();
+    for (VariantProto variant : variants) {
+      addRefBasesUntil(builder, homOffset, variant.getPosition())
+          .append(variant.getAlternateBasesList().get(0));
+      homOffset = variant.getReferenceBases().length() + variant.getPosition();
+    }
+    return addRefBasesUntil(builder, homOffset, window.upperBound()).toString();
   }
 
   public Optional<RescuedVariants> tryRescue(final VariantProto variant) {
