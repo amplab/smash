@@ -1,5 +1,6 @@
 package edu.berkeley.cs.amplab.smash4j;
 
+import static edu.berkeley.cs.amplab.smash4j.TestUtils.getReference;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variant;
 import static org.junit.Assert.assertEquals;
 
@@ -13,9 +14,7 @@ import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -44,25 +43,11 @@ public class NormalizerTest {
     abstract Normalizer create(FastaReader.Callback.FastaFile fastaFile);
   }
 
-  private static final String REFERENCE_FASTA = String.format(
-      ">chr1%n" +
-      "AACGCCGGA%n" +
-      ">chr2%n" +
-      "TTGCCGGAT%n" +
-      ">chr3%n" +
-      "ATCGATCGATCG%n" +
-      ">chr4%n" +
-      "AATCTCTCGGGG");
-
-  private static File fastaFile;
+  private static File reference;
 
   @BeforeClass
   public static void setUp() throws IOException {
-    (fastaFile = File.createTempFile(NormalizerTest.class.getSimpleName(), ".fasta"))
-        .deleteOnExit();
-    try (PrintStream out = new PrintStream(new FileOutputStream(fastaFile))) {
-      out.print(REFERENCE_FASTA);
-    }
+    reference = getReference();
   }
 
   @Test
@@ -208,7 +193,7 @@ public class NormalizerTest {
       final NormalizerFactory factory,
       final VariantProto head,
       final VariantProto... tail) throws Exception {
-    return FastaReader.create(fastaFile).read(
+    return FastaReader.create(reference).read(
         new FastaReader.Callback<List<VariantProto>>() {
           @Override public List<VariantProto> read(
               Map<String, Integer> info,
