@@ -41,8 +41,7 @@ public class SequenceRescuerTest {
       final int position,
       final NavigableMap<Integer, VariantProto> falseNegatives,
       final NavigableMap<Integer, VariantProto> falsePositives,
-      final NavigableMap<Integer, VariantProto> truePositives,
-      final int rescueWindowSize) throws Exception {
+      final NavigableMap<Integer, VariantProto> truePositives) throws Exception {
     return FastaReader.create(reference).read(
         new FastaReader.Callback<Optional<RescuedVariants>>() {
           @Override public Optional<SequenceRescuer.RescuedVariants> read(
@@ -54,7 +53,7 @@ public class SequenceRescuerTest {
                 .setFalsePositives(falsePositives)
                 .setFalseNegatives(falseNegatives)
                 .setReference(reference)
-                .setRescueWindowSize(rescueWindowSize)
+                .setRescueWindowSize(50)
                 .build()
                 .tryRescue(position);
           }
@@ -70,8 +69,38 @@ public class SequenceRescuerTest {
             10049,
             variants(variant("chr1", 8000, "G", "C", "1/1")),
             variants(variant("chr1", 10049, "CTTAAGCT", "C", "1/1")),
-            variants(),
-            50));
+            variants()));
+  }
+
+  @Test
+  public void testOnlySnps() throws Exception {
+    assertEquals(
+        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        tryRescue(
+            "chr1",
+            3,
+            variants(
+                variant("chr1", 2, "A", "C", "1/1"),
+                variant("chr1", 7, "C", "T", "0/1")),
+            variants(
+                variant("chr1", 4, "A", "C", "1/1")),
+            variants()));
+  }
+
+  @Test
+  public void testOverlappingVariants() throws Exception {
+    assertEquals(
+        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        tryRescue(
+            "chr2",
+            1,
+            variants(
+                variant("chr2", 1, "T", "G", "1/1")),
+            variants(
+                variant("chr2", 7, "GA", "A", "1/1")),
+            variants(
+                variant("chr2", 3, "GCC", "G", "1/1"),
+                variant("chr2", 4, "C", "G", "0/1"))));
   }
 
   @Test
@@ -92,8 +121,7 @@ public class SequenceRescuerTest {
                 variant("chr1", 10028, "TGCGT", "T", "0/1"),
                 variant("chr1", 10029, "GCTAA", "G", "0/1"),
                 variant("chr1", 10032, "TA", "T", "1/1")),
-            variants(),
-            50));
+            variants()));
   }
 
   @Test
@@ -108,8 +136,7 @@ public class SequenceRescuerTest {
             variants(
                 variant("chr2", 3, "G", "C", "1/1"),
                 variant("chr2", 4, "C", "T", "0/1")),
-            variants(),
-            50));
+            variants()));
   }
 
   @Test
@@ -123,7 +150,6 @@ public class SequenceRescuerTest {
                 variant("chr1", 7001, multiply(300, "ATTGTTCATGA"), "A", "1/1"),
                 variant("chr1", 10100, multiply(300, "GCCTAGGGTCA"), "G", "0/1")),
             variants(variant("chr1", 10049, "CTTAAGCT", "C", "1/1")),
-            variants(),
-            50));
+            variants()));
   }
 }

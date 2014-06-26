@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Map;
 
@@ -88,11 +89,13 @@ public class FastaReader {
         class Contig {
 
           private final ByteBuffer contig;
+          private final int contigSize;
           private final String contigName;
           private final int basesPerLine;
 
-          Contig(ByteBuffer contig, String contigName, int basesPerLine) {
+          Contig(ByteBuffer contig, int contigSize, String contigName, int basesPerLine) {
             this.contig = contig;
+            this.contigSize = contigSize;
             this.contigName = contigName;
             this.basesPerLine = basesPerLine;
           }
@@ -101,7 +104,7 @@ public class FastaReader {
             StringBuilder builder = new StringBuilder();
             for (int end = accountForNewlines(endIndex), i = accountForNewlines(beginIndex);
                 i < end; ++i) {
-              char c = (char) contig.get(i);
+              char c = (char) contig.get(Math.min(Math.max(0, i), contigSize - 1));
               if (Character.isAlphabetic(c) || '-' == c) {
                 builder.append(c);
               } else if ('\n' != c) {
@@ -127,9 +130,9 @@ public class FastaReader {
           int bases = entry.bases();
           String name = entry.name();
           long position = entry.offset();
-          builder.put(name, new Contig(channel.map(FileChannel.MapMode.READ_ONLY, position, Math
-              .min((length / bases) * entry.bytes() + length % bases, file.length() - position)),
-              name, entry.bases()));
+          MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, position, Math
+              .min((length / bases) * entry.bytes() + length % bases, file.length() - position));
+          builder.put(name, new Contig(buffer, buffer.limit(), name, entry.bases()));
         }
         final Map<String, Contig> chromosomes = builder.build();
         return callback.read(
