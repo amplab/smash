@@ -11,7 +11,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
-import edu.berkeley.cs.amplab.smash4j.SequenceRescuer.RescuedVariants;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.io.File;
@@ -43,7 +42,7 @@ public class SequenceRescuerTest {
       final NavigableMap<Integer, VariantProto> falsePositives,
       final NavigableMap<Integer, VariantProto> truePositives) throws Exception {
     return FastaReader.create(reference).read(
-        new FastaReader.Callback<Optional<RescuedVariants>>() {
+        new FastaReader.Callback<Optional<SequenceRescuer.RescuedVariants>>() {
           @Override public Optional<SequenceRescuer.RescuedVariants> read(
               Map<String, Integer> info,
               FastaReader.Callback.FastaFile reference) {
@@ -63,7 +62,7 @@ public class SequenceRescuerTest {
   @Test
   public void testEmptyWindow() throws Exception {
     assertEquals(
-        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        Optional.absent(),
         tryRescue(
             "chr1",
             10049,
@@ -73,9 +72,22 @@ public class SequenceRescuerTest {
   }
 
   @Test
+  public void testFullRescue() throws Exception {
+    NavigableMap<Integer, VariantProto>
+        falseNegatives = variants(
+            variant("chr2", 2, "TGC", "TAT", "1/1")),
+        falsePositives = variants(
+            variant("chr2", 3, "G", "A", "1/1"),
+            variant("chr2", 4, "C", "T", "1/1"));
+    assertEquals(
+        Optional.of(SequenceRescuer.RescuedVariants.create(falseNegatives, falsePositives)),
+        tryRescue("chr2", 2, falseNegatives, falsePositives, variants()));
+  }
+
+  @Test
   public void testOnlySnps() throws Exception {
     assertEquals(
-        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        Optional.absent(),
         tryRescue(
             "chr1",
             3,
@@ -90,7 +102,7 @@ public class SequenceRescuerTest {
   @Test
   public void testOverlappingVariants() throws Exception {
     assertEquals(
-        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        Optional.absent(),
         tryRescue(
             "chr2",
             1,
@@ -106,7 +118,7 @@ public class SequenceRescuerTest {
   @Test
   public void testTooManyPaths() throws Exception {
     assertEquals(
-        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        Optional.absent(),
         tryRescue(
             "chr1",
             10000,
@@ -127,7 +139,7 @@ public class SequenceRescuerTest {
   @Test
   public void testVariantWithMismatchedRef() throws Exception {
     assertEquals(
-        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        Optional.absent(),
         tryRescue(
             "chr1",
             2,
@@ -142,7 +154,7 @@ public class SequenceRescuerTest {
   @Test
   public void testWindowTooBig() throws Exception {
     assertEquals(
-        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        Optional.absent(),
         tryRescue(
             "chr1",
             10049,

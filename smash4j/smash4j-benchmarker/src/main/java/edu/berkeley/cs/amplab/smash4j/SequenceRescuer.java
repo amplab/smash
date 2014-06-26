@@ -89,26 +89,42 @@ public class SequenceRescuer {
   public static class RescuedVariants {
 
     static RescuedVariants create(
-        NavigableMap<Integer, VariantProto> truthLocations,
-        NavigableMap<Integer, VariantProto> predictedLocations) {
-      return new RescuedVariants(truthLocations, predictedLocations);
+        NavigableMap<Integer, VariantProto> newTruePositives,
+        NavigableMap<Integer, VariantProto> removeFalsePositives) {
+      return new RescuedVariants(newTruePositives, removeFalsePositives);
     }
 
-    private final NavigableMap<Integer, VariantProto> predictedLocations, truthLocations;
+    private final NavigableMap<Integer, VariantProto> newTruePositives, removeFalsePositives;
 
     private RescuedVariants(
-        NavigableMap<Integer, VariantProto> truthLocations,
-        NavigableMap<Integer, VariantProto> predictedLocations) {
-      this.truthLocations = truthLocations;
-      this.predictedLocations = predictedLocations;
+        NavigableMap<Integer, VariantProto> newTruePositives,
+        NavigableMap<Integer, VariantProto> removeFalsePositives) {
+      this.newTruePositives = newTruePositives;
+      this.removeFalsePositives = removeFalsePositives;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      boolean same = this == obj;
+      if (!same && null != obj && RescuedVariants.class == obj.getClass()) {
+        RescuedVariants rhs = (RescuedVariants) obj;
+        return Objects.equals(newTruePositives(), rhs.newTruePositives())
+            && Objects.equals(removeFalsePositives(), rhs.removeFalsePositives());
+      }
+      return same;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(newTruePositives(), removeFalsePositives());
     }
 
     public NavigableMap<Integer, VariantProto> newTruePositives() {
-      return predictedLocations;
+      return newTruePositives;
     }
 
     public NavigableMap<Integer, VariantProto> removeFalsePositives() {
-      return truthLocations;
+      return removeFalsePositives;
     }
   }
 
@@ -122,7 +138,8 @@ public class SequenceRescuer {
             LOWEST_START = Ordering.natural().onResultOf(GET_START),
             HIGHEST_END = Ordering.natural().onResultOf(GET_END).reverse();
 
-        private static final int WINDOW_VARIANT_LOOKBACK_SIZE = 50;
+        private static final int
+            WINDOW_VARIANT_LOOKBACK_SIZE = 50;
 
         private static <X> Function<X, X> fix(final Function<? super X, ? extends X> function) {
           return new Function<X, X>() {
@@ -205,7 +222,8 @@ public class SequenceRescuer {
         }
       }
 
-      private static final int WINDOW_SIZE_LIMIT = 5000;
+      private static final int
+          WINDOW_SIZE_LIMIT = 5000;
 
       static Builder builder() {
         return new Builder();
@@ -537,27 +555,30 @@ public class SequenceRescuer {
         || WINDOW_MAX_OVERLAPPING < falseNegativesQueue.size() * falsePositivesQueue.size()) {
       return Optional.absent();
     }
-    for (final List<VariantProto> falseNegatives : falseNegativesQueue) {
-      for (final List<VariantProto> falsePositives : falsePositivesQueue) {
-        if (Iterables.any(Iterables.concat(falseNegatives, falsePositives), IS_NON_SNP)) {
-          return addTruePosToQueue(falseNegatives, truePositives)
+    for (final List<VariantProto> newTruePositives : falseNegativesQueue) {
+      for (final List<VariantProto> removeFalsePositives : falsePositivesQueue) {
+        if (Iterables.any(Iterables.concat(newTruePositives, removeFalsePositives), IS_NON_SNP)) {
+          return addTruePosToQueue(newTruePositives, truePositives)
               .transform(
                   new Function<List<VariantProto>, Optional<RescuedVariants>>() {
                     @Override public Optional<RescuedVariants> apply(
-                        final List<VariantProto> falseNegs) {
-                      return addTruePosToQueue(falsePositives, truePositives)
+                        final List<VariantProto> falseNegatives) {
+                      return addTruePosToQueue(removeFalsePositives, truePositives)
                           .transform(
                               new Function<List<VariantProto>, Optional<RescuedVariants>>() {
                                 @Override public Optional<RescuedVariants> apply(
-                                    List<VariantProto> falsePos) {
+                                    List<VariantProto> falsePositives) {
                                   Optional<String>
-                                      lhs = getSequence(window, falseNegs),
-                                      rhs = getSequence(window, falsePos);
-                                  return lhs.isPresent() && rhs.isPresent()
-                                      && Objects.equals(lhs.get(), rhs.get())
+                                      falseNegativesSequence = getSequence(window, falseNegatives),
+                                      falsePositivesSequence = getSequence(window, falsePositives);
+                                  return falseNegativesSequence.isPresent()
+                                      && falsePositivesSequence.isPresent()
+                                      && Objects.equals(
+                                              falseNegativesSequence.get(),
+                                              falsePositivesSequence.get())
                                           ? Optional.of(RescuedVariants.create(
-                                              uniqueIndex(falseNegatives, GET_START),
-                                              uniqueIndex(falsePositives, GET_START)))
+                                              uniqueIndex(newTruePositives, GET_START),
+                                              uniqueIndex(removeFalsePositives, GET_START)))
                                           : Optional.<RescuedVariants>absent();
                                 }
                               })
