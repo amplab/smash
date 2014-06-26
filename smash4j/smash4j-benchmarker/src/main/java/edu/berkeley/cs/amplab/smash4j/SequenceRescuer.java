@@ -291,6 +291,14 @@ public class SequenceRescuer {
             }
           };
 
+  private static final Predicate<VariantProto> IS_NON_SNP = Predicates.not(Predicates.compose(
+      new Predicate<VariantType>() {
+        @Override public boolean apply(VariantType type) {
+          return type.isSnp();
+        }
+      },
+      VariantEvaluator.VariantType.GET_TYPE));
+
   private static final Predicate<VariantProto> NOT_SV = Predicates.not(Predicates.compose(
       new Predicate<VariantType>() {
         @Override public boolean apply(VariantType type) {
@@ -300,6 +308,22 @@ public class SequenceRescuer {
       VariantEvaluator.VariantType.GET_TYPE));
 
   private static final int WINDOW_MAX_OVERLAPPING = 16;
+
+  private static Optional<List<VariantProto>> addTruePosToQueue(
+      List<VariantProto> queue, List<VariantProto> truePositives) {
+    List<VariantProto> newQueue = new ArrayList<>();
+    newQueue.addAll(queue);
+    for (VariantProto truePositive : truePositives) {
+      for (VariantProto variant : queue) {
+        if (strictlyOverlaps(truePositive.getPosition()).apply(variant)) {
+          return Optional.absent();
+        }
+      }
+      newQueue.add(truePositive);
+    }
+    Collections.sort(newQueue, Ordering.natural().onResultOf(GET_START));
+    return Optional.of(newQueue);
+  }
 
   public static Builder builder() {
     return new Builder();
@@ -432,6 +456,15 @@ public class SequenceRescuer {
         };
   }
 
+  private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y> uniqueIndex(
+      Iterable<? extends Y> iterable, Function<? super Y, ? extends X> function) {
+    NavigableMap<X, Y> index = new TreeMap<>();
+    for (Y object : iterable) {
+      index.put(function.apply(object), object);
+    }
+    return index;
+  }
+
   private final String contig;
   private final NavigableMap<Integer, VariantProto> falseNegatives;
   private final NavigableMap<Integer, VariantProto> falsePositives;
@@ -454,6 +487,10 @@ public class SequenceRescuer {
     this.windowFactory = windowFactory;
   }
 
+  private String getSequence(Window window, List<VariantProto> variants) {
+    return null;
+  }
+
   public Optional<RescuedVariants> tryRescue(final VariantProto variant) {
     return windowFactory.createWindow(variant.getPosition())
         .transform(
@@ -465,16 +502,47 @@ public class SequenceRescuer {
         .or(Optional.<RescuedVariants>absent());
   }
 
-  private Optional<RescuedVariants> tryRescue(VariantProto variant, Window window) {
+  private Optional<RescuedVariants> tryRescue(VariantProto variant, final Window window) {
     int location = variant.getPosition();
     List<List<VariantProto>>
-        truthWindowQueue = extractVariantQueues(this.falseNegatives, window, location),
-        predictWindowQueue = extractVariantQueues(this.falsePositives, window, location);
-    List<VariantProto>
-        truePositives = extractRangeAndFilter(this.truePositives, window, location);
-    if (truthWindowQueue.isEmpty() || predictWindowQueue.isEmpty() || WINDOW_MAX_OVERLAPPING < truthWindowQueue.size() * predictWindowQueue.size()) {
+        falseNegativesQueue = extractVariantQueues(this.falseNegatives, window, location),
+        falsePositivesQueue = extractVariantQueues(this.falsePositives, window, location);
+    final List<VariantProto> truePositives =
+        extractRangeAndFilter(this.truePositives, window, location);
+    if (falseNegativesQueue.isEmpty()
+        || falsePositivesQueue.isEmpty()
+        || WINDOW_MAX_OVERLAPPING < falseNegativesQueue.size() * falsePositivesQueue.size()) {
       return Optional.absent();
     }
-    return null;
+    for (final List<VariantProto> falseNegatives : falseNegativesQueue) {
+      for (final List<VariantProto> falsePositives : falsePositivesQueue) {
+        if (Iterables.any(Iterables.concat(falseNegatives, falsePositives), IS_NON_SNP)) {
+          return addTruePosToQueue(falseNegatives, truePositives)
+              .transform(
+                  new Function<List<VariantProto>, Optional<RescuedVariants>>() {
+                    @Override public Optional<RescuedVariants> apply(
+                        final List<VariantProto> falseNegs) {
+                      return addTruePosToQueue(falsePositives, truePositives)
+                          .transform(
+                              new Function<List<VariantProto>, Optional<RescuedVariants>>() {
+                                @Override public Optional<RescuedVariants> apply(
+                                    List<VariantProto> falsePos) {
+                                  return Objects.equals(
+                                          getSequence(window, falseNegs),
+                                          getSequence(window, falsePos))
+                                      ? Optional.of(RescuedVariants.create(
+                                          uniqueIndex(falseNegatives, GET_START),
+                                          uniqueIndex(falsePositives, GET_START)))
+                                      : Optional.<RescuedVariants>absent();
+                                }
+                              })
+                          .or(Optional.<RescuedVariants>absent());
+                    }
+                  })
+              .or(Optional.<RescuedVariants>absent());
+        }
+      }
+    }
+    return Optional.absent();
   }
 }

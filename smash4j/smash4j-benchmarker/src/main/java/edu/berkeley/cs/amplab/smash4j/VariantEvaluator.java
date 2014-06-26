@@ -317,14 +317,14 @@ public class VariantEvaluator {
 
   public enum VariantType {
 
-    INDEL_DELETION(false),
-    INDEL_INSERTION(false),
-    INDEL_INVERSION(false),
-    INDEL_OTHER(false),
-    SNP(false),
-    SV_DELETION(true),
-    SV_INSERTION(true),
-    SV_OTHER(true);
+    INDEL_DELETION(false, false),
+    INDEL_INSERTION(false, false),
+    INDEL_INVERSION(false, false),
+    INDEL_OTHER(false, false),
+    SNP(true, false),
+    SV_DELETION(false, true),
+    SV_INSERTION(false, true),
+    SV_OTHER(false, true);
 
     public static final Function<VariantProto, VariantType> GET_TYPE =
         new Function<VariantProto, VariantType>() {
@@ -402,10 +402,16 @@ public class VariantEvaluator {
       return false;
     }
 
+    private final boolean isSnp;
     private final boolean isStructuralVariant;
 
-    private VariantType(boolean isStructuralVariant) {
+    private VariantType(boolean isSnp, boolean isStructuralVariant) {
+      this.isSnp = isSnp;
       this.isStructuralVariant = isStructuralVariant;
+    }
+
+    public boolean isSnp() {
+      return isSnp;
     }
 
     public boolean isStructuralVariant() {
