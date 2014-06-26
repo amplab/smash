@@ -333,12 +333,15 @@ public class SequenceRescuer {
       NavigableMap<Integer, VariantProto> variants, Window window, int location) {
     NavigableMap<Integer, VariantProto> result = filter(window.restrict(variants), NOT_SV);
     VariantProto variant = variants.get(location);
+    if (null == variant) {
+      return ImmutableList.copyOf(result.values());
+    }
     Predicate<VariantProto> predicate = Predicates.or(
         Predicates.compose(Predicates.equalTo(location), GET_START),
         Predicates.not(Predicates.or(
             overlapsAllele(location),
             overlapsAllele(location + Ordering.natural().max(losses(variant))))));
-    return ImmutableList.copyOf((null == variant ? result : filter(result, predicate)).values());
+    return ImmutableList.copyOf(filter(result, predicate).values());
   }
 
   private static List<List<VariantProto>> extractVariantQueues(
