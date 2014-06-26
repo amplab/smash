@@ -3,6 +3,7 @@ package edu.berkeley.cs.amplab.smash4j;
 import static edu.berkeley.cs.amplab.smash4j.SequenceRescuer.HIGHEST_END;
 import static edu.berkeley.cs.amplab.smash4j.SequenceRescuer.LOWEST_START;
 import static edu.berkeley.cs.amplab.smash4j.SequenceRescuer.getChoppedVariant;
+import static edu.berkeley.cs.amplab.smash4j.SequenceRescuer.getSequence;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.getReference;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variant;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variants;
@@ -18,6 +19,7 @@ import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.NavigableMap;
 
@@ -75,6 +77,13 @@ public class SequenceRescuerTest {
   }
 
   @Test
+  public void testEnlargeBounds() {
+    assertEquals(SequenceRescuer.Window.create(88000, 88021), SequenceRescuer.Window.Factory.Builder
+        .windowEnlarger(variants(variant("chr19", 88012, "CTTAAGCT", "C", "1/1"))).apply(
+        SequenceRescuer.Window.create(88000, 88020)));
+  }
+
+  @Test
   public void testFullRescue() throws Exception {
     NavigableMap<Integer, VariantProto>
         falseNegatives = variants(
@@ -129,6 +138,25 @@ public class SequenceRescuerTest {
     assertEquals(Optional.of(variant1 = variant("chr19", 88008, "ATTGCTTAACG", "A", "0/1")),
         getChoppedVariant(variants = variants(variant1, variant2), 88008, LOWEST_START));
     assertEquals(Optional.of(variant2), getChoppedVariant(variants, 88015, HIGHEST_END));
+  }
+
+  @Test
+  public void testGetSequence() throws Exception {
+    assertEquals(
+        Optional.of("ATTCGAAAATCG"),
+        FastaReader.create(reference).read(
+            new FastaReader.Callback<Optional<String>>() {
+              @Override public Optional<String> read(Map<String, Integer> info,
+                  FastaReader.Callback.FastaFile reference) throws Exception {
+                return getSequence(
+                    reference,
+                    "chr3",
+                    SequenceRescuer.Window.create(1, 13),
+                    Arrays.asList(
+                        variant("chr3", 2, "TCGA", "T", "1/1"),
+                        variant("chr3", 9, "A", "AAAA", "0/1")));
+              }
+            }));
   }
 
   @Test

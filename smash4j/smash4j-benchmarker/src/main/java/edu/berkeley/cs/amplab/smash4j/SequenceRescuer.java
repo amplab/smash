@@ -148,7 +148,7 @@ public class SequenceRescuer {
               };
         }
 
-        private static Function<Window, Window> windowEnlarger(
+        static Function<Window, Window> windowEnlarger(
             final NavigableMap<Integer, VariantProto> variants) {
           return new Function<Window, Window>() {
                 @Override public Window apply(Window window) {
@@ -265,8 +265,7 @@ public class SequenceRescuer {
     }
   }
 
-  private static final
-      Function<Iterable<? extends VariantProto>, List<List<VariantProto>>>
+  private static final Function<Iterable<? extends VariantProto>, List<List<VariantProto>>>
       GET_OVERLAPS = grouper(
           new Function<VariantProto, Predicate<VariantProto>>() {
             @Override public Predicate<VariantProto> apply(final VariantProto candidate) {
@@ -507,29 +506,33 @@ public class SequenceRescuer {
     this.windowFactory = windowFactory;
   }
 
-  private StringBuilder addRefBasesUntil(StringBuilder chunks, int begin, int end) {
-    return chunks.append(getRefBases(begin, end));
+  private static StringBuilder addRefBasesUntil(StringBuilder chunks,
+      FastaReader.Callback.FastaFile reference, String contig, int begin, int end) {
+    return chunks.append(getRefBases(reference, contig, begin, end));
   }
 
-  private String getRefBases(int begin, int end) {
+  private static String getRefBases(FastaReader.Callback.FastaFile reference, String contig,
+      int begin, int end) {
     return reference.get(contig, begin - 1, end - 1,
         FastaReader.Callback.FastaFile.Orientation.FORWARD);
   }
 
-  private Optional<String> getSequence(Window window, List<VariantProto> variants) {
+  static Optional<String> getSequence(FastaReader.Callback.FastaFile reference,
+      String contig, Window window, List<VariantProto> variants) {
     StringBuilder builder = new StringBuilder();
     int homOffset = window.lowerBound();
     for (VariantProto variant : variants) {
       String referenceBases = variant.getReferenceBases();
       int position = variant.getPosition(), next = referenceBases.length() + position;
-      if (!Objects.equals(referenceBases, getRefBases(position, next))) {
+      if (!Objects.equals(referenceBases, getRefBases(reference, contig, position, next))) {
         return Optional.absent();
       }
-      addRefBasesUntil(builder, homOffset, position)
-          .append(variant.getAlternateBasesList().get(0));
+      addRefBasesUntil(builder, reference, contig, homOffset, position).append(
+          variant.getAlternateBasesList().get(0));
       homOffset = next;
     }
-    return Optional.of(addRefBasesUntil(builder, homOffset, window.upperBound()).toString());
+    return Optional.of(
+        addRefBasesUntil(builder, reference, contig, homOffset, window.upperBound()).toString());
   }
 
   public Optional<RescuedVariants> tryRescue(final int position) {
@@ -568,8 +571,10 @@ public class SequenceRescuer {
                                 @Override public Optional<RescuedVariants> apply(
                                     List<VariantProto> falsePositives) {
                                   Optional<String>
-                                      falseNegativesSequence = getSequence(window, falseNegatives),
-                                      falsePositivesSequence = getSequence(window, falsePositives);
+                                      falseNegativesSequence =
+                                          getSequence(reference, contig, window, falseNegatives),
+                                      falsePositivesSequence =
+                                          getSequence(reference, contig, window, falsePositives);
                                   return falseNegativesSequence.isPresent()
                                       && falsePositivesSequence.isPresent()
                                       && Objects.equals(
