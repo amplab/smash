@@ -1,5 +1,8 @@
 package edu.berkeley.cs.amplab.smash4j;
 
+import static edu.berkeley.cs.amplab.smash4j.SequenceRescuer.HIGHEST_END;
+import static edu.berkeley.cs.amplab.smash4j.SequenceRescuer.LOWEST_START;
+import static edu.berkeley.cs.amplab.smash4j.SequenceRescuer.getChoppedVariant;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.getReference;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variant;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variants;
@@ -78,10 +81,67 @@ public class SequenceRescuerTest {
             variant("chr2", 2, "TGC", "TAT", "1/1")),
         falsePositives = variants(
             variant("chr2", 3, "G", "A", "1/1"),
-            variant("chr2", 4, "C", "T", "1/1"));
+            variant("chr2", 4, "C", "T", "1/1")),
+        truePositives = variants();
     assertEquals(
         Optional.of(SequenceRescuer.RescuedVariants.create(falseNegatives, falsePositives)),
-        tryRescue("chr2", 2, falseNegatives, falsePositives, variants()));
+        tryRescue("chr2", 2, falseNegatives, falsePositives, truePositives));
+    falseNegatives = variants(
+        variant("chr2", 3, "GCCG", "GCA", "1/1"));
+    falsePositives = variants(
+        variant("chr2", 3, "GC", "G", "1/1"),
+        variant("chr2", 6, "G", "A", "1/1"));
+    assertEquals(
+        Optional.of(SequenceRescuer.RescuedVariants.create(falseNegatives, falsePositives)),
+        tryRescue("chr2", 3, falseNegatives, falsePositives, truePositives));
+    falseNegatives = variants(
+        variant("chr4", 3, "TC", "T", "1/1"),
+        variant("chr4", 8, "C", "T", "1/1"));
+    falsePositives = variants(
+        variant("chr4", 4, "C", "T", "1/1"),
+        variant("chr4", 7, "TC", "T", "1/1"));
+    truePositives = variants(
+        variant("chr4", 5, "TC", "T", "1/1"));
+    assertEquals(
+        Optional.of(SequenceRescuer.RescuedVariants.create(falseNegatives, falsePositives)),
+        tryRescue("chr4", 3, falseNegatives, falsePositives, truePositives));
+
+  }
+
+  @Test
+  public void testGetChoppedVariant() {
+    VariantProto variant1 = variant("chr19", 88012, "CTTAAGCT", "C", "1/1"), variant2 = variant1;
+    NavigableMap<Integer, VariantProto> variants = variants(variant1);
+    assertEquals(Optional.of(variant1), getChoppedVariant(variants, 88015, LOWEST_START));
+    assertEquals(Optional.of(variant1), getChoppedVariant(variants, 88015, HIGHEST_END));
+    assertEquals(Optional.absent(), getChoppedVariant(
+        variants = variants(variant1 = variant("chr19", 87962, "CTTAAGCT", "C", "1/1")), 88015,
+        LOWEST_START));
+    assertEquals(Optional.absent(), getChoppedVariant(variants, 88015, HIGHEST_END));
+    assertEquals(Optional.of(variant2), getChoppedVariant(
+        variants = variants(variant("chr19", 88008, "T", "G", "1/1"), variant2), 88015,
+        LOWEST_START));
+    assertEquals(Optional.of(variant2), getChoppedVariant(variants, 88015, HIGHEST_END));
+    assertEquals(Optional.of(variant2), getChoppedVariant(
+        variants = variants(variant("chr19", 88014, "T", "G", "1/1"), variant2), 88015,
+        LOWEST_START));
+    assertEquals(Optional.of(variant2), getChoppedVariant(variants, 88015, HIGHEST_END));
+    assertEquals(Optional.of(variant1 = variant("chr19", 88008, "ATTGCTTAACG", "A", "0/1")),
+        getChoppedVariant(variants = variants(variant1, variant2), 88008, LOWEST_START));
+    assertEquals(Optional.of(variant2), getChoppedVariant(variants, 88015, HIGHEST_END));
+  }
+
+  @Test
+  public void testNormalizedVariants() throws Exception {
+    NavigableMap<Integer, VariantProto>
+        falseNegatives = variants(
+            variant("chr4", 2, "A", "ATCTC", "0/1")),
+        falsePositives = variants(
+            variant("chr4", 4, "C", "CTC", "0/1"),
+            variant("chr4", 6, "C", "CTC", "0/1"));
+    assertEquals(
+        Optional.of(SequenceRescuer.RescuedVariants.create(falseNegatives, falsePositives)),
+        tryRescue("chr4", 2, falseNegatives, falsePositives, variants()));
   }
 
   @Test

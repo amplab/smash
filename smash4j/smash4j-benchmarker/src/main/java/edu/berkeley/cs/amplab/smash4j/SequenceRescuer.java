@@ -128,18 +128,11 @@ public class SequenceRescuer {
     }
   }
 
-  private static class Window {
+  static class Window {
 
     static class Factory {
 
       static class Builder {
-
-        private static final Ordering<VariantProto>
-            LOWEST_START = Ordering.natural().onResultOf(GET_START),
-            HIGHEST_END = Ordering.natural().onResultOf(GET_END).reverse();
-
-        private static final int
-            WINDOW_VARIANT_LOOKBACK_SIZE = 50;
 
         private static <X> Function<X, X> fix(final Function<? super X, ? extends X> function) {
           return new Function<X, X>() {
@@ -158,16 +151,15 @@ public class SequenceRescuer {
         private static Function<Window, Window> windowEnlarger(
             final NavigableMap<Integer, VariantProto> variants) {
           return new Function<Window, Window>() {
-
                 @Override public Window apply(Window window) {
                   final int
                       lowerBound = window.lowerBound(),
                       upperBound = window.upperBound();
                   return Window.create(
-                      getChoppedVariant(lowerBound, LOWEST_START)
+                      getChoppedVariant(variants, lowerBound, LOWEST_START)
                           .transform(GET_START)
                           .or(lowerBound),
-                      getChoppedVariant(upperBound - 1, HIGHEST_END)
+                      getChoppedVariant(variants, upperBound - 1, HIGHEST_END)
                           .transform(
                               new Function<VariantProto, Integer>() {
                                 @Override public Integer apply(VariantProto variant) {
@@ -176,19 +168,6 @@ public class SequenceRescuer {
                                 }
                               })
                           .or(upperBound));
-                }
-
-                private Optional<VariantProto> getChoppedVariant(
-                    final int location, Ordering<VariantProto> ordering) {
-                  Collection<VariantProto> collection = FluentIterable
-                      .from(variants
-                          .subMap(location - WINDOW_VARIANT_LOOKBACK_SIZE, true, location, true)
-                          .values())
-                      .filter(overlaps(location))
-                      .toList();
-                  return collection.isEmpty()
-                      ? Optional.<VariantProto>absent()
-                      : Optional.of(ordering.min(collection));
                 }
               };
         }
@@ -309,23 +288,29 @@ public class SequenceRescuer {
             }
           };
 
-  private static final Predicate<VariantProto> IS_NON_SNP = Predicates.not(Predicates.compose(
-      new Predicate<VariantType>() {
-        @Override public boolean apply(VariantType type) {
-          return type.isSnp();
-        }
-      },
-      VariantEvaluator.VariantType.GET_TYPE));
+  private static final Predicate<VariantProto>
+      IS_NON_SNP = Predicates.not(Predicates.compose(
+          new Predicate<VariantType>() {
+            @Override public boolean apply(VariantType type) {
+              return type.isSnp();
+            }
+          },
+          VariantEvaluator.VariantType.GET_TYPE)),
+      NOT_SV = Predicates.not(Predicates.compose(
+          new Predicate<VariantType>() {
+            @Override public boolean apply(VariantType type) {
+              return type.isStructuralVariant();
+            }
+          },
+          VariantEvaluator.VariantType.GET_TYPE));
 
-  private static final Predicate<VariantProto> NOT_SV = Predicates.not(Predicates.compose(
-      new Predicate<VariantType>() {
-        @Override public boolean apply(VariantType type) {
-          return type.isStructuralVariant();
-        }
-      },
-      VariantEvaluator.VariantType.GET_TYPE));
+  static final Ordering<VariantProto>
+      LOWEST_START = Ordering.natural().onResultOf(GET_START),
+      HIGHEST_END = Ordering.natural().onResultOf(GET_END).reverse();
 
-  private static final int WINDOW_MAX_OVERLAPPING = 16;
+  private static final int
+      WINDOW_MAX_OVERLAPPING = 16,
+      WINDOW_VARIANT_LOOKBACK_SIZE = 50;
 
   private static Optional<List<VariantProto>> addTruePosToQueue(
       List<VariantProto> queue, List<VariantProto> truePositives) {
@@ -380,6 +365,20 @@ public class SequenceRescuer {
       }
     }
     return filtered;
+  }
+
+  static Optional<VariantProto> getChoppedVariant(
+      NavigableMap<Integer, VariantProto> variants,
+      int location, Ordering<VariantProto> ordering) {
+    Collection<VariantProto> collection = FluentIterable
+        .from(variants
+            .subMap(location - WINDOW_VARIANT_LOOKBACK_SIZE, true, location, true)
+            .values())
+        .filter(overlaps(location))
+        .toList();
+    return collection.isEmpty()
+        ? Optional.<VariantProto>absent()
+        : Optional.of(ordering.min(collection));
   }
 
   private static List<List<VariantProto>> getRestOfPath(
@@ -485,12 +484,12 @@ public class SequenceRescuer {
     }
     return index;
   }
-
   private final String contig;
   private final NavigableMap<Integer, VariantProto> falseNegatives;
   private final NavigableMap<Integer, VariantProto> falsePositives;
   private final FastaReader.Callback.FastaFile reference;
   private final NavigableMap<Integer, VariantProto> truePositives;
+
   private final Window.Factory windowFactory;
 
   private SequenceRescuer(
