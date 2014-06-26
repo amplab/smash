@@ -38,7 +38,7 @@ public class SequenceRescuerTest {
 
   private static Optional<SequenceRescuer.RescuedVariants> tryRescue(
       final String contig,
-      final VariantProto variant,
+      final int position,
       final NavigableMap<Integer, VariantProto> falseNegatives,
       final NavigableMap<Integer, VariantProto> falsePositives,
       final NavigableMap<Integer, VariantProto> truePositives,
@@ -56,23 +56,73 @@ public class SequenceRescuerTest {
                 .setReference(reference)
                 .setRescueWindowSize(rescueWindowSize)
                 .build()
-                .tryRescue(variant);
+                .tryRescue(position);
           }
         });
   }
 
   @Test
-  public void testWindowTooBig() throws Exception {
-    VariantProto variant = variant("chr1", 10049, "CTTAAGCT", "C", "1/1");
+  public void testEmptyWindow() throws Exception {
     assertEquals(
         Optional.<SequenceRescuer.RescuedVariants>absent(),
         tryRescue(
             "chr1",
-            variant,
+            10049,
+            variants(variant("chr1", 8000, "G", "C", "1/1")),
+            variants(variant("chr1", 10049, "CTTAAGCT", "C", "1/1")),
+            variants(),
+            50));
+  }
+
+  @Test
+  public void testTooManyPaths() throws Exception {
+    assertEquals(
+        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        tryRescue(
+            "chr1",
+            10000,
+            variants(
+                variant("chr1", 10049, "CTTAAGCT", "C", "1/1"),
+                variant("chr1", 10053, "TGCGT", "T", "0/1"),
+                variant("chr1", 10055, "GCTAA", "G", "0/1"),
+                variant("chr1", 10057, "TA", "T", "1/1"),
+                variant("chr1", 10058, "GC", "G", "1/1")),
+            variants(
+                variant("chr1", 10025, "CTTAAGCT", "C", "1/1"),
+                variant("chr1", 10028, "TGCGT", "T", "0/1"),
+                variant("chr1", 10029, "GCTAA", "G", "0/1"),
+                variant("chr1", 10032, "TA", "T", "1/1")),
+            variants(),
+            50));
+  }
+
+  @Test
+  public void testVariantWithMismatchedRef() throws Exception {
+    assertEquals(
+        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        tryRescue(
+            "chr1",
+            2,
+            variants(
+                variant("chr2", 2, "TGC", "TAT", "1/1")),
+            variants(
+                variant("chr2", 3, "G", "C", "1/1"),
+                variant("chr2", 4, "C", "T", "0/1")),
+            variants(),
+            50));
+  }
+
+  @Test
+  public void testWindowTooBig() throws Exception {
+    assertEquals(
+        Optional.<SequenceRescuer.RescuedVariants>absent(),
+        tryRescue(
+            "chr1",
+            10049,
             variants(
                 variant("chr1", 7001, multiply(300, "ATTGTTCATGA"), "A", "1/1"),
                 variant("chr1", 10100, multiply(300, "GCCTAGGGTCA"), "G", "0/1")),
-            variants(variant),
+            variants(variant("chr1", 10049, "CTTAAGCT", "C", "1/1")),
             variants(),
             50));
   }

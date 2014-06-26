@@ -206,7 +206,7 @@ public class VariantEvaluator {
                 .setFalsePositives(falsePositives)
                 .setFalseNegatives(falseNegatives)
                 .build()
-                .tryRescue(variant);
+                .tryRescue(variant.getPosition());
             if (optional.isPresent()) {
               SequenceRescuer.RescuedVariants rescuedVariants = optional.get();
               NavigableMap<Integer, VariantProto>

@@ -403,11 +403,11 @@ public class SequenceRescuer {
                   @Override protected List<X> computeNext() {
                     if (iterator.hasNext()) {
                       List<X> list = new ArrayList<>();
-                      for (list.add(iterator.next()); iterator.hasNext();) {
-                        if (Iterables.any(list, function.apply(iterator.peek()))) {
+                      for (
                           list.add(iterator.next());
-                        }
-                      }
+                          iterator.hasNext()
+                              && Iterables.any(list, function.apply(iterator.peek()));
+                          list.add(iterator.next()));
                       return list;
                     }
                     return endOfData();
@@ -491,37 +491,42 @@ public class SequenceRescuer {
   }
 
   private StringBuilder addRefBasesUntil(StringBuilder chunks, int begin, int end) {
-    return chunks.append(reference.get(
-        contig,
-        begin - 1,
-        end - 1,
-        FastaReader.Callback.FastaFile.Orientation.FORWARD));
+    return chunks.append(getRefBases(begin, end));
   }
 
-  private String getSequence(Window window, List<VariantProto> variants) {
+  private String getRefBases(int begin, int end) {
+    return reference.get(contig, begin - 1, end - 1,
+        FastaReader.Callback.FastaFile.Orientation.FORWARD);
+  }
+
+  private Optional<String> getSequence(Window window, List<VariantProto> variants) {
     StringBuilder builder = new StringBuilder();
     int homOffset = window.lowerBound();
     for (VariantProto variant : variants) {
-      addRefBasesUntil(builder, homOffset, variant.getPosition())
+      String referenceBases = variant.getReferenceBases();
+      int position = variant.getPosition(), next = referenceBases.length() + position;
+      if (!Objects.equals(referenceBases, getRefBases(position, next))) {
+        return Optional.absent();
+      }
+      addRefBasesUntil(builder, homOffset, position)
           .append(variant.getAlternateBasesList().get(0));
-      homOffset = variant.getReferenceBases().length() + variant.getPosition();
+      homOffset = next;
     }
-    return addRefBasesUntil(builder, homOffset, window.upperBound()).toString();
+    return Optional.of(addRefBasesUntil(builder, homOffset, window.upperBound()).toString());
   }
 
-  public Optional<RescuedVariants> tryRescue(final VariantProto variant) {
-    return windowFactory.createWindow(variant.getPosition())
+  public Optional<RescuedVariants> tryRescue(final int position) {
+    return windowFactory.createWindow(position)
         .transform(
             new Function<Window, Optional<RescuedVariants>>() {
               @Override public Optional<RescuedVariants> apply(Window window) {
-                return tryRescue(variant, window);
+                return tryRescue(position, window);
               }
             })
         .or(Optional.<RescuedVariants>absent());
   }
 
-  private Optional<RescuedVariants> tryRescue(VariantProto variant, final Window window) {
-    int location = variant.getPosition();
+  private Optional<RescuedVariants> tryRescue(int location, final Window window) {
     List<List<VariantProto>>
         falseNegativesQueue = extractVariantQueues(this.falseNegatives, window, location),
         falsePositivesQueue = extractVariantQueues(this.falsePositives, window, location);
@@ -545,13 +550,15 @@ public class SequenceRescuer {
                               new Function<List<VariantProto>, Optional<RescuedVariants>>() {
                                 @Override public Optional<RescuedVariants> apply(
                                     List<VariantProto> falsePos) {
-                                  return Objects.equals(
-                                          getSequence(window, falseNegs),
-                                          getSequence(window, falsePos))
-                                      ? Optional.of(RescuedVariants.create(
-                                          uniqueIndex(falseNegatives, GET_START),
-                                          uniqueIndex(falsePositives, GET_START)))
-                                      : Optional.<RescuedVariants>absent();
+                                  Optional<String>
+                                      lhs = getSequence(window, falseNegs),
+                                      rhs = getSequence(window, falsePos);
+                                  return lhs.isPresent() && rhs.isPresent()
+                                      && Objects.equals(lhs.get(), rhs.get())
+                                          ? Optional.of(RescuedVariants.create(
+                                              uniqueIndex(falseNegatives, GET_START),
+                                              uniqueIndex(falsePositives, GET_START)))
+                                          : Optional.<RescuedVariants>absent();
                                 }
                               })
                           .or(Optional.<RescuedVariants>absent());
