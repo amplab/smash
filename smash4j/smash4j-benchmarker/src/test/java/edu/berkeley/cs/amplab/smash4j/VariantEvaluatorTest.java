@@ -226,24 +226,27 @@ public class VariantEvaluatorTest {
 
   @Test
   public void testRescueChromEvalVariants() throws Exception {
+    VariantProto
+        variant = variant("chr2", 3, "GCCG", "GCA", "1/1");
     NavigableMap<Integer, VariantProto>
-        trueVariants = variants(
-            variant("chr1", 3, "GCCG", "GCA", "1/1")),
+        trueVariants = variants(variant),
         predictedVariants = variants(
-            variant("chr1", 3, "GC", "G", "1/1"),
-            variant("chr1", 6, "G", "A", "1/1"));
+            variant("chr2", 3, "GC", "G", "1/1"),
+            variant("chr2", 6, "G", "A", "1/1")),
+        rescuedVariants = variants(variant);
     assertEquals(
         ImmutableMap.of(
-            "chr1",
+            "chr2",
             contigStats(
-                "chr1",
-                trueVariants,
-                predictedVariants,
-                Collections.<Integer>emptyList(),
-                Arrays.asList(3, 6),
-                Arrays.asList(3),
-                Arrays.asList(3),
-                VariantEvaluator.GenotypeConcordance.create())),
-                evaluate(trueVariants.values(), predictedVariants.values()));
+                    "chr2",
+                    trueVariants,
+                    predictedVariants,
+                    Collections.<Integer>emptyList(),
+                    Collections.<Integer>emptyList(),
+                    Collections.<Integer>emptyList(),
+                    Arrays.asList(3),
+                    VariantEvaluator.GenotypeConcordance.create())
+                .setRescuedVariants(rescuedVariants)),
+        evaluate(trueVariants.values(), predictedVariants.values()));
   }
 }
