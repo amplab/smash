@@ -5,6 +5,7 @@ import static edu.berkeley.cs.amplab.smash4j.TestUtils.variant;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variants;
 import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.Genotype.HET;
 import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.Genotype.HOM_VAR;
+import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType.INDEL_DELETION;
 import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType.SNP;
 import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType.SV_INSERTION;
 import static org.junit.Assert.assertEquals;
@@ -227,13 +228,12 @@ public class VariantEvaluatorTest {
   @Test
   public void testRescueChromEvalVariants() throws Exception {
     VariantProto
-        variant = variant("chr2", 3, "GCCG", "GCA", "1/1");
+        rescuedVariant = variant("chr2", 3, "GCCG", "GCA", "1/1");
     NavigableMap<Integer, VariantProto>
-        trueVariants = variants(variant),
+        trueVariants = variants(rescuedVariant),
         predictedVariants = variants(
             variant("chr2", 3, "GC", "G", "1/1"),
-            variant("chr2", 6, "G", "A", "1/1")),
-        rescuedVariants = variants(variant);
+            variant("chr2", 6, "G", "A", "1/1"));
     assertEquals(
         ImmutableMap.of(
             "chr2",
@@ -246,7 +246,38 @@ public class VariantEvaluatorTest {
                     Collections.<Integer>emptyList(),
                     Arrays.asList(3),
                     VariantEvaluator.GenotypeConcordance.create())
-                .setRescuedVariants(rescuedVariants)),
+                .setRescuedVariants(variants(rescuedVariant))),
+        evaluate(trueVariants.values(), predictedVariants.values()));
+  }
+
+  @Test
+  public void testRescueTruePosChromEvaluateVariants() throws Exception {
+    VariantProto
+        rescuedVariant1 = variant("chr4", 3, "TC", "T", "1/1"),
+        rescuedVariant2 = variant("chr4", 8, "C", "T", "1/1");
+    NavigableMap<Integer, VariantProto>
+        trueVariants = variants(
+            rescuedVariant1,
+            variant("chr4", 5, "TC", "T", "1/1"),
+            rescuedVariant2),
+        predictedVariants = variants(
+            variant("chr4", 4, "C", "T", "1/1"),
+            variant("chr4", 5, "TC", "T", "1/1"),
+            variant("chr4", 7, "TC", "T", "1/1"));
+    assertEquals(
+        ImmutableMap.of(
+            "chr4",
+            contigStats(
+                    "chr4",
+                    trueVariants,
+                    predictedVariants,
+                    Arrays.asList(5),
+                    Collections.<Integer>emptyList(),
+                    Collections.<Integer>emptyList(),
+                    Collections.<Integer>emptyList(),
+                    VariantEvaluator.GenotypeConcordance.create()
+                        .increment(INDEL_DELETION, HOM_VAR, HOM_VAR))
+                .setRescuedVariants(variants(rescuedVariant1, rescuedVariant2))),
         evaluate(trueVariants.values(), predictedVariants.values()));
   }
 }
