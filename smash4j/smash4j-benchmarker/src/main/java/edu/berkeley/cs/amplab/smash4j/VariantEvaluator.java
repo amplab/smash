@@ -1,8 +1,8 @@
 package edu.berkeley.cs.amplab.smash4j;
 
+import com.google.api.client.repackaged.com.google.common.base.Joiner;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ArrayListMultimap;
@@ -19,15 +19,18 @@ import com.google.common.collect.Ordering;
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -38,6 +41,7 @@ public class VariantEvaluator {
 
   public static class Builder {
 
+    private int maxIndelSize = 50;
     private int maxSvBreakpointDistance = 100;
     private int maxVariantLengthDifference = 100;
     private Optional<FastaReader.Callback.FastaFile> reference = Optional.absent();
@@ -50,7 +54,13 @@ public class VariantEvaluator {
           reference,
           maxSvBreakpointDistance,
           maxVariantLengthDifference,
-          rescueWindowSize);
+          rescueWindowSize,
+          maxIndelSize);
+    }
+
+    public Builder setMaxIndexSize(int maxIndelSize) {
+      this.maxIndelSize = maxIndelSize;
+      return this;
     }
 
     public Builder setMaxSvBreakpointDistance(int maxSvBreakpointDistance) {
@@ -76,14 +86,6 @@ public class VariantEvaluator {
 
   public static class ContigStats {
 
-    public static Multiset<VariantType> countByType(NavigableMap<?, VariantProto> variants) {
-      Multiset<VariantType> counts = HashMultiset.create();
-      for (Map.Entry<?, VariantProto> entry : variants.entrySet()) {
-        counts.add(VariantType.getType(entry.getValue()));
-      }
-      return counts;
-    }
-
     static ContigStats create(
         String contig,
         NavigableMap<Integer, VariantProto> trueVariants,
@@ -92,7 +94,8 @@ public class VariantEvaluator {
         Iterable<Integer> falsePositiveLocations,
         Iterable<Integer> falseNegativeLocations,
         Iterable<Integer> incorrectPredictions,
-        GenotypeConcordance concordance) {
+        GenotypeConcordance concordance,
+        int maxIndelSize) {
       NavigableMap<Integer, VariantProto>
           truePositives = filter(predictedVariants, truePositiveLocations),
           falsePositives = filter(predictedVariants, falsePositiveLocations),
@@ -100,7 +103,7 @@ public class VariantEvaluator {
       Multimap<VariantType, Integer> incorrectPredictionsMultimap = ArrayListMultimap.create();
       for (Integer location : incorrectPredictions) {
         incorrectPredictionsMultimap.put(
-            VariantType.getType(predictedVariants.get(location)),
+            VariantType.getType(predictedVariants.get(location), maxIndelSize),
             location);
       }
       return new ContigStats(
@@ -111,7 +114,8 @@ public class VariantEvaluator {
           falsePositives,
           falseNegatives,
           incorrectPredictionsMultimap,
-          concordance);
+          concordance,
+          maxIndelSize);
     }
 
     private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y>
@@ -121,6 +125,14 @@ public class VariantEvaluator {
         filtered.put(key, map.get(key));
       }
       return filtered;
+    }
+
+    private static String toString(Map<Integer, ?> map) {
+      return Joiner.on(", ").join(map.keySet());
+    }
+
+    private static String toString(Optional<? extends Map<Integer, ?>> optional) {
+      return optional.isPresent() ? toString(optional.get()) : "absent";
     }
 
     private Optional<NavigableMap<Integer, VariantProto>>
@@ -133,6 +145,7 @@ public class VariantEvaluator {
     private final NavigableMap<Integer, VariantProto> falseNegatives;
     private final NavigableMap<Integer, VariantProto> falsePositives;
     private final Multimap<VariantType, Integer> incorrectPredictions;
+    private final int maxIndelSize;
     private final NavigableMap<Integer, VariantProto> predictedVariants;
     private final NavigableMap<Integer, VariantProto> truePositives;
     private final NavigableMap<Integer, VariantProto> trueVariants;
@@ -145,7 +158,8 @@ public class VariantEvaluator {
         NavigableMap<Integer, VariantProto> falsePositives,
         NavigableMap<Integer, VariantProto> falseNegatives,
         Multimap<VariantType, Integer> incorrectPredictions,
-        GenotypeConcordance concordance) {
+        GenotypeConcordance concordance,
+        int maxIndelSize) {
       this.contig = contig;
       this.trueVariants = trueVariants;
       this.predictedVariants = predictedVariants;
@@ -154,6 +168,7 @@ public class VariantEvaluator {
       this.falseNegatives = falseNegatives;
       this.incorrectPredictions = incorrectPredictions;
       this.concordance = concordance;
+      this.maxIndelSize = maxIndelSize;
     }
 
     public Optional<NavigableMap<Integer, VariantProto>> allKnownFalsePositives() {
@@ -172,12 +187,50 @@ public class VariantEvaluator {
       return correctKnownFalsePositives;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+      boolean same = this == obj;
+      if (!same && null != obj && ContigStats.class == obj.getClass()) {
+        ContigStats rhs = (ContigStats) obj;
+        return Objects.equals(allKnownFalsePositives(), rhs.allKnownFalsePositives())
+            && Objects.equals(concordance(), rhs.concordance())
+            && Objects.equals(contig(), rhs.contig())
+            && Objects.equals(correctKnownFalsePositives(), rhs.correctKnownFalsePositives())
+            && Objects.equals(falseNegatives(), rhs.falseNegatives())
+            && Objects.equals(falsePositives(), rhs.falsePositives())
+            && Objects.equals(incorrectPredictions(), rhs.incorrectPredictions())
+            && Objects.equals(knownFalsePositives(), rhs.knownFalsePositives())
+            && Objects.equals(predictedVariants(), rhs.predictedVariants())
+            && Objects.equals(rescuedVariants(), rhs.rescuedVariants())
+            && Objects.equals(truePositives(), rhs.truePositives())
+            && Objects.equals(trueVariants(), rhs.trueVariants());
+      }
+      return same;
+    }
+
     public NavigableMap<Integer, VariantProto> falseNegatives() {
       return falseNegatives;
     }
 
     public NavigableMap<Integer, VariantProto> falsePositives() {
       return falsePositives;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(
+          allKnownFalsePositives(),
+          concordance(),
+          contig(),
+          correctKnownFalsePositives(),
+          falseNegatives(),
+          falsePositives(),
+          incorrectPredictions(),
+          knownFalsePositives(),
+          predictedVariants(),
+          rescuedVariants(),
+          truePositives(),
+          trueVariants());
     }
 
     public Multimap<VariantType, Integer> incorrectPredictions() {
@@ -197,7 +250,7 @@ public class VariantEvaluator {
           Maps.newTreeMap(this.falseNegatives).entrySet()) {
         if (this.falseNegatives.containsKey(entry.getKey())) {
           VariantProto variant = entry.getValue();
-          if (!VariantType.getType(variant).isStructuralVariant()) {
+          if (!VariantType.getType(variant, maxIndelSize).isStructuralVariant()) {
             Optional<SequenceRescuer.RescuedVariants> optional = SequenceRescuer.builder()
                 .setContig(contig)
                 .setReference(reference)
@@ -205,6 +258,7 @@ public class VariantEvaluator {
                 .setTruePositives(truePositives)
                 .setFalsePositives(falsePositives)
                 .setFalseNegatives(falseNegatives)
+                .setMaxIndelSize(maxIndelSize)
                 .build()
                 .tryRescue(variant.getPosition());
             if (optional.isPresent()) {
@@ -247,6 +301,40 @@ public class VariantEvaluator {
       return this;
     }
 
+    ContigStats setRescuedVariants(NavigableMap<Integer, VariantProto> rescuedVariants) {
+      this.rescuedVariants = Optional.of(rescuedVariants);
+      return this;
+    }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "allKnownFalsePositives = %s, "
+              + "correctKnownFalsePositives = %s, "
+              + "knownFalsePositives = %s, "
+              + "rescuedVariants = %s, "
+              + "concordance = %s, "
+              + "contig = %s, "
+              + "falseNegatives = %s, "
+              + "falsePositives = %s, "
+              + "predictedVariants = %s, "
+              + "truePositives = %s, "
+              + "trueVariants = %s, "
+              + "incorrectPredictions = %s",
+          toString(allKnownFalsePositives()),
+          toString(correctKnownFalsePositives()),
+          toString(knownFalsePositives()),
+          toString(rescuedVariants()),
+          concordance(),
+          contig(),
+          toString(falseNegatives()),
+          toString(falsePositives()),
+          toString(predictedVariants()),
+          toString(truePositives()),
+          toString(trueVariants()),
+          incorrectPredictions());
+    }
+
     public NavigableMap<Integer, VariantProto> truePositives() {
       return truePositives;
     }
@@ -271,7 +359,7 @@ public class VariantEvaluator {
 
           @Override public Genotype apply(String genotype) {
             Integer i = null;
-            for (Matcher matcher = splitPattern.matcher(genotype); matcher.matches();) {
+            for (Matcher matcher = splitPattern.matcher(genotype); matcher.find();) {
               Integer j = Integer.parseInt(matcher.group(1));
               if (null == i) {
                 i = j;
@@ -306,12 +394,44 @@ public class VariantEvaluator {
       }
     }
 
+    @Override
+    public boolean equals(Object obj) {
+      return this == obj
+          || null != obj
+          && GenotypeConcordance.class == obj.getClass()
+          && Objects.equals(concordance, ((GenotypeConcordance) obj).concordance);
+    }
+
     public int get(VariantType variantType, Genotype trueGenotype, Genotype predictedGenotype) {
       return concordance.get(variantType).get(trueGenotype).count(predictedGenotype);
     }
 
-    void increment(VariantType variantType, Genotype trueGenotype, Genotype predictedGenotype) {
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(concordance);
+    }
+
+    GenotypeConcordance increment(
+        VariantType variantType, Genotype trueGenotype, Genotype predictedGenotype) {
       concordance.get(variantType).get(trueGenotype).add(predictedGenotype);
+      return this;
+    }
+
+    @Override
+    public String toString() {
+      List<String> parts = new ArrayList<>();
+      for (VariantType variantType : VariantType.values()) {
+        for (Genotype trueGenotype : Genotype.values()) {
+          for (Genotype predictedGenotype : Genotype.values()) {
+            int count = get(variantType, trueGenotype, predictedGenotype);
+            if (0 < count) {
+              parts.add(String.format(
+                  "(%s, %s, %s, %d)", variantType, trueGenotype, predictedGenotype, count));
+            }
+          }
+        }
+      }
+      return Joiner.on(", ").join(parts);
     }
   }
 
@@ -326,21 +446,14 @@ public class VariantEvaluator {
     SV_INSERTION(false, true),
     SV_OTHER(false, true);
 
-    public static final Function<VariantProto, VariantType> GET_TYPE =
-        new Function<VariantProto, VariantType>() {
-          @Override public VariantType apply(VariantProto variant) {
-            return getType(variant);
-          }
-        };
-
     private static String getFirstAlt(VariantProto variant) {
       return Iterables.getOnlyElement(variant.getAlternateBasesList());
     }
 
-    public static VariantType getType(VariantProto variant) {
+    public static VariantType getType(VariantProto variant, int maxIndelSize) {
       return isSnp(variant)
           ? SNP
-          : isStructuralVariant(variant)
+          : isStructuralVariant(variant, maxIndelSize)
               ? hasSingleAlt(variant)
                   ? isInsertion(variant)
                       ? SV_INSERTION
@@ -393,10 +506,17 @@ public class VariantEvaluator {
       return false;
     }
 
-    private static boolean isStructuralVariant(VariantProto variant) {
-      for (VariantProto.Multimap.Entry entry : variant.getInfo().getEntryList()) {
-        if ("SVTYPE".equals(entry.getKey())) {
-          return true;
+    private static boolean isStructuralVariant(VariantProto variant, int maxIndelSize) {
+      if (variant.getReferenceBases().length() <= maxIndelSize) {
+        for (String alternateBases : variant.getAlternateBasesList()) {
+          if (maxIndelSize < alternateBases.length()) {
+            return true;
+          }
+        }
+        for (VariantProto.Multimap.Entry entry : variant.getInfo().getEntryList()) {
+          if ("SVTYPE".equals(entry.getKey())) {
+            return true;
+          }
         }
       }
       return false;
@@ -506,6 +626,14 @@ public class VariantEvaluator {
         };
   }
 
+  private final Function<VariantProto, VariantType> getVariantType =
+      new Function<VariantProto, VariantType>() {
+        @Override public VariantType apply(VariantProto variant) {
+          return VariantType.getType(variant, maxIndelSize);
+        }
+      };
+
+  private final int maxIndelSize;
   private final int maxSvBreakpointDistance;
   private final int maxVariantLengthDifference;
   private final Optional<FastaReader.Callback.FastaFile> reference;
@@ -515,11 +643,13 @@ public class VariantEvaluator {
       Optional<FastaReader.Callback.FastaFile> reference,
       int maxSvBreakpointDistance,
       int maxVariantLengthDifference,
-      int rescueWindowSize) {
+      int rescueWindowSize,
+      int maxIndelSize) {
     this.reference = reference;
     this.maxSvBreakpointDistance = maxSvBreakpointDistance;
     this.maxVariantLengthDifference = maxVariantLengthDifference;
     this.rescueWindowSize = rescueWindowSize;
+    this.maxIndelSize = maxIndelSize;
   }
 
   public Map<String, ContigStats> evaluate(
@@ -535,7 +665,7 @@ public class VariantEvaluator {
     return evaluate(trueVariants, predictedVariants, Optional.of(knownFalsePositives));
   }
 
-  private Map<String, ContigStats> evaluate(
+  Map<String, ContigStats> evaluate(
       Iterable<VariantProto> trueVariants,
       Iterable<VariantProto> predictedVariants,
       Optional<Iterable<VariantProto>> knownFalsePositives) {
@@ -589,8 +719,8 @@ public class VariantEvaluator {
       VariantProto
           trueVariant = trueVariants.get(location),
           predictedVariant = predictedVariants.get(location);
-      VariantType trueVariantType = VariantType.getType(trueVariant);
-      if (trueVariantType == VariantType.getType(predictedVariant)
+      VariantType trueVariantType = VariantType.getType(trueVariant, maxIndelSize);
+      if (trueVariantType == VariantType.getType(predictedVariant, maxIndelSize)
           && (trueVariantType.isStructuralVariant() || trueVariant.getAlternateBasesList()
               .equals(predictedVariant.getAlternateBasesList()))) {
         truePositiveLocations.add(location);
@@ -607,7 +737,7 @@ public class VariantEvaluator {
       for (Integer location :
           intersection(predictedVariantLocations, knownFp.keySet())) {
         VariantProto knownFalsePositive = knownFp.get(location);
-        if (Objects.equal(
+        if (Objects.equals(
             knownFalsePositive.getReferenceBases(),
             predictedVariants.get(location).getReferenceBases())) {
           correctKnownFalsePositiveLocations.add(location);
@@ -615,9 +745,9 @@ public class VariantEvaluator {
         allKnownFalsePositiveLocations.add(location);
       }
     }
-    for (Integer location : difference(predictedVariantLocations, trueVariantLocations)) {
+    for (Integer location : difference(trueVariantLocations, predictedVariantLocations)) {
       VariantProto trueVariant = trueVariants.get(location);
-      VariantType trueVariantType = VariantType.getType(trueVariant);
+      VariantType trueVariantType = VariantType.getType(trueVariant, maxIndelSize);
       if (trueVariantType.isStructuralVariant()) {
         Optional<Integer> structuralMatch =
             structuralMatch(trueVariant, predictedVariants).transform(GET_POSITION);
@@ -639,7 +769,7 @@ public class VariantEvaluator {
     falseNegativeLocations.addAll(incorrectPredictions);
     ContigStats variantStats = ContigStats.create(contig, trueVariants, predictedVariants,
         truePositiveLocations, falsePositiveLocations, falseNegativeLocations, incorrectPredictions,
-        concordance);
+        concordance, maxIndelSize);
     if (reference.isPresent()) {
       variantStats.rescue(reference.get(), rescueWindowSize);
     }
@@ -665,10 +795,11 @@ public class VariantEvaluator {
         .filter(
             new Predicate<VariantProto>() {
 
-              private final VariantType trueVariantType = VariantType.getType(trueVariant);
+              private final VariantType
+                  trueVariantType = VariantType.getType(trueVariant, maxIndelSize);
 
               @Override public boolean apply(VariantProto predictedVariant) {
-                if (trueVariantType == VariantType.getType(predictedVariant)) {
+                if (trueVariantType == VariantType.getType(predictedVariant, maxIndelSize)) {
                   int trueReferenceLength = trueVariant.getReferenceBases().length(),
                       predictedReferenceLength = predictedVariant.getReferenceBases().length();
                   for (String trueAlt : trueVariant.getAlternateBasesList()) {

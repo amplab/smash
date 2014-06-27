@@ -36,6 +36,7 @@ public class SequenceRescuer {
     private String contig;
     private NavigableMap<Integer, VariantProto> falseNegatives;
     private NavigableMap<Integer, VariantProto> falsePositives;
+    private int maxIndelSize;
     private FastaReader.Callback.FastaFile reference;
     private int rescueWindowSize;
     private NavigableMap<Integer, VariantProto> truePositives;
@@ -52,7 +53,8 @@ public class SequenceRescuer {
               .setFalsePositives(falsePositives)
               .setFalseNegatives(falseNegatives)
               .setSize(rescueWindowSize)
-              .build()));
+              .build()),
+          maxIndelSize);
     }
 
     public Builder setContig(String contig) {
@@ -67,6 +69,11 @@ public class SequenceRescuer {
 
     public Builder setFalsePositives(NavigableMap<Integer, VariantProto> falsePositives) {
       this.falsePositives = falsePositives;
+      return this;
+    }
+
+    public Builder setMaxIndelSize(int maxIndelSize) {
+      this.maxIndelSize = maxIndelSize;
       return this;
     }
 
@@ -287,22 +294,6 @@ public class SequenceRescuer {
             }
           };
 
-  private static final Predicate<VariantProto>
-      IS_NON_SNP = Predicates.not(Predicates.compose(
-          new Predicate<VariantType>() {
-            @Override public boolean apply(VariantType type) {
-              return type.isSnp();
-            }
-          },
-          VariantEvaluator.VariantType.GET_TYPE)),
-      NOT_SV = Predicates.not(Predicates.compose(
-          new Predicate<VariantType>() {
-            @Override public boolean apply(VariantType type) {
-              return type.isStructuralVariant();
-            }
-          },
-          VariantEvaluator.VariantType.GET_TYPE));
-
   static final Ordering<VariantProto>
       LOWEST_START = Ordering.natural().onResultOf(GET_START),
       HIGHEST_END = Ordering.natural().onResultOf(GET_END).reverse();
@@ -310,6 +301,11 @@ public class SequenceRescuer {
   private static final int
       WINDOW_MAX_OVERLAPPING = 16,
       WINDOW_VARIANT_LOOKBACK_SIZE = 50;
+
+  private static StringBuilder addRefBasesUntil(StringBuilder chunks,
+      FastaReader.Callback.FastaFile reference, String contig, int begin, int end) {
+    return chunks.append(getRefBases(reference, contig, begin, end));
+  }
 
   private static Optional<List<VariantProto>> addTruePosToQueue(
       List<VariantProto> queue, List<VariantProto> truePositives) {
@@ -329,29 +325,6 @@ public class SequenceRescuer {
 
   public static Builder builder() {
     return new Builder();
-  }
-
-  private static List<VariantProto> extractRangeAndFilter(
-      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
-    NavigableMap<Integer, VariantProto> result = filter(window.restrict(variants), NOT_SV);
-    VariantProto variant = variants.get(location);
-    if (null == variant) {
-      return ImmutableList.copyOf(result.values());
-    }
-    Predicate<VariantProto> predicate = Predicates.or(
-        Predicates.compose(Predicates.equalTo(location), GET_START),
-        Predicates.not(Predicates.or(
-            overlapsAllele(location),
-            overlapsAllele(location + Ordering.natural().max(losses(variant))))));
-    return ImmutableList.copyOf(filter(result, predicate).values());
-  }
-
-  private static List<List<VariantProto>> extractVariantQueues(
-      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
-    List<VariantProto> variantsInWindow = extractRangeAndFilter(variants, window, location);
-    return variantsInWindow.isEmpty()
-        ? Collections.<List<VariantProto>>emptyList()
-        : getRestOfPath(new ArrayList<VariantProto>(), GET_OVERLAPS.apply(variantsInWindow));
   }
 
   private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y>
@@ -380,6 +353,12 @@ public class SequenceRescuer {
         : Optional.of(ordering.min(collection));
   }
 
+  private static String getRefBases(FastaReader.Callback.FastaFile reference, String contig,
+      int begin, int end) {
+    return reference.get(contig, begin - 1, end - 1,
+        FastaReader.Callback.FastaFile.Orientation.FORWARD);
+  }
+
   private static List<List<VariantProto>> getRestOfPath(
       final List<VariantProto> chosenSoFar,
       final List<List<VariantProto>> remainingChoices) {
@@ -404,6 +383,24 @@ public class SequenceRescuer {
                         remainingChoices.subList(1, remainingChoices.size()));
                   }
                 })));
+  }
+
+  static Optional<String> getSequence(FastaReader.Callback.FastaFile reference,
+      String contig, Window window, List<VariantProto> variants) {
+    StringBuilder builder = new StringBuilder();
+    int homOffset = window.lowerBound();
+    for (VariantProto variant : variants) {
+      String referenceBases = variant.getReferenceBases();
+      int position = variant.getPosition(), next = referenceBases.length() + position;
+      if (!Objects.equals(referenceBases, getRefBases(reference, contig, position, next))) {
+        return Optional.absent();
+      }
+      addRefBasesUntil(builder, reference, contig, homOffset, position).append(
+          variant.getAlternateBasesList().get(0));
+      homOffset = next;
+    }
+    return Optional.of(
+        addRefBasesUntil(builder, reference, contig, homOffset, window.upperBound()).toString());
   }
 
   private static <X> Function<Iterable<? extends X>, List<List<X>>> grouper(
@@ -431,6 +428,22 @@ public class SequenceRescuer {
                 });
           }
         };
+  }
+
+  private static Predicate<VariantProto> isNonSnp(final int maxIndelSize) {
+    return Predicates.not(new Predicate<VariantProto>() {
+          @Override public boolean apply(VariantProto variant) {
+            return VariantType.getType(variant, maxIndelSize).isSnp();
+          }
+        });
+  }
+
+  private static Predicate<VariantProto> isNotStructuralVariant(final int maxIndelSize) {
+    return Predicates.not(new Predicate<VariantProto>() {
+          @Override public boolean apply(VariantProto variant) {
+            return VariantType.getType(variant, maxIndelSize).isStructuralVariant();
+          }
+        });
   }
 
   private static List<Integer> losses(VariantProto variant) {
@@ -474,7 +487,6 @@ public class SequenceRescuer {
           }
         };
   }
-
   private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y> uniqueIndex(
       Iterable<? extends Y> iterable, Function<? super Y, ? extends X> function) {
     NavigableMap<X, Y> index = new TreeMap<>();
@@ -486,7 +498,9 @@ public class SequenceRescuer {
   private final String contig;
   private final NavigableMap<Integer, VariantProto> falseNegatives;
   private final NavigableMap<Integer, VariantProto> falsePositives;
+  private final int maxIndelSize;
   private final FastaReader.Callback.FastaFile reference;
+
   private final NavigableMap<Integer, VariantProto> truePositives;
 
   private final Window.Factory windowFactory;
@@ -497,42 +511,40 @@ public class SequenceRescuer {
       NavigableMap<Integer, VariantProto> falsePositives,
       NavigableMap<Integer, VariantProto> falseNegatives,
       FastaFile reference,
-      Window.Factory windowFactory) {
+      Window.Factory windowFactory,
+      int maxIndelSize) {
     this.contig = contig;
     this.truePositives = truePositives;
     this.falsePositives = falsePositives;
     this.falseNegatives = falseNegatives;
     this.reference = reference;
     this.windowFactory = windowFactory;
+    this.maxIndelSize = maxIndelSize;
   }
 
-  private static StringBuilder addRefBasesUntil(StringBuilder chunks,
-      FastaReader.Callback.FastaFile reference, String contig, int begin, int end) {
-    return chunks.append(getRefBases(reference, contig, begin, end));
-  }
-
-  private static String getRefBases(FastaReader.Callback.FastaFile reference, String contig,
-      int begin, int end) {
-    return reference.get(contig, begin - 1, end - 1,
-        FastaReader.Callback.FastaFile.Orientation.FORWARD);
-  }
-
-  static Optional<String> getSequence(FastaReader.Callback.FastaFile reference,
-      String contig, Window window, List<VariantProto> variants) {
-    StringBuilder builder = new StringBuilder();
-    int homOffset = window.lowerBound();
-    for (VariantProto variant : variants) {
-      String referenceBases = variant.getReferenceBases();
-      int position = variant.getPosition(), next = referenceBases.length() + position;
-      if (!Objects.equals(referenceBases, getRefBases(reference, contig, position, next))) {
-        return Optional.absent();
-      }
-      addRefBasesUntil(builder, reference, contig, homOffset, position).append(
-          variant.getAlternateBasesList().get(0));
-      homOffset = next;
+  private List<VariantProto> extractRangeAndFilter(
+      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
+    NavigableMap<Integer, VariantProto>
+        result = filter(window.restrict(variants), isNotStructuralVariant(maxIndelSize));
+    VariantProto variant = variants.get(location);
+    if (null == variant) {
+      return ImmutableList.copyOf(result.values());
     }
-    return Optional.of(
-        addRefBasesUntil(builder, reference, contig, homOffset, window.upperBound()).toString());
+    Predicate<VariantProto> predicate = Predicates.or(
+        Predicates.compose(Predicates.equalTo(location), GET_START),
+        Predicates.not(Predicates.or(
+            overlapsAllele(location),
+            overlapsAllele(location + Ordering.natural().max(losses(variant))))));
+    return ImmutableList.copyOf(filter(result, predicate).values());
+  }
+
+  private List<List<VariantProto>> extractVariantQueues(
+      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
+    List<VariantProto>
+        variantsInWindow = extractRangeAndFilter(variants, window, location);
+    return variantsInWindow.isEmpty()
+        ? Collections.<List<VariantProto>>emptyList()
+        : getRestOfPath(new ArrayList<VariantProto>(), GET_OVERLAPS.apply(variantsInWindow));
   }
 
   public Optional<RescuedVariants> tryRescue(final int position) {
@@ -559,7 +571,8 @@ public class SequenceRescuer {
     }
     for (final List<VariantProto> newTruePositives : falseNegativesQueue) {
       for (final List<VariantProto> removeFalsePositives : falsePositivesQueue) {
-        if (Iterables.any(Iterables.concat(newTruePositives, removeFalsePositives), IS_NON_SNP)) {
+        if (Iterables.any(Iterables.concat(newTruePositives, removeFalsePositives),
+            isNonSnp(maxIndelSize))) {
           return addTruePosToQueue(newTruePositives, truePositives)
               .transform(
                   new Function<List<VariantProto>, Optional<RescuedVariants>>() {
