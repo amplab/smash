@@ -5,9 +5,9 @@ import static edu.berkeley.cs.amplab.smash4j.TestUtils.variant;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variants;
 import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.Genotype.HET;
 import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.Genotype.HOM_VAR;
-import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType.INDEL_DELETION;
-import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType.SNP;
-import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType.SV_INSERTION;
+import static edu.berkeley.cs.amplab.smash4j.VariantType.INDEL_DELETION;
+import static edu.berkeley.cs.amplab.smash4j.VariantType.SNP;
+import static edu.berkeley.cs.amplab.smash4j.VariantType.SV_INSERTION;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Optional;
@@ -47,7 +47,7 @@ public class VariantEvaluatorTest {
         falseNegativeLocations,
         incorrectPredictions,
         concordance,
-        50);
+        VariantType.getType(50));
   }
 
   private static Map<String, VariantEvaluator.ContigStats> evaluate(

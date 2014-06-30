@@ -58,7 +58,7 @@ public class SequenceRescuerTest {
                 .setFalseNegatives(falseNegatives)
                 .setReference(reference)
                 .setRescueWindowSize(50)
-                .setMaxIndelSize(50)
+                .setGetTypeFunction(VariantType.getType(50))
                 .build()
                 .tryRescue(position);
           }

@@ -18,7 +18,6 @@ import com.google.common.collect.PeekingIterator;
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.fastaparser.FastaReader.Callback.FastaFile;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
-import edu.berkeley.cs.amplab.smash4j.VariantEvaluator.VariantType;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,7 +35,7 @@ public class SequenceRescuer {
     private String contig;
     private NavigableMap<Integer, VariantProto> falseNegatives;
     private NavigableMap<Integer, VariantProto> falsePositives;
-    private int maxIndelSize;
+    private Function<VariantProto, VariantType> getType;
     private FastaReader.Callback.FastaFile reference;
     private int rescueWindowSize;
     private NavigableMap<Integer, VariantProto> truePositives;
@@ -54,7 +53,7 @@ public class SequenceRescuer {
               .setFalseNegatives(falseNegatives)
               .setSize(rescueWindowSize)
               .build()),
-          maxIndelSize);
+              getType);
     }
 
     public Builder setContig(String contig) {
@@ -72,8 +71,8 @@ public class SequenceRescuer {
       return this;
     }
 
-    public Builder setMaxIndelSize(int maxIndelSize) {
-      this.maxIndelSize = maxIndelSize;
+    public Builder setGetTypeFunction(Function<VariantProto, VariantType> getType) {
+      this.getType = getType;
       return this;
     }
 
@@ -430,21 +429,19 @@ public class SequenceRescuer {
         };
   }
 
-  private static Predicate<VariantProto> isNonSnp(final int maxIndelSize) {
-    return Predicates.not(new Predicate<VariantProto>() {
-          @Override public boolean apply(VariantProto variant) {
-            return VariantType.getType(variant, maxIndelSize).isSnp();
-          }
-        });
-  }
-
-  private static Predicate<VariantProto> isNotStructuralVariant(final int maxIndelSize) {
-    return Predicates.not(new Predicate<VariantProto>() {
-          @Override public boolean apply(VariantProto variant) {
-            return VariantType.getType(variant, maxIndelSize).isStructuralVariant();
-          }
-        });
-  }
+  private final Predicate<VariantProto>
+      isNonSnp = Predicates.not(
+          new Predicate<VariantProto>() {
+            @Override public boolean apply(VariantProto variant) {
+              return getType.apply(variant).isSnp();
+            }
+          }),
+      isNotStructuralVariant = Predicates.not(
+          new Predicate<VariantProto>() {
+            @Override public boolean apply(VariantProto variant) {
+              return getType.apply(variant).isStructuralVariant();
+            }
+          });
 
   private static List<Integer> losses(VariantProto variant) {
     int referenceBasesLength = variant.getReferenceBases().length();
@@ -487,6 +484,7 @@ public class SequenceRescuer {
           }
         };
   }
+
   private static <X extends Comparable<? super X>, Y> NavigableMap<X, Y> uniqueIndex(
       Iterable<? extends Y> iterable, Function<? super Y, ? extends X> function) {
     NavigableMap<X, Y> index = new TreeMap<>();
@@ -495,14 +493,13 @@ public class SequenceRescuer {
     }
     return index;
   }
+
   private final String contig;
   private final NavigableMap<Integer, VariantProto> falseNegatives;
   private final NavigableMap<Integer, VariantProto> falsePositives;
-  private final int maxIndelSize;
+  private final Function<VariantProto, VariantType> getType;
   private final FastaReader.Callback.FastaFile reference;
-
   private final NavigableMap<Integer, VariantProto> truePositives;
-
   private final Window.Factory windowFactory;
 
   private SequenceRescuer(
@@ -512,20 +509,20 @@ public class SequenceRescuer {
       NavigableMap<Integer, VariantProto> falseNegatives,
       FastaFile reference,
       Window.Factory windowFactory,
-      int maxIndelSize) {
+      Function<VariantProto, VariantType> getType) {
     this.contig = contig;
     this.truePositives = truePositives;
     this.falsePositives = falsePositives;
     this.falseNegatives = falseNegatives;
     this.reference = reference;
     this.windowFactory = windowFactory;
-    this.maxIndelSize = maxIndelSize;
+    this.getType = getType;
   }
 
   private List<VariantProto> extractRangeAndFilter(
       NavigableMap<Integer, VariantProto> variants, Window window, int location) {
     NavigableMap<Integer, VariantProto>
-        result = filter(window.restrict(variants), isNotStructuralVariant(maxIndelSize));
+        result = filter(window.restrict(variants), isNotStructuralVariant);
     VariantProto variant = variants.get(location);
     if (null == variant) {
       return ImmutableList.copyOf(result.values());
@@ -571,8 +568,7 @@ public class SequenceRescuer {
     }
     for (final List<VariantProto> newTruePositives : falseNegativesQueue) {
       for (final List<VariantProto> removeFalsePositives : falsePositivesQueue) {
-        if (Iterables.any(Iterables.concat(newTruePositives, removeFalsePositives),
-            isNonSnp(maxIndelSize))) {
+        if (Iterables.any(Iterables.concat(newTruePositives, removeFalsePositives), isNonSnp)) {
           return addTruePosToQueue(newTruePositives, truePositives)
               .transform(
                   new Function<List<VariantProto>, Optional<RescuedVariants>>() {
