@@ -93,9 +93,8 @@ public class Normalizer {
         private VariantProto shiftUntilNotOverlapping(
             VariantProto varOne, final VariantProto varTwo) {
           final String varTwoContig = varTwo.getContig();
-          int
-              onePos = (int) varOne.getPosition() - 1,
-              twoPos = (int) varTwo.getPosition() - 1;
+          int onePos = varOne.getPosition() - 1,
+              twoPos = varTwo.getPosition() - 1;
           String twoRefAllele = varTwo.getReferenceBases();
           List<String> twoAltAlleles = varTwo.getAlternateBasesList();
           for (int varOneLastPos = onePos + varOne.getReferenceBases().length();
@@ -337,7 +336,7 @@ public class Normalizer {
           alts = FluentIterable.from(alts)
               .transform(chopper)
               .toList();
-          int originalPosition = (int) variant.getPosition(), pos = originalPosition - 1;
+          int originalPosition = variant.getPosition(), pos = originalPosition - 1;
           for (String contig = variant.getContig(); SameBaseTester.LAST_BASE.sameBase(
               Iterables.concat(Collections.singletonList(ref), alts));) {
             final String prevBase = TO_UPPER_CASE.apply(fastaFile.get(

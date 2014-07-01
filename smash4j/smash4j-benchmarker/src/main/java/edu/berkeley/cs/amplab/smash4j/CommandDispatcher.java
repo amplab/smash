@@ -19,7 +19,7 @@ public abstract class CommandDispatcher {
   public static class DiffCommand {
 
     @Parameter(
-        names = {"--indel_err"})
+        names = { "--indel_err" })
     private Double indelErr;
 
     @Parameter(
@@ -71,11 +71,11 @@ public abstract class CommandDispatcher {
     private Integer rescueWindowSize;
 
     @Parameter(
-        names = {"--snp_err"})
+        names = { "--snp_err" })
     private Double snpErr;
 
     @Parameter(
-        names = {"--sv_err"})
+        names = { "--sv_err" })
     private Double svErr;
 
     @Parameter(

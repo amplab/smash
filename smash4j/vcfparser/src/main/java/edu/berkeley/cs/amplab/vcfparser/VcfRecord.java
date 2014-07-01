@@ -21,7 +21,7 @@ public final class VcfRecord {
     private Optional<List<String>> ids = Optional.absent();
     private Optional<Map<String, List<String>>> info = Optional.absent();
     private Optional<Integer> pos = Optional.absent();
-    private Optional<Integer> qual = Optional.absent();
+    private Optional<Double> qual = Optional.absent();
     private Optional<String> ref = Optional.absent();
     private final ImmutableList.Builder<List<String>> samples = ImmutableList.builder();
 
@@ -33,7 +33,7 @@ public final class VcfRecord {
         List<String> ids,
         String ref,
         List<String> alt,
-        Integer qual,
+        Double qual,
         List<String> filters,
         Map<String, List<String>> info,
         List<String> format,
@@ -77,7 +77,7 @@ public final class VcfRecord {
       return this;
     }
 
-    public Builder setQual(int qual) {
+    public Builder setQual(double qual) {
       this.qual = Optional.fromNullable(qual);
       return this;
     }
@@ -133,7 +133,7 @@ public final class VcfRecord {
   private final List<String> ids;
   private final Map<String, List<String>> info;
   private final Integer pos;
-  private final Integer qual;
+  private final Double qual;
   private final String ref;
   private final List<List<String>> samples;
 
@@ -143,7 +143,7 @@ public final class VcfRecord {
       List<String> ids,
       String ref,
       List<String> alt,
-      Integer qual,
+      Double qual,
       List<String> filters,
       Map<String, List<String>> info,
       List<String> format,
@@ -199,7 +199,7 @@ public final class VcfRecord {
     return alt;
   }
 
-  public int qual() {
+  public double qual() {
     return qual;
   }
 

@@ -1,8 +1,11 @@
 package edu.berkeley.cs.amplab.smash4j;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Multiset;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
@@ -40,7 +43,9 @@ public class Main {
       @Override protected void diff(final DiffCommand command) throws Exception {
         File fasta = command.referenceFasta();
         Optional<File> index = command.referenceFastaIndex();
-        print(System.out, (index.isPresent() ? FastaReader.create(fasta, index.get()) : FastaReader.create(fasta))
+        final Optional<Integer> maxIndelSize = command.maxIndelSize();
+        Function<VariantProto, VariantType> getType = VariantType.getType(maxIndelSize.isPresent() ? maxIndelSize.get() : 50);
+        print(System.out, getType, (index.isPresent() ? FastaReader.create(fasta, index.get()) : FastaReader.create(fasta))
             .read(
                 new FastaReader.Callback<Map<String, VariantEvaluator.ContigStats>>() {
                   @Override public Map<String, VariantEvaluator.ContigStats> read(Map<String, Integer> info,
@@ -56,7 +61,6 @@ public class Main {
                                     VariantEvaluator.Builder builder = VariantEvaluator.builder()
                                         .setReference(reference);
                                     Optional<Integer>
-                                        maxIndelSize = command.maxIndelSize(),
                                         maxSvBreakpointDist = command.maxSvBreakpointDistance(),
                                         maxVariantLengthDiff = command.maxVariantLengthDifference(),
                                         rescueWindowSize = command.rescueWindowSize();
@@ -127,7 +131,12 @@ public class Main {
             });
       }
 
-      private PrintStream print(PrintStream out, Map<String, VariantEvaluator.ContigStats> contigStats) {
+      private PrintStream print(PrintStream out, Function<VariantProto, VariantType> getType, Map<String, VariantEvaluator.ContigStats> contigStats) {
+        Multiset<VariantType> fn = HashMultiset.create();
+        Multiset<VariantType> fp = HashMultiset.create();
+        Multiset<VariantType> prd = HashMultiset.create();
+        Multiset<VariantType> tp = HashMultiset.create();
+        Multiset<VariantType> tru = HashMultiset.create();
         for (VariantEvaluator.ContigStats stats : contigStats.values()) {
           Optional<NavigableMap<Integer, VariantProto>>
               allKnownFalsePositives = stats.allKnownFalsePositives(),
@@ -144,9 +153,23 @@ public class Main {
               trueVariants = stats.trueVariants();
           Multimap<VariantType, Integer>
               incorrectPredictions = stats.incorrectPredictions();
-          
+          count(fn, falseNegatives, getType);
+          count(fp, falsePositives, getType);
+          count(prd, predictedVariants, getType);
+          count(tp, truePositives, getType);
+          count(tru, trueVariants, getType);
+        }
+        for (VariantType type : VariantType.values()) {
+          out.format("%d\t%d\t%d\t%d\t%d%n", tru.count(type), prd.count(type), tp.count(type), fp.count(type), fn.count(type));
         }
         return out;
+      }
+
+      private <X, Y> Multiset<Y> count(Multiset<Y> multiset, Map<?, ? extends X> map, Function<? super X, ? extends Y> function) {
+        for (X value : map.values()) {
+          multiset.add(function.apply(value));
+        }
+        return multiset;
       }
 
       @Override protected void setPrefs(CommandDispatcher.SetPrefsCommand command) {
