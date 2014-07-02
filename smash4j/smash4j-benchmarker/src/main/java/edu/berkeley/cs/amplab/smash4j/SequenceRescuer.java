@@ -17,7 +17,6 @@ import com.google.common.collect.PeekingIterator;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.fastaparser.FastaReader.Callback.FastaFile;
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,12 +32,12 @@ public class SequenceRescuer {
   public static class Builder {
 
     private String contig;
-    private NavigableMap<Integer, VariantProto> falseNegatives;
-    private NavigableMap<Integer, VariantProto> falsePositives;
-    private Function<VariantProto, VariantType> getType;
+    private NavigableMap<Integer, Variant> falseNegatives;
+    private NavigableMap<Integer, Variant> falsePositives;
+    private Function<Variant, VariantType> getType;
     private FastaReader.Callback.FastaFile reference;
     private int rescueWindowSize;
-    private NavigableMap<Integer, VariantProto> truePositives;
+    private NavigableMap<Integer, Variant> truePositives;
 
     public SequenceRescuer build() {
       return new SequenceRescuer(
@@ -61,17 +60,17 @@ public class SequenceRescuer {
       return this;
     }
 
-    public Builder setFalseNegatives(NavigableMap<Integer, VariantProto> falseNegatives) {
+    public Builder setFalseNegatives(NavigableMap<Integer, Variant> falseNegatives) {
       this.falseNegatives = falseNegatives;
       return this;
     }
 
-    public Builder setFalsePositives(NavigableMap<Integer, VariantProto> falsePositives) {
+    public Builder setFalsePositives(NavigableMap<Integer, Variant> falsePositives) {
       this.falsePositives = falsePositives;
       return this;
     }
 
-    public Builder setGetTypeFunction(Function<VariantProto, VariantType> getType) {
+    public Builder setGetTypeFunction(Function<Variant, VariantType> getType) {
       this.getType = getType;
       return this;
     }
@@ -86,7 +85,7 @@ public class SequenceRescuer {
       return this;
     }
 
-    public Builder setTruePositives(NavigableMap<Integer, VariantProto> truePositives) {
+    public Builder setTruePositives(NavigableMap<Integer, Variant> truePositives) {
       this.truePositives = truePositives;
       return this;
     }
@@ -95,16 +94,16 @@ public class SequenceRescuer {
   public static class RescuedVariants {
 
     static RescuedVariants create(
-        NavigableMap<Integer, VariantProto> newTruePositives,
-        NavigableMap<Integer, VariantProto> removeFalsePositives) {
+        NavigableMap<Integer, Variant> newTruePositives,
+        NavigableMap<Integer, Variant> removeFalsePositives) {
       return new RescuedVariants(newTruePositives, removeFalsePositives);
     }
 
-    private final NavigableMap<Integer, VariantProto> newTruePositives, removeFalsePositives;
+    private final NavigableMap<Integer, Variant> newTruePositives, removeFalsePositives;
 
     private RescuedVariants(
-        NavigableMap<Integer, VariantProto> newTruePositives,
-        NavigableMap<Integer, VariantProto> removeFalsePositives) {
+        NavigableMap<Integer, Variant> newTruePositives,
+        NavigableMap<Integer, Variant> removeFalsePositives) {
       this.newTruePositives = newTruePositives;
       this.removeFalsePositives = removeFalsePositives;
     }
@@ -125,11 +124,11 @@ public class SequenceRescuer {
       return Objects.hash(newTruePositives(), removeFalsePositives());
     }
 
-    public NavigableMap<Integer, VariantProto> newTruePositives() {
+    public NavigableMap<Integer, Variant> newTruePositives() {
       return newTruePositives;
     }
 
-    public NavigableMap<Integer, VariantProto> removeFalsePositives() {
+    public NavigableMap<Integer, Variant> removeFalsePositives() {
       return removeFalsePositives;
     }
   }
@@ -155,7 +154,7 @@ public class SequenceRescuer {
         }
 
         static Function<Window, Window> windowEnlarger(
-            final NavigableMap<Integer, VariantProto> variants) {
+            final NavigableMap<Integer, Variant> variants) {
           return new Function<Window, Window>() {
                 @Override public Window apply(Window window) {
                   final int
@@ -167,8 +166,8 @@ public class SequenceRescuer {
                           .or(lowerBound),
                       getChoppedVariant(variants, upperBound - 1, HIGHEST_END)
                           .transform(
-                              new Function<VariantProto, Integer>() {
-                                @Override public Integer apply(VariantProto variant) {
+                              new Function<Variant, Integer>() {
+                                @Override public Integer apply(Variant variant) {
                                   int end = GET_END.apply(variant);
                                   return upperBound == end ? end + 1 : end;
                                 }
@@ -178,7 +177,7 @@ public class SequenceRescuer {
               };
         }
 
-        private NavigableMap<Integer, VariantProto> falseNegatives, falsePositives, truePositives;
+        private NavigableMap<Integer, Variant> falseNegatives, falsePositives, truePositives;
         private int size;
 
         Factory build() {
@@ -186,12 +185,12 @@ public class SequenceRescuer {
               windowEnlarger(falsePositives)), windowEnlarger(falseNegatives))), size);
         }
 
-        Builder setFalseNegatives(NavigableMap<Integer, VariantProto> falseNegatives) {
+        Builder setFalseNegatives(NavigableMap<Integer, Variant> falseNegatives) {
           this.falseNegatives = falseNegatives;
           return this;
         }
 
-        Builder setFalsePositives(NavigableMap<Integer, VariantProto> falsePositives) {
+        Builder setFalsePositives(NavigableMap<Integer, Variant> falsePositives) {
           this.falsePositives = falsePositives;
           return this;
         }
@@ -201,7 +200,7 @@ public class SequenceRescuer {
           return this;
         }
 
-        Builder setTruePositives(NavigableMap<Integer, VariantProto> truePositives) {
+        Builder setTruePositives(NavigableMap<Integer, Variant> truePositives) {
           this.truePositives = truePositives;
           return this;
         }
@@ -271,29 +270,29 @@ public class SequenceRescuer {
     }
   }
 
-  private static final Function<Iterable<? extends VariantProto>, List<List<VariantProto>>>
+  private static final Function<Iterable<? extends Variant>, List<List<Variant>>>
       GET_OVERLAPS = grouper(
-          new Function<VariantProto, Predicate<VariantProto>>() {
-            @Override public Predicate<VariantProto> apply(final VariantProto candidate) {
-              return strictlyOverlaps(candidate.getPosition());
+          new Function<Variant, Predicate<Variant>>() {
+            @Override public Predicate<Variant> apply(final Variant candidate) {
+              return strictlyOverlaps(candidate.position());
             }
           });
 
-  private static final Function<VariantProto, Integer>
+  private static final Function<Variant, Integer>
       GET_START =
-          new Function<VariantProto, Integer>() {
-            @Override public Integer apply(VariantProto variant) {
-              return variant.getPosition();
+          new Function<Variant, Integer>() {
+            @Override public Integer apply(Variant variant) {
+              return variant.position();
             }
           },
       GET_END =
-          new Function<VariantProto, Integer>() {
-            @Override public Integer apply(VariantProto variant) {
-              return GET_START.apply(variant) + variant.getReferenceBases().length();
+          new Function<Variant, Integer>() {
+            @Override public Integer apply(Variant variant) {
+              return GET_START.apply(variant) + variant.referenceBases().length();
             }
           };
 
-  static final Ordering<VariantProto>
+  static final Ordering<Variant>
       LOWEST_START = Ordering.natural().onResultOf(GET_START),
       HIGHEST_END = Ordering.natural().onResultOf(GET_END).reverse();
 
@@ -306,13 +305,13 @@ public class SequenceRescuer {
     return chunks.append(getRefBases(reference, contig, begin, end));
   }
 
-  private static Optional<List<VariantProto>> addTruePosToQueue(
-      List<VariantProto> queue, List<VariantProto> truePositives) {
-    List<VariantProto> newQueue = new ArrayList<>();
+  private static Optional<List<Variant>> addTruePosToQueue(
+      List<Variant> queue, List<Variant> truePositives) {
+    List<Variant> newQueue = new ArrayList<>();
     newQueue.addAll(queue);
-    for (VariantProto truePositive : truePositives) {
-      for (VariantProto variant : queue) {
-        if (strictlyOverlaps(truePositive.getPosition()).apply(variant)) {
+    for (Variant truePositive : truePositives) {
+      for (Variant variant : queue) {
+        if (strictlyOverlaps(truePositive.position()).apply(variant)) {
           return Optional.absent();
         }
       }
@@ -338,17 +337,17 @@ public class SequenceRescuer {
     return filtered;
   }
 
-  static Optional<VariantProto> getChoppedVariant(
-      NavigableMap<Integer, VariantProto> variants,
-      int location, Ordering<VariantProto> ordering) {
-    Collection<VariantProto> collection = FluentIterable
+  static Optional<Variant> getChoppedVariant(
+      NavigableMap<Integer, Variant> variants,
+      int location, Ordering<Variant> ordering) {
+    Collection<Variant> collection = FluentIterable
         .from(variants
             .subMap(location - WINDOW_VARIANT_LOOKBACK_SIZE, true, location, true)
             .values())
         .filter(overlaps(location))
         .toList();
     return collection.isEmpty()
-        ? Optional.<VariantProto>absent()
+        ? Optional.<Variant>absent()
         : Optional.of(ordering.min(collection));
   }
 
@@ -358,24 +357,24 @@ public class SequenceRescuer {
         FastaReader.Callback.FastaFile.Orientation.FORWARD);
   }
 
-  private static List<List<VariantProto>> getRestOfPath(
-      final List<VariantProto> chosenSoFar,
-      final List<List<VariantProto>> remainingChoices) {
+  private static List<List<Variant>> getRestOfPath(
+      final List<Variant> chosenSoFar,
+      final List<List<Variant>> remainingChoices) {
     return remainingChoices.isEmpty()
         ? Collections.singletonList(chosenSoFar)
         : ImmutableList.copyOf(Iterables.concat(FluentIterable
             .from(remainingChoices.get(0))
             .filter(
-                new Predicate<VariantProto>() {
-                  @Override public boolean apply(VariantProto choice) {
-                    return !Iterables.any(chosenSoFar, strictlyOverlaps(choice.getPosition()));
+                new Predicate<Variant>() {
+                  @Override public boolean apply(Variant choice) {
+                    return !Iterables.any(chosenSoFar, strictlyOverlaps(choice.position()));
                   }
                 })
             .transform(
-                new Function<VariantProto, List<List<VariantProto>>>() {
-                  @Override public List<List<VariantProto>> apply(VariantProto choice) {
+                new Function<Variant, List<List<Variant>>>() {
+                  @Override public List<List<Variant>> apply(Variant choice) {
                     return getRestOfPath(
-                        ImmutableList.<VariantProto>builder()
+                        ImmutableList.<Variant>builder()
                             .addAll(chosenSoFar)
                             .add(choice)
                             .build(),
@@ -385,17 +384,17 @@ public class SequenceRescuer {
   }
 
   static Optional<String> getSequence(FastaReader.Callback.FastaFile reference,
-      String contig, Window window, List<VariantProto> variants) {
+      String contig, Window window, List<Variant> variants) {
     StringBuilder builder = new StringBuilder();
     int homOffset = window.lowerBound();
-    for (VariantProto variant : variants) {
-      String referenceBases = variant.getReferenceBases();
-      int position = variant.getPosition(), next = referenceBases.length() + position;
+    for (Variant variant : variants) {
+      String referenceBases = variant.referenceBases();
+      int position = variant.position(), next = referenceBases.length() + position;
       if (!Objects.equals(referenceBases, getRefBases(reference, contig, position, next))) {
         return Optional.absent();
       }
       addRefBasesUntil(builder, reference, contig, homOffset, position).append(
-          variant.getAlternateBasesList().get(0));
+          variant.alternateBases().get(0));
       homOffset = next;
     }
     return Optional.of(
@@ -429,42 +428,42 @@ public class SequenceRescuer {
         };
   }
 
-  private final Predicate<VariantProto>
+  private final Predicate<Variant>
       isNonSnp = Predicates.not(
-          new Predicate<VariantProto>() {
-            @Override public boolean apply(VariantProto variant) {
+          new Predicate<Variant>() {
+            @Override public boolean apply(Variant variant) {
               return getType.apply(variant).isSnp();
             }
           }),
       isNotStructuralVariant = Predicates.not(
-          new Predicate<VariantProto>() {
-            @Override public boolean apply(VariantProto variant) {
+          new Predicate<Variant>() {
+            @Override public boolean apply(Variant variant) {
               return getType.apply(variant).isStructuralVariant();
             }
           });
 
-  private static List<Integer> losses(VariantProto variant) {
-    int referenceBasesLength = variant.getReferenceBases().length();
+  private static List<Integer> losses(Variant variant) {
+    int referenceBasesLength = variant.referenceBases().length();
     ImmutableList.Builder<Integer> losses = ImmutableList.builder();
-    for (String alternateBases : variant.getAlternateBasesList()) {
+    for (String alternateBases : variant.alternateBases()) {
       losses.add(Math.max(0, alternateBases.length() - referenceBasesLength));
     }
     return losses.build();
   }
 
-  private static Predicate<VariantProto> overlaps(final int location) {
-    return new Predicate<VariantProto>() {
-          @Override public boolean apply(VariantProto variant) {
+  private static Predicate<Variant> overlaps(final int location) {
+    return new Predicate<Variant>() {
+          @Override public boolean apply(Variant variant) {
             return GET_START.apply(variant) <= location
                 && location < GET_END.apply(variant);
           }
         };
   }
 
-  private static Predicate<VariantProto> overlapsAllele(final int location) {
-    return new Predicate<VariantProto>() {
-          @Override public boolean apply(VariantProto variant) {
-            int position = variant.getPosition();
+  private static Predicate<Variant> overlapsAllele(final int location) {
+    return new Predicate<Variant>() {
+          @Override public boolean apply(Variant variant) {
+            int position = variant.position();
             for (Integer loss : losses(variant)) {
               if (location - loss <= position && position <= location) {
                 return true;
@@ -475,12 +474,12 @@ public class SequenceRescuer {
         };
   }
 
-  private static Predicate<VariantProto> strictlyOverlaps(final int location) {
-    return new Predicate<VariantProto>() {
-          @Override public boolean apply(VariantProto variant) {
-            int position = variant.getPosition();
+  private static Predicate<Variant> strictlyOverlaps(final int location) {
+    return new Predicate<Variant>() {
+          @Override public boolean apply(Variant variant) {
+            int position = variant.position();
             return position <= location
-                && location < position + variant.getReferenceBases().length();
+                && location < position + variant.referenceBases().length();
           }
         };
   }
@@ -495,21 +494,21 @@ public class SequenceRescuer {
   }
 
   private final String contig;
-  private final NavigableMap<Integer, VariantProto> falseNegatives;
-  private final NavigableMap<Integer, VariantProto> falsePositives;
-  private final Function<VariantProto, VariantType> getType;
+  private final NavigableMap<Integer, Variant> falseNegatives;
+  private final NavigableMap<Integer, Variant> falsePositives;
+  private final Function<Variant, VariantType> getType;
   private final FastaReader.Callback.FastaFile reference;
-  private final NavigableMap<Integer, VariantProto> truePositives;
+  private final NavigableMap<Integer, Variant> truePositives;
   private final Window.Factory windowFactory;
 
   private SequenceRescuer(
       String contig,
-      NavigableMap<Integer, VariantProto> truePositives,
-      NavigableMap<Integer, VariantProto> falsePositives,
-      NavigableMap<Integer, VariantProto> falseNegatives,
+      NavigableMap<Integer, Variant> truePositives,
+      NavigableMap<Integer, Variant> falsePositives,
+      NavigableMap<Integer, Variant> falseNegatives,
       FastaFile reference,
       Window.Factory windowFactory,
-      Function<VariantProto, VariantType> getType) {
+      Function<Variant, VariantType> getType) {
     this.contig = contig;
     this.truePositives = truePositives;
     this.falsePositives = falsePositives;
@@ -519,15 +518,15 @@ public class SequenceRescuer {
     this.getType = getType;
   }
 
-  private List<VariantProto> extractRangeAndFilter(
-      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
-    NavigableMap<Integer, VariantProto>
+  private List<Variant> extractRangeAndFilter(
+      NavigableMap<Integer, Variant> variants, Window window, int location) {
+    NavigableMap<Integer, Variant>
         result = filter(window.restrict(variants), isNotStructuralVariant);
-    VariantProto variant = variants.get(location);
+    Variant variant = variants.get(location);
     if (null == variant) {
       return ImmutableList.copyOf(result.values());
     }
-    Predicate<VariantProto> predicate = Predicates.or(
+    Predicate<Variant> predicate = Predicates.or(
         Predicates.compose(Predicates.equalTo(location), GET_START),
         Predicates.not(Predicates.or(
             overlapsAllele(location),
@@ -535,13 +534,13 @@ public class SequenceRescuer {
     return ImmutableList.copyOf(filter(result, predicate).values());
   }
 
-  private List<List<VariantProto>> extractVariantQueues(
-      NavigableMap<Integer, VariantProto> variants, Window window, int location) {
-    List<VariantProto>
+  private List<List<Variant>> extractVariantQueues(
+      NavigableMap<Integer, Variant> variants, Window window, int location) {
+    List<Variant>
         variantsInWindow = extractRangeAndFilter(variants, window, location);
     return variantsInWindow.isEmpty()
-        ? Collections.<List<VariantProto>>emptyList()
-        : getRestOfPath(new ArrayList<VariantProto>(), GET_OVERLAPS.apply(variantsInWindow));
+        ? Collections.<List<Variant>>emptyList()
+        : getRestOfPath(new ArrayList<Variant>(), GET_OVERLAPS.apply(variantsInWindow));
   }
 
   public Optional<RescuedVariants> tryRescue(final int position) {
@@ -556,29 +555,29 @@ public class SequenceRescuer {
   }
 
   private Optional<RescuedVariants> tryRescue(int location, final Window window) {
-    List<List<VariantProto>>
+    List<List<Variant>>
         falseNegativesQueue = extractVariantQueues(this.falseNegatives, window, location),
         falsePositivesQueue = extractVariantQueues(this.falsePositives, window, location);
-    final List<VariantProto> truePositives =
+    final List<Variant> truePositives =
         extractRangeAndFilter(this.truePositives, window, location);
     if (falseNegativesQueue.isEmpty()
         || falsePositivesQueue.isEmpty()
         || WINDOW_MAX_OVERLAPPING < falseNegativesQueue.size() * falsePositivesQueue.size()) {
       return Optional.absent();
     }
-    for (final List<VariantProto> newTruePositives : falseNegativesQueue) {
-      for (final List<VariantProto> removeFalsePositives : falsePositivesQueue) {
+    for (final List<Variant> newTruePositives : falseNegativesQueue) {
+      for (final List<Variant> removeFalsePositives : falsePositivesQueue) {
         if (Iterables.any(Iterables.concat(newTruePositives, removeFalsePositives), isNonSnp)) {
           return addTruePosToQueue(newTruePositives, truePositives)
               .transform(
-                  new Function<List<VariantProto>, Optional<RescuedVariants>>() {
+                  new Function<List<Variant>, Optional<RescuedVariants>>() {
                     @Override public Optional<RescuedVariants> apply(
-                        final List<VariantProto> falseNegatives) {
+                        final List<Variant> falseNegatives) {
                       return addTruePosToQueue(removeFalsePositives, truePositives)
                           .transform(
-                              new Function<List<VariantProto>, Optional<RescuedVariants>>() {
+                              new Function<List<Variant>, Optional<RescuedVariants>>() {
                                 @Override public Optional<RescuedVariants> apply(
-                                    List<VariantProto> falsePositives) {
+                                    List<Variant> falsePositives) {
                                   Optional<String>
                                       falseNegativesSequence =
                                           getSequence(reference, contig, window, falseNegatives),

@@ -3,8 +3,6 @@ package edu.berkeley.cs.amplab.smash4j;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
-
 public enum VariantType {
 
   INDEL_DELETION(false, false),
@@ -16,13 +14,13 @@ public enum VariantType {
   SV_INSERTION(false, true),
   SV_OTHER(false, true);
 
-  private static String getFirstAlt(VariantProto variant) {
-    return Iterables.getOnlyElement(variant.getAlternateBasesList());
+  private static String getFirstAlt(Variant variant) {
+    return Iterables.getOnlyElement(variant.alternateBases());
   }
 
-  public static Function<VariantProto, VariantType> getType(final int maxIndelSize) {
-    return new Function<VariantProto, VariantType>() {
-          @Override public VariantType apply(VariantProto variant) {
+  public static Function<Variant, VariantType> getType(final int maxIndelSize) {
+    return new Function<Variant, VariantType>() {
+          @Override public VariantType apply(Variant variant) {
             return isSnp(variant)
                 ? SNP
                 : isStructuralVariant(variant, maxIndelSize)
@@ -42,20 +40,20 @@ public enum VariantType {
         };
   }
 
-  private static boolean hasSingleAlt(VariantProto variant) {
-    return 1 == variant.getAlternateBasesCount();
+  private static boolean hasSingleAlt(Variant variant) {
+    return 1 == variant.alternateBases().size();
   }
 
-  private static boolean isDeletion(VariantProto variant) {
-    return getFirstAlt(variant).length() < variant.getReferenceBases().length();
+  private static boolean isDeletion(Variant variant) {
+    return getFirstAlt(variant).length() < variant.referenceBases().length();
   }
 
-  private static boolean isInsertion(VariantProto variant) {
-    return variant.getReferenceBases().length() < getFirstAlt(variant).length();
+  private static boolean isInsertion(Variant variant) {
+    return variant.referenceBases().length() < getFirstAlt(variant).length();
   }
 
-  private static boolean isInversion(VariantProto variant) {
-    String ref = variant.getReferenceBases(), alt = getFirstAlt(variant);
+  private static boolean isInversion(Variant variant) {
+    String ref = variant.referenceBases(), alt = getFirstAlt(variant);
     int length = ref.length();
     if (length == alt.length()) {
       for (int i = 0; i < length; ++i) {
@@ -68,9 +66,9 @@ public enum VariantType {
     return false;
   }
 
-  private static boolean isSnp(VariantProto variant) {
-    if (1 == variant.getReferenceBases().length()) {
-      for (String alternateBases : variant.getAlternateBasesList()) {
+  private static boolean isSnp(Variant variant) {
+    if (1 == variant.referenceBases().length()) {
+      for (String alternateBases : variant.alternateBases()) {
         if (1 != alternateBases.length()) {
           return false;
         }
@@ -80,15 +78,15 @@ public enum VariantType {
     return false;
   }
 
-  private static boolean isStructuralVariant(VariantProto variant, int maxIndelSize) {
-    if (variant.getReferenceBases().length() <= maxIndelSize) {
-      for (String alternateBases : variant.getAlternateBasesList()) {
+  private static boolean isStructuralVariant(Variant variant, int maxIndelSize) {
+    if (variant.referenceBases().length() <= maxIndelSize) {
+      for (String alternateBases : variant.alternateBases()) {
         if (maxIndelSize < alternateBases.length()) {
           return true;
         }
       }
-      for (VariantProto.Multimap.Entry entry : variant.getInfo().getEntryList()) {
-        if ("SVTYPE".equals(entry.getKey())) {
+      for (String key : variant.info().keySet()) {
+        if ("SVTYPE".equals(key)) {
           return true;
         }
       }

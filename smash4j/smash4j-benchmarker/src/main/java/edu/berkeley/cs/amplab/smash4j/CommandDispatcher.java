@@ -16,7 +16,7 @@ import java.io.File;
 public abstract class CommandDispatcher {
 
   @Parameters(separators = "=")
-  public static class DiffCommand {
+  public static class MainCommand {
 
     @Parameter(
         names = { "--indel_err" })
@@ -148,7 +148,7 @@ public abstract class CommandDispatcher {
       return Optional.fromNullable(trueVcf);
     }
 
-    DiffCommand validate() {
+    MainCommand validate() {
       validateDouble(indelErr(), "indel_err");
       validateDouble(snpErr(), "snp_err");
       validateDouble(svErr(), "sv_err");
@@ -235,111 +235,6 @@ public abstract class CommandDispatcher {
       for (Test test : TESTS) {
         test.test(flag, file);
       }
-    }
-  }
-
-  @Parameters(separators = "=")
-  public static class MainCommand {
-
-    @Parameter(names = { "--lhs" })
-    private String leftHandSide;
-
-    @Parameter(names = { "--rhs" })
-    private String rightHandSide;
-
-    public Optional<String> leftHandSide() {
-      return Optional.fromNullable(leftHandSide);
-    }
-
-    public Optional<String> rightHandSide() {
-      return Optional.fromNullable(rightHandSide);
-    }
-  }
-
-  @Parameters(separators = "=")
-  public static class NormalizeCommand {
-
-    @Parameter(
-        names = { "--callset" })
-    private String callset;
-
-    @Parameter(
-        names = { "--clean_only" })
-    private boolean cleanOnly;
-
-    @Parameter(
-        names = { "--max_indel_size" })
-    private Integer maxIndelSize;
-
-    @Parameter(
-        names = { "--out" },
-        converter = FileConverter.class)
-    private File out;
-
-    @Parameter(
-        names = { "--reference_fasta" },
-        converter = FileConverter.class,
-        validateValueWith = FileValidator.class)
-    private File referenceFasta;
-
-    @Parameter(
-        names = { "--reference_fasta_index" },
-        converter = FileConverter.class,
-        validateValueWith = FileValidator.class)
-    private File referenceFastaIndex;
-
-    @Parameter(
-        names = { "--vcf" },
-        converter = FileConverter.class,
-        validateValueWith = FileValidator.class)
-    private File vcf;
-
-    public Optional<String> callset() {
-      return Optional.fromNullable(callset);
-    }
-
-    public boolean cleanOnly() {
-      return cleanOnly;
-    }
-
-    public Optional<Integer> maxIndexSize() {
-      return Optional.fromNullable(maxIndelSize);
-    }
-
-    public Optional<File> out() {
-      return Optional.fromNullable(out);
-    }
-
-    public File referenceFasta() {
-      return referenceFasta;
-    }
-
-    public Optional<File> referenceFastaIndex() {
-      return Optional.fromNullable(referenceFastaIndex);
-    }
-
-    NormalizeCommand validate() {
-      if (null == referenceFasta) {
-        throw new IllegalArgumentException(
-            "Flag \"--reference_fasta\" is required");
-      }
-      if (null == callset && null == vcf) {
-        throw new IllegalArgumentException(
-            "One of \"--callset\" or \"--vcf\" is required");
-      }
-      if (null != callset && null != vcf) {
-        throw new IllegalArgumentException(
-            "Only one of \"--callset\" or \"--vcf\" can be specified");
-      }
-      if (null == out) {
-        throw new IllegalArgumentException(
-            "Flag \"--out\" is required");
-      }
-      return this;
-    }
-
-    public Optional<File> vcf() {
-      return Optional.fromNullable(vcf);
     }
   }
 
@@ -448,19 +343,16 @@ public abstract class CommandDispatcher {
     }
   }
 
-  protected abstract void diff(DiffCommand diff) throws Exception;
   protected abstract void main(MainCommand command) throws Exception;
-  protected abstract void normalize(NormalizeCommand command) throws Exception;
+  protected abstract void setPrefs(SetPrefsCommand command) throws Exception;
+  protected abstract void showPrefs(ShowPrefsCommand command) throws Exception;
+
   public final void parse(String... args) throws Exception {
-    DiffCommand diff = new DiffCommand();
     MainCommand main = new MainCommand();
-    NormalizeCommand normalize = new NormalizeCommand();
     SetPrefsCommand setPrefs = new SetPrefsCommand();
     ShowPrefsCommand showPrefs = new ShowPrefsCommand();
     JCommander jCommander = new JCommander(main);
     jCommander.setProgramName("smash4j");
-    jCommander.addCommand("diff", diff);
-    jCommander.addCommand("normalize", normalize);
     jCommander.addCommand("setprefs", setPrefs);
     jCommander.addCommand("showprefs", showPrefs);
     try {
@@ -468,12 +360,6 @@ public abstract class CommandDispatcher {
       String command = jCommander.getParsedCommand();
       if (null != command) {
         switch (command) {
-          case "diff":
-            diff(diff.validate());
-            break;
-          case "normalize":
-            normalize(normalize.validate());
-            break;
           case "setprefs":
             setPrefs(setPrefs);
             break;
@@ -490,7 +376,4 @@ public abstract class CommandDispatcher {
       main(main);
     }
   }
-  protected abstract void setPrefs(SetPrefsCommand command) throws Exception;
-
-  protected abstract void showPrefs(ShowPrefsCommand command) throws Exception;
 }

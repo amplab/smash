@@ -1,9 +1,9 @@
 package edu.berkeley.cs.amplab.smash4j;
 
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
@@ -26,7 +26,196 @@ import java.util.regex.Pattern;
 
 public abstract class Variant {
 
+  public static class Builder {
+
+    private List<String> alternateBases;
+    private List<Call> calls;
+    private String contig;
+    private ListMultimap<String, String> info;
+    private List<String> names;
+    private Integer position;
+    private String referenceBases;
+
+    private Builder(
+        List<String> alternateBases,
+        List<Call> calls,
+        String contig,
+        ListMultimap<String, String> info,
+        List<String> names,
+        Integer position,
+        String referenceBases) {
+      if (null != alternateBases) {
+        setAlternateBases(alternateBases);
+      }
+      if (null != calls) {
+        setCalls(calls);
+      }
+      if (null != contig) {
+        setContig(contig);
+      }
+      if (null != info) {
+        setInfo(info);
+      }
+      if (null != names) {
+        setNames(names);
+      }
+      if (null != position) {
+        setPosition(position);
+      }
+      if (null != referenceBases) {
+        setReferenceBases(referenceBases);
+      }
+    }
+
+    public Variant build() {
+      Preconditions.checkNotNull(alternateBases);
+      Preconditions.checkNotNull(calls);
+      Preconditions.checkNotNull(contig);
+      Preconditions.checkNotNull(info);
+      Preconditions.checkNotNull(names);
+      Preconditions.checkNotNull(position);
+      Preconditions.checkNotNull(referenceBases);
+      return new Variant() {
+
+            @Override public List<String> alternateBases() {
+              return alternateBases;
+            }
+
+            @Override public List<Call> calls() {
+              return calls;
+            }
+
+            @Override public String contig() {
+              return contig;
+            }
+
+            @Override public ListMultimap<String, String> info() {
+              return info;
+            }
+
+            @Override public List<String> names() {
+              return names;
+            }
+
+            @Override public int position() {
+              return position;
+            }
+
+            @Override public String referenceBases() {
+              return referenceBases;
+            }
+          };
+    }
+
+    public Builder setAlternateBases(List<String> alternateBases) {
+      this.alternateBases = alternateBases;
+      return this;
+    }
+
+    public Builder setCalls(List<Call> calls) {
+      this.calls = calls;
+      return this;
+    }
+
+    public Builder setContig(String contig) {
+      this.contig = contig;
+      return this;
+    }
+
+    public Builder setInfo(ListMultimap<String, String> info) {
+      this.info = info;
+      return this;
+    }
+
+    public Builder setNames(List<String> names) {
+      this.names = names;
+      return this;
+    }
+
+    public Builder setPosition(int position) {
+      this.position = position;
+      return this;
+    }
+
+    public Builder setReferenceBases(String referenceBases) {
+      this.referenceBases = referenceBases;
+      return this;
+    }
+  }
+
   public abstract static class Call {
+
+    public static class Builder {
+
+      private List<Integer> genotype;
+      private List<Double> genotypeLikelihood;
+      private ListMultimap<String, String> info;
+      private Optional<Integer> phaseset;
+
+      private Builder(
+          List<Integer> genotype,
+          List<Double> genotypeLikelihood,
+          ListMultimap<String, String> info,
+          Optional<Integer> phaseset) {
+        if (null != genotype) {
+          setGenotype(genotype);
+        }
+        if (null != genotypeLikelihood) {
+          setGenotypeLikelihood(genotypeLikelihood);
+        }
+        if (null != info) {
+          setInfo(info);
+        }
+        if (null != phaseset) {
+          setPhaseset(phaseset);
+        }
+      }
+
+      public Call build() {
+        Preconditions.checkNotNull(genotype);
+        Preconditions.checkNotNull(genotypeLikelihood);
+        Preconditions.checkNotNull(info);
+        Preconditions.checkNotNull(phaseset);
+        return new Call() {
+
+              @Override public List<Integer> genotype() {
+                return genotype;
+              }
+
+              @Override public List<Double> genotypeLikelihood() {
+                return genotypeLikelihood;
+              }
+
+              @Override public ListMultimap<String, String> info() {
+                return info;
+              }
+
+              @Override public Optional<Integer> phaseset() {
+                return phaseset;
+              }
+            };
+      }
+
+      public Builder setGenotype(List<Integer> genotype) {
+        this.genotype = genotype;
+        return this;
+      }
+
+      public Builder setGenotypeLikelihood(List<Double> genotypeLikelihood) {
+        this.genotypeLikelihood = genotypeLikelihood;
+        return this;
+      }
+
+      public Builder setInfo(ListMultimap<String, String> info) {
+        this.info = info;
+        return this;
+      }
+
+      public Builder setPhaseset(Optional<Integer> phaseset) {
+        this.phaseset = phaseset;
+        return this;
+      }
+    }
 
     static final Function<com.google.api.services.genomics.model.Call, Call> CREATE_FROM_CALL =
         new Function<com.google.api.services.genomics.model.Call, Call>() {
@@ -62,6 +251,14 @@ public abstract class Variant {
             return call.phaseset();
           }
         };
+
+    public static Builder builder() {
+      return new Builder(
+          Collections.<Integer>emptyList(),
+          Collections.<Double>emptyList(),
+          ImmutableListMultimap.<String, String>of(),
+          Optional.<Integer>absent());
+    }
 
     static Call create(final com.google.api.services.genomics.model.Call delegate) {
       return new Call() {
@@ -121,18 +318,41 @@ public abstract class Variant {
         private final Supplier<List<Integer>> genotype = Suppliers.memoize(
             new Supplier<List<Integer>>() {
               @Override public List<Integer> get() {
-                return GENOTYPE_SPLITTER.apply(Iterables.getOnlyElement(info().get("GT")));
+                return GENOTYPE_SPLITTER.apply(
+                    Iterables.getOnlyElement(originalInfo.get().get("GT")));
               }
             });
 
         private final Supplier<List<Double>> genotypeLikelihood = Suppliers.memoize(
             new Supplier<List<Double>>() {
               @Override public List<Double> get() {
-                return FluentIterable.from(info().get("GL")).transform(PARSE_DOUBLE).toList();
+                return FluentIterable.from(originalInfo.get().get("GL"))
+                    .transform(PARSE_DOUBLE)
+                    .toList();
               }
             });
 
         private final Supplier<ListMultimap<String, String>> info = Suppliers.memoize(
+            new Supplier<ListMultimap<String, String>>() {
+              @Override public ListMultimap<String, String> get() {
+                ImmutableListMultimap.Builder<String, String>
+                    multimap = ImmutableListMultimap.builder();
+                for (Map.Entry<String, String> entry : originalInfo.get().entries()) {
+                  String key = entry.getKey();
+                  switch (key) {
+                    case "GT":
+                    case "GL":
+                    case "PS":
+                      break;
+                    default:
+                      multimap.put(key, entry.getValue());
+                  }
+                }
+                return multimap.build();
+              }
+            });
+
+        private final Supplier<ListMultimap<String, String>> originalInfo = Suppliers.memoize(
             new Supplier<ListMultimap<String, String>>() {
 
               @Override public ListMultimap<String, String> get() {
@@ -154,7 +374,7 @@ public abstract class Variant {
         private final Supplier<Optional<Integer>> phaseset = Suppliers.memoize(
             new Supplier<Optional<Integer>>() {
               @Override public Optional<Integer> get() {
-                List<String> phaseset = info().get("PS");
+                List<String> phaseset = originalInfo.get().get("PS");
                 switch (phaseset.size()) {
                   case 0:
                     return Optional.absent();
@@ -187,7 +407,7 @@ public abstract class Variant {
     @Override
     public final boolean equals(Object obj) {
       boolean same = this == obj;
-      if (!same && null != obj && Call.class == obj.getClass()) {
+      if (!same && obj instanceof Call) {
         Call rhs = (Call) obj;
         return Objects.equals(genotype(), rhs.genotype())
             && Objects.equals(genotypeLikelihood(), rhs.genotypeLikelihood())
@@ -213,6 +433,10 @@ public abstract class Variant {
     public abstract ListMultimap<String, String> info();
 
     public abstract Optional<Integer> phaseset();
+
+    public final Builder toBuilder() {
+      return new Builder(genotype(), genotypeLikelihood(), info(), phaseset());
+    }
 
     @Override
     public final String toString() {
@@ -243,7 +467,7 @@ public abstract class Variant {
       };
 
   private static final Function<CharSequence, List<String>> COMMA_SPLITTER =
-      splitter("([^,]*?)(?:,|$)", Functions.<String>identity());
+      splitter("([^,]+?)(?:,|$)", Functions.<String>identity());
 
   public static final Function<Variant, String> CONTIG =
       new Function<Variant, String>() {
@@ -274,7 +498,7 @@ public abstract class Variant {
         }
       };
 
-  private static final Function<CharSequence, List<Integer>> GENOTYPE_SPLITTER =
+  static final Function<CharSequence, List<Integer>> GENOTYPE_SPLITTER =
       splitter("(0|(?:[1-9][0-9]*?))(?:[/|]|$)", PARSE_INT);
 
   public static final Function<Variant, ListMultimap<String, String>> INFO =
@@ -311,6 +535,17 @@ public abstract class Variant {
           return variant.referenceBases();
         }
       };
+
+  public static Builder builder() {
+    return new Builder(
+        Collections.<String>emptyList(),
+        Collections.<Call>emptyList(),
+        null,
+        ImmutableListMultimap.<String, String>of(),
+        Collections.<String>emptyList(),
+        null,
+        null);
+  }
 
   public static Variant create(final com.google.api.services.genomics.model.Variant delegate) {
     return new Variant() {
@@ -537,7 +772,7 @@ public abstract class Variant {
 
   @Override public final boolean equals(Object obj) {
     boolean same = this == obj;
-    if (!same && null != obj && Variant.class == obj.getClass()) {
+    if (!same && obj instanceof Variant) {
       Variant rhs = (Variant) obj;
       return Objects.equals(alternateBases(), rhs.alternateBases())
           && Objects.equals(calls(), rhs.calls()) && Objects.equals(contig(), rhs.contig())
@@ -565,6 +800,17 @@ public abstract class Variant {
   public abstract int position();
 
   public abstract String referenceBases();
+
+  public final Builder toBuilder() {
+    return new Builder(
+        alternateBases(),
+        calls(),
+        contig(),
+        info(),
+        names(),
+        position(),
+        referenceBases());
+  }
 
   @Override public final String toString() {
     return String.format(

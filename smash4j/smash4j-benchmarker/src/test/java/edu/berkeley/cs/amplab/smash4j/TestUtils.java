@@ -1,8 +1,7 @@
 package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Optional;
-
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
+import com.google.common.collect.ImmutableListMultimap;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,31 +33,33 @@ class TestUtils {
     return fastaFile;
   }
 
-  static VariantProto variant(
+  static Variant variant(
       String chrom, int pos, String ref, List<String> alts, String genotype) {
     return variant(chrom, pos, ref, alts, genotype, Optional.<Integer>absent());
   }
 
-  private static VariantProto variant(String chrom, int pos, String ref, List<String> alts,
+  private static Variant variant(String chrom, int pos, String ref, List<String> alts,
       String genotype, Optional<Integer> originalPos) {
-    VariantProto.Builder builder = VariantProto.newBuilder()
+    Variant.Builder builder = Variant.builder()
         .setContig(chrom)
         .setPosition(pos)
         .setReferenceBases(ref)
-        .addAllAlternateBases(alts)
-        .addCall(VariantProto.Multimap.newBuilder()
-            .addEntry(VariantProto.Multimap.Entry.newBuilder()
-                .setKey("GT")
-                .addValue(genotype)));
+        .setAlternateBases(alts)
+        .setCalls(
+            Collections.singletonList(
+                Variant.Call.builder()
+                    .setGenotype(Variant.GENOTYPE_SPLITTER.apply(genotype))
+                    .build()));
     if (originalPos.isPresent()) {
-      builder.getInfoBuilder().addEntry(VariantProto.Multimap.Entry.newBuilder()
-          .setKey(Normalizer.NORM_INFO_TAG)
-          .addValue(String.valueOf(originalPos.get())));
+      builder.setInfo(
+          ImmutableListMultimap.<String, String>builder()
+              .put(Normalizer.NORM_INFO_TAG, String.valueOf(originalPos.get()))
+              .build());
     }
     return builder.build();
   }
 
-  static VariantProto variant(String chrom, int pos, String ref, String alt,
+  static Variant variant(String chrom, int pos, String ref, String alt,
       String genotype) {
     return variant(chrom,
         pos,
@@ -68,7 +69,7 @@ class TestUtils {
         Optional.<Integer>absent());
   }
 
-  static VariantProto variant(String chrom, int pos, String ref, String alt,
+  static Variant variant(String chrom, int pos, String ref, String alt,
       String genotype, int originalPos) {
     return variant(chrom,
         pos,
@@ -78,10 +79,10 @@ class TestUtils {
         Optional.of(originalPos));
   }
 
-  static NavigableMap<Integer, VariantProto> variants(VariantProto... variants) {
-    NavigableMap<Integer, VariantProto> result = new TreeMap<>();
-    for (VariantProto variant : variants) {
-      result.put(variant.getPosition(), variant);
+  static NavigableMap<Integer, Variant> variants(Variant... variants) {
+    NavigableMap<Integer, Variant> result = new TreeMap<>();
+    for (Variant variant : variants) {
+      result.put(variant.position(), variant);
     }
     return result;
   }

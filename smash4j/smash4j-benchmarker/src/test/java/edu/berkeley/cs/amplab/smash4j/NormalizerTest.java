@@ -11,7 +11,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.io.File;
 import java.io.IOException;
@@ -61,30 +60,30 @@ public class NormalizerTest {
 
   @Test
   public void testRegularRecordsAreUnchanged() throws Exception {
-    VariantProto variant = variant("chr1", 2, "C", "A", "0/1");
+    Variant variant = variant("chr1", 2, "C", "A", "0/1");
     assertEquals(variant, normalize(variant).get());
   }
 
   @Test
   public void testHomRefRecordsAreRemoved() throws Exception {
     assertEquals(
-        Optional.<VariantProto>absent(),
+        Optional.<Variant>absent(),
         normalize(variant("chr1", 2, "C", "C", "0/0")));
   }
 
   @Test
   public void testSnpsAndIndelsWithoutGenotypingAreRemoved() throws Exception {
-    for (VariantProto variant : Arrays.asList(
+    for (Variant variant : Arrays.asList(
         variant("chr1", 2, "C", "A", "."),
         variant("chr1", 3, "G", "C", "0/0"),
         variant("chr1", 4, "G", "T", "0|0"))) {
-      assertEquals(Optional.<VariantProto>absent(), normalize(variant));
+      assertEquals(Optional.<Variant>absent(), normalize(variant));
     }
   }
 
   @Test
   public void testSvWithoutGenotypingIsRetained() throws Exception {
-    VariantProto variant = variant("chr1", 2, "C",
+    Variant variant = variant("chr1", 2, "C",
         "AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGCTTCATGAGAGAG", ".");
     assertEquals(variant, normalize(variant).get());
   }
@@ -115,13 +114,13 @@ public class NormalizerTest {
     assertEquals(
         variant("chr2", 3, "G", "GC", "0/1", 6),
         normalize(variant("chr2", 6, "G", "CG", "0/1")).get());
-    VariantProto variant = variant("chr2", 3, "G", Arrays.asList("CG", "C"), "0/1");
+    Variant variant = variant("chr2", 3, "G", Arrays.asList("CG", "C"), "0/1");
     assertEquals(variant, normalize(variant).get());
   }
 
   @Test
   public void testCollidingVariants() throws Exception {
-    VariantProto variant = variant("chr1", 5, "A", "TGC", "1/1");
+    Variant variant = variant("chr1", 5, "A", "TGC", "1/1");
     assertEquals(Collections.singletonList(variant),
         normalize(variant, variant("chr1", 5, "A", "GGG", "1/1")));
   }
@@ -172,30 +171,30 @@ public class NormalizerTest {
             variant("chr4", 2, "ATCTC", "T", "0/1", 2)));
   }
 
-  private static Optional<VariantProto> normalize(VariantProto variant) throws Exception {
+  private static Optional<Variant> normalize(Variant variant) throws Exception {
     return normalize(NormalizerFactory.STANDARD, variant);
   }
 
-  private static Optional<VariantProto> normalize(
+  private static Optional<Variant> normalize(
       final NormalizerFactory factory,
-      final VariantProto variant) throws Exception {
+      final Variant variant) throws Exception {
     return Optional.fromNullable(
-        Iterables.getFirst(normalize(factory, variant, new VariantProto[0]), null));
+        Iterables.getFirst(normalize(factory, variant, new Variant[0]), null));
   }
 
-  private static List<VariantProto> normalize(
-      final VariantProto head,
-      final VariantProto... tail) throws Exception {
+  private static List<Variant> normalize(
+      final Variant head,
+      final Variant... tail) throws Exception {
     return normalize(NormalizerFactory.STANDARD,  head, tail);
   }
 
-  private static List<VariantProto> normalize(
+  private static List<Variant> normalize(
       final NormalizerFactory factory,
-      final VariantProto head,
-      final VariantProto... tail) throws Exception {
+      final Variant head,
+      final Variant... tail) throws Exception {
     return FastaReader.create(reference).read(
-        new FastaReader.Callback<List<VariantProto>>() {
-          @Override public List<VariantProto> read(
+        new FastaReader.Callback<List<Variant>>() {
+          @Override public List<Variant> read(
               Map<String, Integer> info,
               FastaReader.Callback.FastaFile fastaFile) throws Exception {
         return factory.create(fastaFile)

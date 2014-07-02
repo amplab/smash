@@ -2,15 +2,17 @@ package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,73 +33,73 @@ public class Normalizer {
 
     class Contig implements Iterable<Contig.Position> {
 
-      class Position implements Iterable<VariantProto> {
+      class Position implements Iterable<Variant> {
 
-        private final Map.Entry<Long, Collection<VariantProto>> entry;
+        private final Map.Entry<Integer, Collection<Variant>> entry;
 
-        private Position(Map.Entry<Long, Collection<VariantProto>> entry) {
+        private Position(Map.Entry<Integer, Collection<Variant>> entry) {
           this.entry = entry;
         }
 
-        @Override public Iterator<VariantProto> iterator() {
-          Collection<VariantProto> value = entry.getValue();
+        @Override public Iterator<Variant> iterator() {
+          Collection<Variant> value = entry.getValue();
           if (1 == value.size()) {
             return value.iterator();
           }
-          List<VariantProto>
+          List<Variant>
               normed = new ArrayList<>(),
               notnormed = new ArrayList<>();
-          OUTER: for (VariantProto variant : value) {
-            for (VariantProto.Multimap.Entry entry : variant.getInfo().getEntryList()) {
-              if (NORM_INFO_TAG.equals(entry.getKey())) {
+          OUTER: for (Variant variant : value) {
+            for (String key : variant.info().keySet()) {
+              if (NORM_INFO_TAG.equals(key)) {
                 normed.add(variant);
                 continue OUTER;
               }
             }
             notnormed.add(variant);
           }
-          VariantProto basevar;
+          Variant basevar;
           if (!notnormed.isEmpty()) {
             basevar = Preconditions.checkNotNull(Iterables.getFirst(notnormed, null));
-            for (VariantProto variant : Iterables.skip(notnormed, 1)) {
-              String chrom = variant.getContig();
-              long pos = variant.getPosition();
+            for (Variant variant : Iterables.skip(notnormed, 1)) {
+              String chrom = variant.contig();
+              long pos = variant.position();
               LOGGER.warning(String.format(
                   "Variant already exists on %s at %d; discarding variant %s %d %s/%s",
                   chrom,
                   pos,
                   chrom,
                   pos,
-                  variant.getReferenceBases(),
-                  Joiner.on(",").join(variant.getAlternateBasesList())));
+                  variant.referenceBases(),
+                  Joiner.on(",").join(variant.alternateBases())));
             }
           } else {
             basevar = Preconditions.checkNotNull(Iterables.getFirst(normed, null));
             normed = ImmutableList.copyOf(Iterables.skip(normed, 1));
           }
-          List<VariantProto> finalVars = new ArrayList<>();
-          for (VariantProto variant : normed) {
+          List<Variant> finalVars = new ArrayList<>();
+          for (Variant variant : normed) {
             try {
               finalVars.add(basevar);
               basevar = shiftUntilNotOverlapping(basevar, variant);
             } catch (AssertionError e) {
-              VariantProto first = Preconditions.checkNotNull(Iterables.getFirst(normed, null));
+              Variant first = Preconditions.checkNotNull(Iterables.getFirst(normed, null));
               LOGGER.warning(
-                  String.format("failed denorm at %s %d", first.getContig(), first.getPosition()));
+                  String.format("failed denorm at %s %d", first.contig(), first.position()));
             }
           }
           finalVars.add(basevar);
           return finalVars.iterator();
         }
 
-        private VariantProto shiftUntilNotOverlapping(
-            VariantProto varOne, final VariantProto varTwo) {
-          final String varTwoContig = varTwo.getContig();
-          int onePos = varOne.getPosition() - 1,
-              twoPos = varTwo.getPosition() - 1;
-          String twoRefAllele = varTwo.getReferenceBases();
-          List<String> twoAltAlleles = varTwo.getAlternateBasesList();
-          for (int varOneLastPos = onePos + varOne.getReferenceBases().length();
+        private Variant shiftUntilNotOverlapping(
+            Variant varOne, final Variant varTwo) {
+          final String varTwoContig = varTwo.contig();
+          int onePos = varOne.position() - 1,
+              twoPos = varTwo.position() - 1;
+          String twoRefAllele = varTwo.referenceBases();
+          List<String> twoAltAlleles = varTwo.alternateBases();
+          for (int varOneLastPos = onePos + varOne.referenceBases().length();
               twoPos < varOneLastPos;) {
             final int twoPosCopy = ++twoPos;
             final String twoRefAlleleCopy = twoRefAllele;
@@ -116,8 +118,7 @@ public class Normalizer {
           return varTwo.toBuilder()
               .setPosition(twoPos + 1)
               .setReferenceBases(twoRefAllele)
-              .clearAlternateBases()
-              .addAllAlternateBases(twoAltAlleles)
+              .setAlternateBases(twoAltAlleles)
               .build();
         }
 
@@ -142,16 +143,16 @@ public class Normalizer {
         }
       }
 
-      private final Map.Entry<String, Map<Long, Collection<VariantProto>>> entry;
+      private final Map.Entry<String, Map<Integer, Collection<Variant>>> entry;
 
-      final Function<Map.Entry<Long, Collection<VariantProto>>, Position> newPosition =
-          new Function<Map.Entry<Long, Collection<VariantProto>>, Position>() {
-            @Override public Position apply(Map.Entry<Long, Collection<VariantProto>> entry) {
+      final Function<Map.Entry<Integer, Collection<Variant>>, Position> newPosition =
+          new Function<Map.Entry<Integer, Collection<Variant>>, Position>() {
+            @Override public Position apply(Map.Entry<Integer, Collection<Variant>> entry) {
               return new Position(entry);
             }
           };
 
-      private Contig(Map.Entry<String, Map<Long, Collection<VariantProto>>> entry) {
+      private Contig(Map.Entry<String, Map<Integer, Collection<Variant>>> entry) {
         this.entry = entry;
       }
 
@@ -160,17 +161,17 @@ public class Normalizer {
       }
     }
 
-    private final Map<String, Map<Long, Collection<VariantProto>>> cache;
+    private final Map<String, Map<Integer, Collection<Variant>>> cache;
 
-    final Function<Map.Entry<String, Map<Long, Collection<VariantProto>>>, Contig> newContig =
-        new Function<Map.Entry<String, Map<Long, Collection<VariantProto>>>, Contig>() {
+    final Function<Map.Entry<String, Map<Integer, Collection<Variant>>>, Contig> newContig =
+        new Function<Map.Entry<String, Map<Integer, Collection<Variant>>>, Contig>() {
           @Override public Contig apply(
-              Map.Entry<String, Map<Long, Collection<VariantProto>>> entry) {
+              Map.Entry<String, Map<Integer, Collection<Variant>>> entry) {
             return new Contig(entry);
           }
         };
 
-    private PositionCollisionHandler(Map<String, Map<Long, Collection<VariantProto>>> cache) {
+    private PositionCollisionHandler(Map<String, Map<Integer, Collection<Variant>>> cache) {
       this.cache = cache;
     }
 
@@ -212,21 +213,7 @@ public class Normalizer {
     }
   }
 
-  private static class VariantFilter implements Predicate<VariantProto> {
-
-    private static final Function<String, Boolean> NOT_HOMREF =
-        new Function<String, Boolean>() {
-          @Override public Boolean apply(String genotype) {
-            switch (genotype) {
-              case ".":
-              case "0/0":
-              case "0|0":
-                return false;
-              default:
-                return true;
-            }
-          }
-        };
+  private static class VariantFilter implements Predicate<Variant> {
 
     private static final Pattern SYMBOLIC_ALLELE = Pattern.compile("<.+?>");
 
@@ -240,19 +227,29 @@ public class Normalizer {
       this.maxIndelSize = maxIndelSize;
     }
 
-    @Override public boolean apply(VariantProto variant) {
-      if (maxIndelSize < variant.getReferenceBases().length()) {
+    @Override public boolean apply(Variant variant) {
+      if (maxIndelSize < variant.referenceBases().length()) {
         return true;
       }
-      for (String alternateBases : variant.getAlternateBasesList()) {
+      for (String alternateBases : variant.alternateBases()) {
         if (maxIndelSize < alternateBases.length()
             || SYMBOLIC_ALLELE.matcher(alternateBases).matches()) {
           return true;
         }
       }
-      return GenotypeExtractor.INSTANCE.getGenotype(variant)
-          .transform(NOT_HOMREF)
+      return Optional.fromNullable(Iterables.getFirst(Genotype.getGenotypes(variant), null))
+          .transform(fromPredicate(Predicates.not(Predicates.or(
+              Predicates.equalTo(Genotype.NO_CALL),
+              Predicates.equalTo(Genotype.HOM_REF)))))
           .or(Boolean.FALSE);
+    }
+
+    private static <X> Function<X, Boolean> fromPredicate(final Predicate<? super X> predicate) {
+      return new Function<X, Boolean>() {
+            @Override public Boolean apply(X object) {
+              return predicate.apply(object) ? Boolean.TRUE : Boolean.FALSE;
+            }
+          };
     }
   }
 
@@ -316,19 +313,18 @@ public class Normalizer {
   private final FastaReader.Callback.FastaFile fastaFile;
   private final int maxIndelSize;
 
-  private final Function<VariantProto, VariantProto> normalize =
-      new Function<VariantProto, VariantProto>() {
+  private final Function<Variant, Variant> normalize =
+      new Function<Variant, Variant>() {
 
-        @Override public VariantProto apply(VariantProto variant) {
-          String ref = TO_UPPER_CASE.apply(variant.getReferenceBases());
-          List<String> alts = FluentIterable.from(variant.getAlternateBasesList())
+        @Override public Variant apply(Variant variant) {
+          String ref = TO_UPPER_CASE.apply(variant.referenceBases());
+          List<String> alts = FluentIterable.from(variant.alternateBases())
               .transform(TO_UPPER_CASE)
               .toList();
           if (cleanOnly) {
             return variant.toBuilder()
                 .setReferenceBases(ref)
-                .clearAlternateBases()
-                .addAllAlternateBases(alts)
+                .setAlternateBases(alts)
                 .build();
           }
           Function<String, String> chopper = redundancyChopper(ref, alts);
@@ -336,8 +332,8 @@ public class Normalizer {
           alts = FluentIterable.from(alts)
               .transform(chopper)
               .toList();
-          int originalPosition = variant.getPosition(), pos = originalPosition - 1;
-          for (String contig = variant.getContig(); SameBaseTester.LAST_BASE.sameBase(
+          int originalPosition = variant.position(), pos = originalPosition - 1;
+          for (String contig = variant.contig(); SameBaseTester.LAST_BASE.sameBase(
               Iterables.concat(Collections.singletonList(ref), alts));) {
             final String prevBase = TO_UPPER_CASE.apply(fastaFile.get(
                 contig,
@@ -356,15 +352,16 @@ public class Normalizer {
             alts = FluentIterable.from(alts).transform(slider).toList();
           }
           int newPosition = pos + 1;
-          VariantProto.Builder builder = variant.toBuilder()
+          Variant.Builder builder = variant.toBuilder()
               .setPosition(newPosition)
               .setReferenceBases(ref)
-              .clearAlternateBases()
-              .addAllAlternateBases(alts);
+              .setAlternateBases(alts);
           if (newPosition < originalPosition) {
-            builder.getInfoBuilder().addEntry(VariantProto.Multimap.Entry.newBuilder()
-                .setKey(NORM_INFO_TAG)
-                .addValue(String.valueOf(originalPosition)));
+            builder.setInfo(
+                ImmutableListMultimap.<String, String>builder()
+                    .putAll(variant.info())
+                    .put(NORM_INFO_TAG, String.valueOf(originalPosition))
+                    .build());
           }
           return builder.build();
         }
@@ -377,16 +374,16 @@ public class Normalizer {
     this.cleanOnly = cleanOnly;
   }
 
-  private PositionCollisionHandler createPositionCollisionHandler(Iterable<VariantProto> variants) {
-    Map<String, Map<Long, Collection<VariantProto>>> cache = new TreeMap<>();
-    for (VariantProto variant : variants) {
-      String contig = variant.getContig();
-      long position = variant.getPosition();
-      Map<Long, Collection<VariantProto>> map = cache.get(contig);
+  private PositionCollisionHandler createPositionCollisionHandler(Iterable<Variant> variants) {
+    Map<String, Map<Integer, Collection<Variant>>> cache = new TreeMap<>();
+    for (Variant variant : variants) {
+      String contig = variant.contig();
+      int position = variant.position();
+      Map<Integer, Collection<Variant>> map = cache.get(contig);
       if (null == map) {
         cache.put(contig, map = new TreeMap<>());
       }
-      Collection<VariantProto> list = map.get(position);
+      Collection<Variant> list = map.get(position);
       if (null == list) {
         map.put(position, list = new ArrayList<>());
       }
@@ -395,8 +392,8 @@ public class Normalizer {
     return new PositionCollisionHandler(cache);
   }
 
-  public FluentIterable<VariantProto> normalize(Iterable<VariantProto> variants) {
-    FluentIterable<VariantProto> intermediate = FluentIterable.from(variants)
+  public FluentIterable<Variant> normalize(Iterable<Variant> variants) {
+    FluentIterable<Variant> intermediate = FluentIterable.from(variants)
         .filter(VariantFilter.create(maxIndelSize))
         .transform(normalize);
     return cleanOnly

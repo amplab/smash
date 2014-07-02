@@ -1,10 +1,10 @@
 package edu.berkeley.cs.amplab.smash4j;
 
+import static edu.berkeley.cs.amplab.smash4j.Genotype.HET;
+import static edu.berkeley.cs.amplab.smash4j.Genotype.HOM_VAR;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.getReference;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variant;
 import static edu.berkeley.cs.amplab.smash4j.TestUtils.variants;
-import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.Genotype.HET;
-import static edu.berkeley.cs.amplab.smash4j.VariantEvaluator.Genotype.HOM_VAR;
 import static edu.berkeley.cs.amplab.smash4j.VariantType.INDEL_DELETION;
 import static edu.berkeley.cs.amplab.smash4j.VariantType.SNP;
 import static edu.berkeley.cs.amplab.smash4j.VariantType.SV_INSERTION;
@@ -17,7 +17,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 import edu.berkeley.cs.amplab.smash4j.VariantEvaluator.GenotypeConcordance;
 
 import java.io.File;
@@ -32,8 +31,8 @@ public class VariantEvaluatorTest {
   private static File reference;
 
   private static VariantEvaluator.ContigStats contigStats(String contig,
-      NavigableMap<Integer, VariantProto> trueVariants,
-      NavigableMap<Integer, VariantProto> predictedVariants,
+      NavigableMap<Integer, Variant> trueVariants,
+      NavigableMap<Integer, Variant> predictedVariants,
       Iterable<Integer> truePositiveLocations,
       Iterable<Integer> falsePositiveLocations,
       Iterable<Integer> falseNegativeLocations,
@@ -51,22 +50,22 @@ public class VariantEvaluatorTest {
   }
 
   private static Map<String, VariantEvaluator.ContigStats> evaluate(
-      final Iterable<VariantProto> trueVariants,
-      final Iterable<VariantProto> predictedVariants) throws Exception {
-    return evaluate(trueVariants, predictedVariants, Optional.<Iterable<VariantProto>>absent());
+      final Iterable<Variant> trueVariants,
+      final Iterable<Variant> predictedVariants) throws Exception {
+    return evaluate(trueVariants, predictedVariants, Optional.<Iterable<Variant>>absent());
   }
 
   private static Map<String, VariantEvaluator.ContigStats> evaluate(
-      final Iterable<VariantProto> trueVariants,
-      final Iterable<VariantProto> predictedVariants,
-      final Iterable<VariantProto> knownFalsePositives) throws Exception {
+      final Iterable<Variant> trueVariants,
+      final Iterable<Variant> predictedVariants,
+      final Iterable<Variant> knownFalsePositives) throws Exception {
     return evaluate(trueVariants, predictedVariants, Optional.of(knownFalsePositives));
   }
 
   private static Map<String, VariantEvaluator.ContigStats> evaluate(
-      final Iterable<VariantProto> trueVariants,
-      final Iterable<VariantProto> predictedVariants,
-      final Optional<Iterable<VariantProto>> knownFalsePositives) throws Exception {
+      final Iterable<Variant> trueVariants,
+      final Iterable<Variant> predictedVariants,
+      final Optional<Iterable<Variant>> knownFalsePositives) throws Exception {
     return FastaReader.create(reference).read(
         new FastaReader.Callback<Map<String, VariantEvaluator.ContigStats>>() {
           @Override public Map<String, VariantEvaluator.ContigStats> read(Map<String, Integer> info,
@@ -89,7 +88,7 @@ public class VariantEvaluatorTest {
 
   @Test
   public void testChromEvaluateGenotypeConcordance() throws Exception {
-    NavigableMap<Integer, VariantProto>
+    NavigableMap<Integer, Variant>
         trueVariants = variants(
             variant("chr1", 2, "A", "T", "0/1"),
             variant("chr1", 5, "C", "T", "0/1"),
@@ -136,7 +135,7 @@ public class VariantEvaluatorTest {
 
   @Test
   public void testChromEvaluateVariantsKnownFP() throws Exception {
-    NavigableMap<Integer, VariantProto>
+    NavigableMap<Integer, Variant>
         trueVariants = variants(
             variant("chr1", 2, "A", "T", "0/1")),
         predictedVariants = variants(
@@ -165,7 +164,7 @@ public class VariantEvaluatorTest {
 
   @Test
   public void testChromEvaluateVariantsSV() throws Exception {
-    NavigableMap<Integer, VariantProto>
+    NavigableMap<Integer, Variant>
         trueVariants = variants(variant("chr1", 6, "C", "CGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGAAAAA", "0/1")),
         predictedVariants = variants(variant("chr1", 6, "C", "CGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGACGTGAGATGAAAAA", "0/1"));
     assertEquals(
@@ -227,9 +226,9 @@ public class VariantEvaluatorTest {
 
   @Test
   public void testRescueChromEvalVariants() throws Exception {
-    VariantProto
+    Variant
         rescuedVariant = variant("chr2", 3, "GCCG", "GCA", "1/1");
-    NavigableMap<Integer, VariantProto>
+    NavigableMap<Integer, Variant>
         trueVariants = variants(rescuedVariant),
         predictedVariants = variants(
             variant("chr2", 3, "GC", "G", "1/1"),
@@ -252,10 +251,10 @@ public class VariantEvaluatorTest {
 
   @Test
   public void testRescueTruePosChromEvaluateVariants() throws Exception {
-    VariantProto
+    Variant
         rescuedVariant1 = variant("chr4", 3, "TC", "T", "1/1"),
         rescuedVariant2 = variant("chr4", 8, "C", "T", "1/1");
-    NavigableMap<Integer, VariantProto>
+    NavigableMap<Integer, Variant>
         trueVariants = variants(
             rescuedVariant1,
             variant("chr4", 5, "TC", "T", "1/1"),

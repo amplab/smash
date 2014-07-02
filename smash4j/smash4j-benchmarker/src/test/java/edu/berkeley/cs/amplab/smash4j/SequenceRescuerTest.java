@@ -15,7 +15,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import edu.berkeley.cs.amplab.fastaparser.FastaReader;
-import edu.berkeley.cs.amplab.smash4j.Smash4J.VariantProto;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,9 +42,9 @@ public class SequenceRescuerTest {
   private static Optional<SequenceRescuer.RescuedVariants> tryRescue(
       final String contig,
       final int position,
-      final NavigableMap<Integer, VariantProto> falseNegatives,
-      final NavigableMap<Integer, VariantProto> falsePositives,
-      final NavigableMap<Integer, VariantProto> truePositives) throws Exception {
+      final NavigableMap<Integer, Variant> falseNegatives,
+      final NavigableMap<Integer, Variant> falsePositives,
+      final NavigableMap<Integer, Variant> truePositives) throws Exception {
     return FastaReader.create(reference).read(
         new FastaReader.Callback<Optional<SequenceRescuer.RescuedVariants>>() {
           @Override public Optional<SequenceRescuer.RescuedVariants> read(
@@ -86,7 +85,7 @@ public class SequenceRescuerTest {
 
   @Test
   public void testFullRescue() throws Exception {
-    NavigableMap<Integer, VariantProto>
+    NavigableMap<Integer, Variant>
         falseNegatives = variants(
             variant("chr2", 2, "TGC", "TAT", "1/1")),
         falsePositives = variants(
@@ -120,8 +119,8 @@ public class SequenceRescuerTest {
 
   @Test
   public void testGetChoppedVariant() {
-    VariantProto variant1 = variant("chr19", 88012, "CTTAAGCT", "C", "1/1"), variant2 = variant1;
-    NavigableMap<Integer, VariantProto> variants = variants(variant1);
+    Variant variant1 = variant("chr19", 88012, "CTTAAGCT", "C", "1/1"), variant2 = variant1;
+    NavigableMap<Integer, Variant> variants = variants(variant1);
     assertEquals(Optional.of(variant1), getChoppedVariant(variants, 88015, LOWEST_START));
     assertEquals(Optional.of(variant1), getChoppedVariant(variants, 88015, HIGHEST_END));
     assertEquals(Optional.absent(), getChoppedVariant(
@@ -162,7 +161,7 @@ public class SequenceRescuerTest {
 
   @Test
   public void testNormalizedVariants() throws Exception {
-    NavigableMap<Integer, VariantProto>
+    NavigableMap<Integer, Variant>
         falseNegatives = variants(
             variant("chr4", 2, "A", "ATCTC", "0/1")),
         falsePositives = variants(
