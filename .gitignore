@@ -5,4 +5,4 @@ smashbenchmarking.egg-info/
 *.suo
 *.flat
 *.gdx
-smash4j/*/target
+smash4j/target
