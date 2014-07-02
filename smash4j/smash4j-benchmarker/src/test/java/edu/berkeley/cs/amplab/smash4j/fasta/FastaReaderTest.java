@@ -1,4 +1,4 @@
-package edu.berkeley.cs.amplab.fastaparser;
+package edu.berkeley.cs.amplab.smash4j.fasta;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;

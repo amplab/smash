@@ -15,8 +15,8 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 
-import edu.berkeley.cs.amplab.fastaparser.FastaReader;
-import edu.berkeley.cs.amplab.fastaparser.FastaReader.Callback.FastaFile;
+import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader;
+import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader.Callback.FastaFile;
 
 import java.util.ArrayList;
 import java.util.Collection;

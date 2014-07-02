@@ -1,4 +1,4 @@
-package edu.berkeley.cs.amplab.vcfparser;
+package edu.berkeley.cs.amplab.smash4j.vcf;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -256,3 +256,4 @@ public class VcfParserTest {
         }));
   }
 }
+

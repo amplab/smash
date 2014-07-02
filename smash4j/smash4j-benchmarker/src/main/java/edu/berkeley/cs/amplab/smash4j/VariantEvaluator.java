@@ -16,7 +16,7 @@ import com.google.common.collect.Multimaps;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Ordering;
 
-import edu.berkeley.cs.amplab.fastaparser.FastaReader;
+import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader;
 
 import java.util.ArrayList;
 import java.util.Arrays;

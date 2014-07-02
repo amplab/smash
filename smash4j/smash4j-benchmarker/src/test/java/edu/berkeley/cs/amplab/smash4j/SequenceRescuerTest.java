@@ -14,7 +14,7 @@ import com.google.common.base.Optional;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.berkeley.cs.amplab.fastaparser.FastaReader;
+import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader;
 
 import java.io.File;
 import java.io.IOException;

@@ -14,7 +14,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Maps;
 
-import edu.berkeley.cs.amplab.vcfparser.VcfRecord;
+import edu.berkeley.cs.amplab.smash4j.vcf.VcfRecord;
 
 import java.util.Collections;
 import java.util.Iterator;

@@ -15,16 +15,6 @@
       <version>v1beta-rev11-1.18.0-rc</version>
     </dependency>
     <dependency>
-      <groupId>edu.berkeley.cs.amplab</groupId>
-      <artifactId>vcfparser</artifactId>
-      <version>0.1</version>
-    </dependency>
-    <dependency>
-      <groupId>edu.berkeley.cs.amplab</groupId>
-      <artifactId>fastaparser</artifactId>
-      <version>0.1</version>
-    </dependency>
-    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
       <version>1.35</version>
@@ -48,6 +38,11 @@
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client-jetty</artifactId>
       <version>1.18.0-rc</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>17.0</version>
     </dependency>
   </dependencies>
 </project>

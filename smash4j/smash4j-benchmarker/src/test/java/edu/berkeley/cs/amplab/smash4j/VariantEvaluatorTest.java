@@ -16,8 +16,8 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.berkeley.cs.amplab.fastaparser.FastaReader;
 import edu.berkeley.cs.amplab.smash4j.VariantEvaluator.GenotypeConcordance;
+import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader;
 
 import java.io.File;
 import java.io.IOException;

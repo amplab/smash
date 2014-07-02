@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import edu.berkeley.cs.amplab.vcfparser.VcfRecord;
+import edu.berkeley.cs.amplab.smash4j.vcf.VcfRecord;
 
 import java.util.Arrays;
 import java.util.Collections;

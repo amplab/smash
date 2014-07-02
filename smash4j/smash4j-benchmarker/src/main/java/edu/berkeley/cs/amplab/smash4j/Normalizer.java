@@ -12,7 +12,7 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 
-import edu.berkeley.cs.amplab.fastaparser.FastaReader;
+import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader;
 
 import java.util.ArrayList;
 import java.util.Collection;

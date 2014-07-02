@@ -3,10 +3,10 @@ package edu.berkeley.cs.amplab.smash4j;
 import com.google.api.services.genomics.model.Callset;
 import com.google.common.collect.FluentIterable;
 
-import edu.berkeley.cs.amplab.vcfparser.Header;
-import edu.berkeley.cs.amplab.vcfparser.MetaInformation;
-import edu.berkeley.cs.amplab.vcfparser.VcfReader;
-import edu.berkeley.cs.amplab.vcfparser.VcfRecord;
+import edu.berkeley.cs.amplab.smash4j.vcf.Header;
+import edu.berkeley.cs.amplab.smash4j.vcf.MetaInformation;
+import edu.berkeley.cs.amplab.smash4j.vcf.VcfReader;
+import edu.berkeley.cs.amplab.smash4j.vcf.VcfRecord;
 
 import java.io.File;
 import java.io.FileReader;

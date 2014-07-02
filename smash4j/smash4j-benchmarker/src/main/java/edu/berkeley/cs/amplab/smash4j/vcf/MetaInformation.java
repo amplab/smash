@@ -1,4 +1,4 @@
-package edu.berkeley.cs.amplab.vcfparser;
+package edu.berkeley.cs.amplab.smash4j.vcf;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
