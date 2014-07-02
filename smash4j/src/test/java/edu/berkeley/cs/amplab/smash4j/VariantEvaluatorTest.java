@@ -68,8 +68,8 @@ public class VariantEvaluatorTest {
       final Optional<Iterable<Variant>> knownFalsePositives) throws Exception {
     return FastaReader.create(reference).read(
         new FastaReader.Callback<Map<String, VariantEvaluator.ContigStats>>() {
-          @Override public Map<String, VariantEvaluator.ContigStats> read(Map<String, Integer> info,
-              FastaReader.Callback.FastaFile reference) throws Exception {
+          @Override public Map<String, VariantEvaluator.ContigStats> read(
+              Map<String, Integer> info, FastaReader.FastaFile reference) throws Exception {
             return VariantEvaluator.builder()
                 .setMaxSvBreakpointDistance(100)
                 .setMaxVariantLengthDifference(100)

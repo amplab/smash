@@ -56,8 +56,8 @@ public class FastaReaderTest {
               index = ImmutableList.copyOf(fasta.entrySet());
           private final int indexSize = index.size();
 
-          @Override public FastaReaderTest read(Map<String, Integer> info,
-              FastaReader.Callback.FastaFile fastaFile) throws Exception {
+          @Override public FastaReaderTest read(
+              Map<String, Integer> info, FastaReader.FastaFile fastaFile) throws Exception {
             int numberOfQueries = NUMBER_OF_QUERIES.nextInt();
             for (int i = 0; i < numberOfQueries; ++i) {
               Map.Entry<String, String> entry = index.get(RANDOM.nextInt(indexSize));
@@ -67,8 +67,7 @@ public class FastaReaderTest {
                   queryEnd = queryStart + queryLength;
               assertEquals(
                   fasta.get(contigName).substring(queryStart, queryEnd),
-                  fastaFile.get(contigName, queryStart, queryEnd,
-                      FastaReader.Callback.FastaFile.Orientation.FORWARD));
+                  fastaFile.get(contigName, queryStart, queryEnd));
             }
             return FastaReaderTest.this;
           }

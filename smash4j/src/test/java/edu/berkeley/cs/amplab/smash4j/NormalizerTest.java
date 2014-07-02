@@ -25,21 +25,21 @@ public class NormalizerTest {
 
     CLEAN_ONLY {
       @Override
-      Normalizer create(FastaReader.Callback.FastaFile fastaFile) {
+      Normalizer create(FastaReader.FastaFile fastaFile) {
         return Normalizer.cleanOnly(MAX_INDEL_SIZE, fastaFile);
       }
     },
 
     STANDARD {
       @Override
-      Normalizer create(FastaReader.Callback.FastaFile fastaFile) {
+      Normalizer create(FastaReader.FastaFile fastaFile) {
         return Normalizer.create(MAX_INDEL_SIZE, fastaFile);
       }
     };
 
     private static final int MAX_INDEL_SIZE = 50;
 
-    abstract Normalizer create(FastaReader.Callback.FastaFile fastaFile);
+    abstract Normalizer create(FastaReader.FastaFile fastaFile);
   }
 
   private static File reference;
@@ -195,8 +195,7 @@ public class NormalizerTest {
     return FastaReader.create(reference).read(
         new FastaReader.Callback<List<Variant>>() {
           @Override public List<Variant> read(
-              Map<String, Integer> info,
-              FastaReader.Callback.FastaFile fastaFile) throws Exception {
+              Map<String, Integer> info, FastaReader.FastaFile fastaFile) throws Exception {
         return factory.create(fastaFile)
             .normalize(Iterables.concat(Collections.singletonList(head), Arrays.asList(tail)))
             .toList();

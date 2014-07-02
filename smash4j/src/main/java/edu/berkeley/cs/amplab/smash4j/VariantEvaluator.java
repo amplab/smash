@@ -41,7 +41,7 @@ public class VariantEvaluator {
     private int maxIndelSize = 50;
     private int maxSvBreakpointDistance = 100;
     private int maxVariantLengthDifference = 100;
-    private Optional<FastaReader.Callback.FastaFile> reference = Optional.absent();
+    private Optional<FastaReader.FastaFile> reference = Optional.absent();
     private int rescueWindowSize = 50;
 
     private Builder() {}
@@ -70,7 +70,7 @@ public class VariantEvaluator {
       return this;
     }
 
-    public Builder setReference(FastaReader.Callback.FastaFile reference) {
+    public Builder setReference(FastaReader.FastaFile reference) {
       this.reference = Optional.of(reference);
       return this;
     }
@@ -240,7 +240,7 @@ public class VariantEvaluator {
       return predictedVariants;
     }
 
-    ContigStats rescue(FastaReader.Callback.FastaFile reference, int rescueWindowSize) {
+    ContigStats rescue(FastaReader.FastaFile reference, int rescueWindowSize) {
       for (Map.Entry<Integer, Variant> entry :
           Maps.newTreeMap(this.falseNegatives).entrySet()) {
         if (this.falseNegatives.containsKey(entry.getKey())) {
@@ -480,11 +480,11 @@ public class VariantEvaluator {
   private final Function<Variant, VariantType> getType;
   private final int maxSvBreakpointDistance;
   private final int maxVariantLengthDifference;
-  private final Optional<FastaReader.Callback.FastaFile> reference;
+  private final Optional<FastaReader.FastaFile> reference;
   private final int rescueWindowSize;
 
   private VariantEvaluator(
-      Optional<FastaReader.Callback.FastaFile> reference,
+      Optional<FastaReader.FastaFile> reference,
       int maxSvBreakpointDistance,
       int maxVariantLengthDifference,
       int rescueWindowSize,

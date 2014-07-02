@@ -2,6 +2,8 @@ package edu.berkeley.cs.amplab.smash4j;
 
 import com.google.common.base.Optional;
 
+import edu.berkeley.cs.amplab.smash4j.CommandDispatcher.MainCommand;
+
 import java.io.File;
 import java.util.prefs.Preferences;
 
@@ -13,10 +15,15 @@ public class Main {
       PREFERENCES_PATH = PREFERENCES.absolutePath(),
       PROGRAM_NAME = "AMPLab-SMaSH4J/0.1";
 
+  private static void main(MainCommand command) throws Exception {
+  }
+
   public static void main(String[] args) throws Exception {
     new CommandDispatcher() {
 
-      @Override protected void main(MainCommand command) throws Exception {}
+      @Override protected void main(MainCommand command) throws Exception {
+        Main.main(command);
+      }
 
       @Override protected void setPrefs(CommandDispatcher.SetPrefsCommand command) {
         Optional<CommandDispatcher.SetPrefsCommand.AuthorizationMethod>

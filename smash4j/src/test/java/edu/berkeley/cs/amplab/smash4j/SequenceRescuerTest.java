@@ -49,7 +49,7 @@ public class SequenceRescuerTest {
         new FastaReader.Callback<Optional<SequenceRescuer.RescuedVariants>>() {
           @Override public Optional<SequenceRescuer.RescuedVariants> read(
               Map<String, Integer> info,
-              FastaReader.Callback.FastaFile reference) {
+              FastaReader.FastaFile reference) {
             return SequenceRescuer.builder()
                 .setContig(contig)
                 .setTruePositives(truePositives)
@@ -146,8 +146,8 @@ public class SequenceRescuerTest {
         Optional.of("ATTCGAAAATCG"),
         FastaReader.create(reference).read(
             new FastaReader.Callback<Optional<String>>() {
-              @Override public Optional<String> read(Map<String, Integer> info,
-                  FastaReader.Callback.FastaFile reference) throws Exception {
+              @Override public Optional<String> read(
+                  Map<String, Integer> info, FastaReader.FastaFile reference) throws Exception {
                 return getSequence(
                     reference,
                     "chr3",

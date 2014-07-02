@@ -15,50 +15,11 @@ import java.util.Map;
 public class FastaReader {
 
   public interface Callback<X> {
-
-    public interface FastaFile {
-
-      public enum Orientation {
-
-        FORWARD {
-          @Override public String apply(String sequence) {
-            return sequence;
-          }
-        },
-
-        REVERSE {
-
-          @Override public String apply(String sequence) {
-            StringBuilder builder = new StringBuilder();
-            for (
-                int i = sequence.length() - 1;
-                0 <= i;
-                builder.append(compliment(sequence.charAt(i--))));
-            return builder.toString();
-          }
-
-          private char compliment(char c) {
-            switch (c) {
-              case 'A': return 'T';
-              case 'a': return 't';
-              case 'C': return 'G';
-              case 'c': return 'g';
-              case 'T': return 'A';
-              case 't': return 'a';
-              case 'G': return 'C';
-              case 'g': return 'c';
-              default : return c;
-            }
-          }
-        };
-
-        abstract String apply(String sequence);
-      }
-
-      String get(String contigName, int beginIndex, int endIndex, Orientation orientation);
-    }
-
     X read(Map<String, Integer> info, FastaFile fastaFile) throws Exception;
+  }
+
+  public interface FastaFile {
+    String get(String contigName, int beginIndex, int endIndex);
   }
 
   public static FastaReader create(File fastaFile) throws IOException {
@@ -88,16 +49,20 @@ public class FastaReader {
       try (FileChannel channel = file.getChannel()) {
         class Contig {
 
-          private final ByteBuffer contig;
-          private final int maxIndex;
-          private final String contigName;
           private final int basesPerLine;
+          private final ByteBuffer contig;
+          private final String contigName;
+          private final int maxIndex;
 
           Contig(ByteBuffer contig, int contigSize, String contigName, int basesPerLine) {
             this.contig = contig;
             this.maxIndex = contigSize;
             this.contigName = contigName;
             this.basesPerLine = basesPerLine;
+          }
+
+          private int accountForNewlines(int i) {
+            return i + i / basesPerLine;
           }
 
           String get(int beginIndex, int endIndex) {
@@ -119,10 +84,6 @@ public class FastaReader {
             int limit = contig.limit();
             return limit - limit / basesPerLine;
           }
-
-          private int accountForNewlines(int i) {
-            return i + i / basesPerLine;
-          }
         }
         ImmutableMap.Builder<String, Contig> builder = ImmutableMap.builder();
         for (FastaIndex.Entry entry : index.entries()) {
@@ -142,10 +103,9 @@ public class FastaReader {
                     return contig.length();
                   }
                 }),
-            new Callback.FastaFile() {
-              @Override public String get(String contigName, int beginIndex, int endIndex,
-                  Callback.FastaFile.Orientation orientation) {
-                return orientation.apply(chromosomes.get(contigName).get(beginIndex, endIndex));
+            new FastaFile() {
+              @Override public String get(String contigName, int beginIndex, int endIndex) {
+                return chromosomes.get(contigName).get(beginIndex, endIndex);
               }
             });
       }

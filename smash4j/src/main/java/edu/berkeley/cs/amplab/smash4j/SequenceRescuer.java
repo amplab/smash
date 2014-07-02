@@ -16,7 +16,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 
 import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader;
-import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader.Callback.FastaFile;
+import edu.berkeley.cs.amplab.smash4j.fasta.FastaReader.FastaFile;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,7 +35,7 @@ public class SequenceRescuer {
     private NavigableMap<Integer, Variant> falseNegatives;
     private NavigableMap<Integer, Variant> falsePositives;
     private Function<Variant, VariantType> getType;
-    private FastaReader.Callback.FastaFile reference;
+    private FastaReader.FastaFile reference;
     private int rescueWindowSize;
     private NavigableMap<Integer, Variant> truePositives;
 
@@ -75,7 +75,7 @@ public class SequenceRescuer {
       return this;
     }
 
-    public Builder setReference(FastaReader.Callback.FastaFile reference) {
+    public Builder setReference(FastaReader.FastaFile reference) {
       this.reference = reference;
       return this;
     }
@@ -301,7 +301,7 @@ public class SequenceRescuer {
       WINDOW_VARIANT_LOOKBACK_SIZE = 50;
 
   private static StringBuilder addRefBasesUntil(StringBuilder chunks,
-      FastaReader.Callback.FastaFile reference, String contig, int begin, int end) {
+      FastaReader.FastaFile reference, String contig, int begin, int end) {
     return chunks.append(getRefBases(reference, contig, begin, end));
   }
 
@@ -351,10 +351,9 @@ public class SequenceRescuer {
         : Optional.of(ordering.min(collection));
   }
 
-  private static String getRefBases(FastaReader.Callback.FastaFile reference, String contig,
-      int begin, int end) {
-    return reference.get(contig, begin - 1, end - 1,
-        FastaReader.Callback.FastaFile.Orientation.FORWARD);
+  private static String getRefBases(
+      FastaReader.FastaFile reference, String contig, int begin, int end) {
+    return reference.get(contig, begin - 1, end - 1);
   }
 
   private static List<List<Variant>> getRestOfPath(
@@ -383,8 +382,8 @@ public class SequenceRescuer {
                 })));
   }
 
-  static Optional<String> getSequence(FastaReader.Callback.FastaFile reference,
-      String contig, Window window, List<Variant> variants) {
+  static Optional<String> getSequence(
+      FastaReader.FastaFile reference, String contig, Window window, List<Variant> variants) {
     StringBuilder builder = new StringBuilder();
     int homOffset = window.lowerBound();
     for (Variant variant : variants) {
@@ -497,7 +496,7 @@ public class SequenceRescuer {
   private final NavigableMap<Integer, Variant> falseNegatives;
   private final NavigableMap<Integer, Variant> falsePositives;
   private final Function<Variant, VariantType> getType;
-  private final FastaReader.Callback.FastaFile reference;
+  private final FastaReader.FastaFile reference;
   private final NavigableMap<Integer, Variant> truePositives;
   private final Window.Factory windowFactory;
 

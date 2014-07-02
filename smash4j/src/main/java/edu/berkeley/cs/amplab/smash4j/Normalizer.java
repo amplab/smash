@@ -128,8 +128,7 @@ public class Normalizer {
               + fastaFile.get(
                   contig,
                   rightEndpoint,
-                  rightEndpoint + 1,
-                  FastaReader.Callback.FastaFile.Orientation.FORWARD);
+                  rightEndpoint + 1);
         }
 
         private boolean sameFirstAndLastBase(String refAllele, List<String> altAlleles) {
@@ -262,11 +261,11 @@ public class Normalizer {
         }
       };
 
-  public static Normalizer cleanOnly(int maxIndelSize, FastaReader.Callback.FastaFile fastaFile) {
+  public static Normalizer cleanOnly(int maxIndelSize, FastaReader.FastaFile fastaFile) {
     return new Normalizer(maxIndelSize, fastaFile, true);
   }
 
-  public static Normalizer create(int maxIndelSize, FastaReader.Callback.FastaFile fastaFile) {
+  public static Normalizer create(int maxIndelSize, FastaReader.FastaFile fastaFile) {
     return new Normalizer(maxIndelSize, fastaFile, false);
   }
 
@@ -310,7 +309,7 @@ public class Normalizer {
   }
 
   private final boolean cleanOnly;
-  private final FastaReader.Callback.FastaFile fastaFile;
+  private final FastaReader.FastaFile fastaFile;
   private final int maxIndelSize;
 
   private final Function<Variant, Variant> normalize =
@@ -335,11 +334,7 @@ public class Normalizer {
           int originalPosition = variant.position(), pos = originalPosition - 1;
           for (String contig = variant.contig(); SameBaseTester.LAST_BASE.sameBase(
               Iterables.concat(Collections.singletonList(ref), alts));) {
-            final String prevBase = TO_UPPER_CASE.apply(fastaFile.get(
-                contig,
-                --pos,
-                pos + 1,
-                FastaReader.Callback.FastaFile.Orientation.FORWARD));
+            final String prevBase = TO_UPPER_CASE.apply(fastaFile.get(contig, --pos, pos + 1));
             Function<String, String> slider =
                 new Function<String, String>() {
                   @Override public String apply(String string) {
@@ -367,8 +362,7 @@ public class Normalizer {
         }
       };
 
-  private Normalizer(
-      int maxIndelSize, FastaReader.Callback.FastaFile fastaFile, boolean cleanOnly) {
+  private Normalizer(int maxIndelSize, FastaReader.FastaFile fastaFile, boolean cleanOnly) {
     this.maxIndelSize = maxIndelSize;
     this.fastaFile = fastaFile;
     this.cleanOnly = cleanOnly;
