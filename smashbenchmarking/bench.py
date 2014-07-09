@@ -57,7 +57,8 @@ def get_tsv_header(knownFP=False):
     else:
         return ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
 
-def tsv_row(variant_name,stats,err,knownFP=False,hideFP=False):
+def tsv_row(variant_name,stats,err_rate,knownFP=False,hideFP=False):
+    err = err_rate * stats['num_true']
     if knownFP:
         return [variant_name,
         stats['num_true'],
@@ -126,7 +127,8 @@ def bound_precision(tp, fp, e):
         return 0, 0
     return (tp - e) / p, (tp + e) / p
 
-def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_calls, err, known_fp_vars=False,hideFP=False):
+def print_snp_results(num_true, num_pred, num_fp, num_fn, num_ib, num_ig, nrd, known_fp_calls, err_rate, known_fp_vars=False,hideFP=False):
+    err = num_true * err_rate
     print("\n-----------")
     print("SNP Results")
     print("-----------")
@@ -159,7 +161,8 @@ def ratio(a,b,sig=5):
         return 0.0
     return float(int(10**sig*(float(a)/b)))/10**sig
 
-def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_calls, err, known_fp_vars=False,hideFP=False):
+def print_sv_results(var_type_str, num_true, num_pred, num_fp, num_fn, num_mm, num_gp, nrd, known_fp_calls, err_rate, known_fp_vars=False,hideFP=False):
+    err = err_rate * num_true
     print("\n\n------------------------")
     print("%s Results" % var_type_str)
     print("------------------------")
@@ -241,23 +244,6 @@ def parse_args(params):
     args = parser.parse_args(params)
     return args
 
-def get_snp_err(true_vars, snp_err_rate):
-    return true_vars.var_num(VARIANT_TYPE.SNP) * snp_err_rate
-
-def get_indel_err(true_vars, indel_err_rate):
-    return sum([
-        true_vars.var_num(VARIANT_TYPE.INDEL_INS),
-        true_vars.var_num(VARIANT_TYPE.INDEL_DEL),
-        true_vars.var_num(VARIANT_TYPE.INDEL_OTH),
-        ]) * indel_err_rate
-
-def get_sv_err(true_vars, sv_err_rate):
-    return sum([
-        true_vars.var_num(VARIANT_TYPE.SV_INS),
-        true_vars.var_num(VARIANT_TYPE.SV_DEL),
-        true_vars.var_num(VARIANT_TYPE.SV_OTH)
-        ]) * sv_err_rate
-
 def get_text_header(params):
     return "# SMaSH version %s, run %s\n# cmdline args: %s" % (SMASHVERSION,date_run," ".join(params))
 
@@ -297,20 +283,13 @@ def main(params):
     else:
         known_fp_vars = None
 
-    # Estimated total number of errors in validation data for SNPs, indels and SVs.
-    snp_err = get_snp_err(true_vars,args.snp_err_rate)
-
-    indel_err = get_indel_err(true_vars,args.indel_err_rate)
-
-    sv_err = get_sv_err(true_vars,args.sv_err_rate)
-
     sv_eps = args.sv_eps
 
     stat_reporter, annotated_vars = evaluate_variants(
         true_vars,
         pred_vars,
-        sv_eps,
-        sv_eps,
+        sv_eps, # tolerance for SV len
+        sv_eps, # tolerance for SV breakpoints
         ref,
         window,
         known_fp_vars
@@ -320,22 +299,22 @@ def main(params):
         print(get_text_header(params),file=sys.stdout)
         tsvwriter = csv.writer(sys.stdout, delimiter='\t')
         tsvwriter.writerow(get_tsv_header(args.knownFP))
-        tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),snp_err,args.knownFP,args.hideFP))
-        tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),indel_err,args.knownFP,args.hideFP))
-        tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),indel_err,args.knownFP,args.hideFP))
-        tsvwriter.writerow(tsv_row("Indel Inversions",stat_reporter(VARIANT_TYPE.INDEL_INV),indel_err,args.knownFP,args.hideFP))
-        tsvwriter.writerow(tsv_row("Indel Other",stat_reporter(VARIANT_TYPE.INDEL_OTH),indel_err,args.knownFP,args.hideFP))
-        tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),sv_err,args.knownFP,args.hideFP))
-        tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),sv_err,args.knownFP,args.hideFP))
-        tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),sv_err,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("SNP",stat_reporter(VARIANT_TYPE.SNP),args.snp_err_rate,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Deletions",stat_reporter(VARIANT_TYPE.INDEL_DEL),args.indel_err_rate,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Insertions",stat_reporter(VARIANT_TYPE.INDEL_INS),args.indel_err_rate,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Inversions",stat_reporter(VARIANT_TYPE.INDEL_INV),args.indel_err_rate,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("Indel Other",stat_reporter(VARIANT_TYPE.INDEL_OTH),args.indel_err_rate,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),args.sv_err_rate,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),args.sv_err_rate,args.knownFP,args.hideFP))
+        tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),args.sv_err_rate,args.knownFP,args.hideFP))
     else:
         print(get_text_header(params),file=sys.stdout)
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
-        print_snp_stats(snp_stats, snp_err, known_fp_vars,args.hideFP)
+        print_snp_stats(snp_stats, args.snp_err_rate, known_fp_vars,args.hideFP)
         def print_sv(var_type, description,args):
             assert 'INDEL' in var_type or 'SV' in var_type
-            err = indel_err if 'INDEL' in var_type else sv_err
-            print_sv_stats(description, stat_reporter(var_type), err,args)
+            err_rate = args.indel_err_rate if 'INDEL' in var_type else args.sv_err_rate
+            print_sv_stats(description, stat_reporter(var_type), err_rate,args)
     
         def print_oth(var_type, description):
             print_sv_other_results(description, stat_reporter(var_type)['num_true'], stat_reporter(var_type)['num_pred'])
