@@ -101,7 +101,7 @@ chr19   30  .       AAAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGC
         self.assertEqual(newChromVar.indel_pos_dict[10].var_type, VARIANT_TYPE.INDEL_INS)
         newChromVar.add_record(pred_vcf.next())
         self.assertTrue(20 in newChromVar.all_locations)
-        self.assertEqual(newChromVar.indel_pos_dict[20].var_type, VARIANT_TYPE.INDEL_OTH)
+        self.assertEqual(newChromVar.indel_pos_dict[20].var_type, VARIANT_TYPE.INDEL_INV)
         newChromVar.add_record(pred_vcf.next())
         self.assertTrue(30 in newChromVar.all_locations)
         self.assertEqual(newChromVar.sv_pos_dict[30].var_type, VARIANT_TYPE.SV_DEL)
@@ -250,6 +250,19 @@ chr19   22   .       ATT       A         20      PASS    .       GT      0/1\n
         self.assertFalse(any(map(lambda x: x.pos == 16, paths[0])))
         self.assertFalse(any(map(lambda x: x.pos == 15, paths[1])))
         self.assertTrue(any(map(lambda x: x.pos == 16, paths[1])))
+
+    def testIsInversion(self):
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr19   11      .       ACT     TCA       20      PASS    .       GT      1/1\n
+chr19   15      .       ACGATT  ATTAGC      20      PASS    .       GT      1/1\n
+chr19   16      .       ACG     A       20      PASS    .       GT      1/1\n
+"""
+        vcfr = vcf_file = vcf.Reader(StringIO.StringIO(pred_str))
+        self.assertTrue(is_inversion(vcfr.next(),MAX_INDEL_LEN)) # inversion with no leading base
+        self.assertTrue(is_inversion(vcfr.next(),MAX_INDEL_LEN)) # inversion with leading base
+        self.assertFalse(is_inversion(vcfr.next(),MAX_INDEL_LEN)) # deletions are not inversions
 
 
 if __name__ == '__main__':

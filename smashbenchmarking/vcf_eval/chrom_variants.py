@@ -77,8 +77,11 @@ def is_sv(record,maxSize):
     return symbolic
 
 def is_inversion(record,maxSize):
+    # inversions may have a leading base
     return (len(record.REF) > 1 or len(record.ALT[0]) > 1) \
-        and not is_sv(record,maxSize) and record.REF == str(record.ALT[0])[::-1] # this is crazy python for reversing a string
+        and not is_sv(record,maxSize) and (record.REF == str(record.ALT[0])[::-1] or \
+        (record.REF[0] == str(record.ALT[0])[0] and record.REF[1:] == str(record.ALT[0])[1:][::-1])) 
+        # [::=1] is crazy python for reversing a string
 
 class ChromVariants:
 
