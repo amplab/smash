@@ -38,6 +38,7 @@ class Enum(set):
 
 VARIANT_TYPE = Enum(["SNP","INDEL_DEL","INDEL_INS","INDEL_OTH","SV_DEL","SV_INS","SV_OTH","INDEL_INV"])
 GENOTYPE_TYPE = Enum(["HOM_REF","HET","HOM_VAR","NO_CALL","UNAVAILABLE"])
+# UNAVAILABLE is not currently used.
 
 # this maps the PyVCF representation to this enum representation
 GENOTYPE_TYPE_MAP = { 0 : GENOTYPE_TYPE.HOM_REF, 1 : GENOTYPE_TYPE.HET, 2 : GENOTYPE_TYPE.HOM_VAR,
@@ -186,8 +187,11 @@ class ChromVariants:
       raise Exception("Monomorphic records (no alt allele) are not supported.")
 
     len_ref = len(ref)
-    assert len(record.samples) == 1 # We expect vcfs to correspond to a
-                                    # single sample.
+    try:
+        assert len(record.samples) == 1 # We expect vcfs to correspond to a single sample.
+    except AssertionError:
+        print("%s lacks sample data and will not be evaluated." % str(record), file=sys.stderr)
+        return
     # Possible TODO: filter on desired sample? Or at least document that this is our convention.
     # given that there's a single sample, get the genotype type
     # note that PyVCF's gt_type only represents hom ref, het, hom var, None

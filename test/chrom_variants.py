@@ -109,6 +109,16 @@ chr19   30  .       AAAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGC
         self.assertEqual(len(newChromVar._var_dict(VARIANT_TYPE.INDEL_DEL)),len(newChromVar._var_dict(VARIANT_TYPE.INDEL_INS)))
         self.assertEqual(len(newChromVar._var_dict(VARIANT_TYPE.SV_DEL)),len(newChromVar._var_dict(VARIANT_TYPE.SV_INS)))
 
+    def testAddRecordNoSample(self):
+        vcf_str = """##fileformat=VCFv4.0\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    \n
+chr19   2       .       A       T       20      PASS    .       \n
+"""
+        newChromVar = ChromVariants('chr19',MAX_INDEL_LEN)
+        test_vcf = vcf.Reader(StringIO.StringIO(vcf_str))
+        newChromVar.add_record(test_vcf.next())
+        self.assertEqual(newChromVar.all_locations,[])
+
     def testRemoveRecord(self):
         pred_str = """##fileformat=VCFv4.0\n
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
