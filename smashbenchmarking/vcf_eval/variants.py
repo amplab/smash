@@ -100,7 +100,7 @@ def _aggregate(stats_by_chrom):
       known_fp_iter = cv_stats.known_fp_variants._vcf_iterator("err_type=FP_known",cv_stats.known_fp_variants.all_locations)
      else:
       known_fp_iter = [].__iter__()
-     var_iterator = chain(var_iterator,vcf_by_position([tp_iter,fp_iter,fn_iter,known_fp_iter,rescued_iter]))
+     var_iterator = sorted(chain(var_iterator,vcf_by_position([tp_iter,fp_iter,fn_iter,known_fp_iter,rescued_iter])),key=lambda rec: int(rec.split("\t",2)[1]))
    return var_iterator
 
   return aggregator,annotated_var_iter
