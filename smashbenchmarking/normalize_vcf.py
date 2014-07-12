@@ -196,6 +196,8 @@ def keep_variant(record,maxIndelLen=50):
         return False # record filtered
     if ( genotype(record) == "." and not is_sv(record, maxIndelLen)):
         return False # filter variants without genotype information unless they are structural variants
+    if ( "N" in record.REF or any(map(lambda a: "N" in str(a), record.ALT))):
+        return False # filter out ref/alts with N base
     return True
 
 def normalize_variant(record,ref_genome,cleanOnly=False):

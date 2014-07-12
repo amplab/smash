@@ -322,5 +322,15 @@ chr4    2       .       ATCTC    T        20      PASS     OP=2        GT     0/
         self.assertEqual(r3.REF,"CTCTC")
         self.assertEqual(r3.ALT,["C"])
 
+    def testNBaseNormalization(self):
+        vcf_str = """##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr4    2       .       A       ATCTT   20      PASS    .          GT      0/1\n
+chr4    3       .       NN      N       20      PASS    .          GT      0/1\n
+"""
+        norm_iter = normalize(get_reference(),self.getVcf(vcf_str))
+        self.assertEqual(self.countRecords(norm_iter),1)
+
 if __name__ == '__main__':
     unittest.main()
