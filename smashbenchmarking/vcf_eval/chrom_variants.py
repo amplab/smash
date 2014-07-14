@@ -181,11 +181,9 @@ class ChromVariants:
     assert record.CHROM == self.chrom
     if not is_pass(record) and not self._args.get('knownFP',None): # if this is a known FP object, let it past the filter
       return
-    ref = record.REF
-    if ( record.REF != record.REF.upper() ):
-      raise AssertionError("VCF contains lower-case bases in the reference: " + record.REF+ " at "+str(record.POS))
+    ref = record.REF.upper()
 
-    alt = map(str, record.ALT)
+    alt = map(lambda a: str(a).upper(), record.ALT)
     if _lacks_alt_alleles(record) and not self._args.get('knownFP',None):
       raise Exception("Monomorphic records (no alt allele) are not supported.")
 
