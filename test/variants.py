@@ -44,7 +44,7 @@ chr1    7       .       G       .       20      PASS    .       GT       0/0\n
         newvars = Variants(newvcf,MAX_INDEL_LEN,knownFP=True)
         chromvars = newvars.on_chrom('chr1')
         self.assertEqual(chromvars.all_locations,[7])
-        self.assertEqual(chromvars.all_variants[7].alt[0],'None')
+        self.assertEqual(chromvars.all_variants[7].alt[0],'NONE')
 
 
 class VariantsHelpersTestCase(unittest.TestCase):

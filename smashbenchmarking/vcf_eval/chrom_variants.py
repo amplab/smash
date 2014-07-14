@@ -46,7 +46,7 @@ GENOTYPE_TYPE_MAP = { 0 : GENOTYPE_TYPE.HOM_REF, 1 : GENOTYPE_TYPE.HET, 2 : GENO
 
 def _lacks_alt_alleles(record):
   alt = map(str, record.ALT)
-  return alt[0] == 'None' or not alt[0]
+  return alt[0] == 'NONE' or not alt[0]
 
 
 def is_pass(record):
