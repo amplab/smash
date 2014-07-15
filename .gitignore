@@ -6,3 +6,5 @@ smashbenchmarking.egg-info/
 *.flat
 *.gdx
 smash4j/target
+vardiff/target
+
