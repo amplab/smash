@@ -1,6 +1,5 @@
 package edu.berkeley.cs.amplab.vardiff;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -8,7 +7,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public interface Call extends Comparable<Call> {
+public interface Call {
 
   public static class Phaseset {
 
@@ -48,9 +47,6 @@ public interface Call extends Comparable<Call> {
     }
   }
 
-  final Comparator<Call>
-      COMPARATOR = Comparator.comparing(Call::contig).thenComparing(Call::position);
-
   final HashCodeAndEquals<Call> HASH_CODE_AND_EQUALS = HashCodeAndEquals.create(
       Call.class,
       Call::alternates,
@@ -73,11 +69,6 @@ public interface Call extends Comparable<Call> {
 
   List<String> alternates();
 
-  @Override
-  default int compareTo(Call rhs) {
-    return COMPARATOR.compare(this, rhs);
-  }
-
   String contig();
 
   default int end() {
@@ -88,8 +79,8 @@ public interface Call extends Comparable<Call> {
 
   default boolean overlaps(Call rhs) {
     return Objects.equals(contig(), rhs.contig())
-        && end() < rhs.position()
-        && position() < rhs.end();
+        && position() < rhs.end()
+        && rhs.position() < end();
   }
 
   Optional<Phaseset> phaseset();

@@ -58,6 +58,10 @@ public class Window {
 
   private static class CallWithSource {
 
+    static final Comparator<CallWithSource> COMPARATOR = Comparator
+        .<CallWithSource, String>comparing(callWithSource -> callWithSource.call().contig())
+        .thenComparing(callWithSource -> callWithSource.call().position());
+
     private final Call call;
     private final Source source;
 
@@ -110,9 +114,9 @@ public class Window {
               private final PeekingIterator<CallWithSource> iterator = Iterators.peekingIterator(
                   Iterators.mergeSorted(
                       Arrays.asList(Source.LHS.iterator(lhs), Source.RHS.iterator(rhs)),
-                      Comparator.comparing(CallWithSource::call)));
+                      CallWithSource.COMPARATOR));
 
-              private void addToWindow(Window.Builder window, CallWithSource next, Call call) {
+              private Window.Builder addToWindow(Window.Builder window, CallWithSource next, Call call) {
                 switch (next.source()) {
                   case LHS:
                     window.addLhs(call);
@@ -123,6 +127,7 @@ public class Window {
                   default:
                     throw new IllegalStateException();
                 }
+                return window;
               }
 
               @Override protected Window computeNext() {
@@ -130,10 +135,13 @@ public class Window {
                   CallWithSource next = iterator.next();
                   Call call = next.call();
                   String contig = call.contig();
-                  Window.Builder window = Window.builder(contig);
-                  for (addToWindow(window, next, call); iterator.hasNext()
-                      && Objects.equals(contig, (call = (next = iterator.peek()).call()).contig())
-                      && call.position() < window.end();) {
+                  Window.Builder window = addToWindow(Window.builder(contig), next, call);
+                  while (iterator.hasNext()) {
+                    next = iterator.peek();
+                    call = next.call();
+                    if (!Objects.equals(contig, call.contig()) || window.end() <= call.position()) {
+                      break;
+                    }
                     addToWindow(window, iterator.next(), call);
                   }
                   return window.build();

@@ -41,6 +41,6 @@ public class Indexer<X> implements Collector<X, Indexer<X>, Map<X, Integer>> {
   }
 
   @Override public Supplier<Indexer<X>> supplier() {
-    return Indexer::new;
+    return Indexer::create;
   }
 }

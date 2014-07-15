@@ -17,57 +17,54 @@ public class WindowTest {
 
   @Test
   public void testPartition() throws IOException {
-    for (int i = 1; i < 40; ++i) {
-      final int maxCallLength = i;
-      for (int j = 1; j < 10; ++j) {
-        final int lhsNumberOfCalls = j;
-        for (int k = 1; k < 10; ++k) {
-          final int rhsNumberOfCalls = k;
-          TestReference.reader().read(reference -> {
-            String contig = reference.contigs().iterator().next();
-            int contigLength = reference.contigLength(contig);
-            Random random = new Random();
-            for (
-                PeekingIterator<Window> iterator = Iterators
-                    .peekingIterator(Window
-                        .partition(
-                            TestCall
-                                .randomCalls(
-                                    random,
-                                    contig,
-                                    contigLength,
-                                    maxCallLength,
-                                    lhsNumberOfCalls)
-                                .stream(),
-                            TestCall
-                                .randomCalls(
-                                    random,
-                                    contig,
-                                    contigLength,
-                                    maxCallLength,
-                                    rhsNumberOfCalls)
-                                .stream())
-                        .collect(Collectors.toList())
-                    .iterator());
-                iterator.hasNext();) {
-              List<Call> window = allCalls(iterator.next());
-              OUTER: for (Call call1 : window) {
-                for (Call call2 : window) {
-                  if (call1 == call2 || call1.overlaps(call2)) {
-                    continue OUTER;
+    TestReference.reader().read(reference -> {
+      String contig = reference.contigs().iterator().next();
+      int contigLen = reference.contigLength(contig);
+      Random random = new Random();
+      for (int i = 1; i < 40; ++i) {
+        final int maxCallLen = i;
+        for (int j = 1; j < 9; ++j) {
+          final int lhsNumCalls = j;
+          for (int k = 1; k < 9; ++k) {
+            final int rhsNumCalls = k;
+              for (
+                  PeekingIterator<Window> iterator = Iterators
+                      .peekingIterator(Window
+                          .partition(
+                              TestCall
+                                  .randomCalls(random, contig, contigLen, maxCallLen, lhsNumCalls)
+                                  .stream(),
+                              TestCall
+                                  .randomCalls(random, contig, contigLen, maxCallLen, rhsNumCalls)
+                                  .stream())
+                          .collect(Collectors.toList())
+                      .iterator());
+                  iterator.hasNext();) {
+                List<Call> window = allCalls(iterator.next());
+                OUTER: for (Call call1 : window) {
+                  for (Call call2 : window) {
+                    if (call1 == call2 || call1.overlaps(call2)) {
+                      continue OUTER;
+                    }
+                  }
+                  fail();
+                }
+                if (iterator.hasNext()) {
+                  List<Call> peek = allCalls(iterator.peek());
+                  for (Call call1 : window) {
+                    for (Call call2 : peek) {
+                      if (call1.overlaps(call2)) {
+                        fail();
+                      }
+                    }
                   }
                 }
-                fail();
               }
-              if (iterator.hasNext()) {
-                TestCall.checkNonOverlapping(window, allCalls(iterator.peek()));
-              }
-            }
-            return null;
-          });
+          }
         }
       }
-    }
+      return null;
+    });
   }
 
   private static List<Call> allCalls(Window window) {

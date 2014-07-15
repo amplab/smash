@@ -1,38 +1,21 @@
 package edu.berkeley.cs.amplab.vardiff;
 
-import static org.junit.Assert.assertTrue;
-
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Lists;
+
+import com.beust.jcommander.internal.Lists;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.function.BiPredicate;
+import java.util.Set;
 import java.util.function.Supplier;
 
 public class TestCall implements Call {
-
-  public static void checkNonOverlapping(List<Call> calls) {
-    checkNonOverlapping(calls, calls, (x, y) -> x == y);
-  }
-
-  public static void checkNonOverlapping(List<Call> lhs, List<Call> rhs) {
-    checkNonOverlapping(lhs, rhs, (x, y) -> false);
-  }
-
-  private static void checkNonOverlapping(List<Call> lhs, List<Call> rhs,
-      BiPredicate<Call, Call> predicate) {
-    for (Call call1 : lhs) {
-      for (Call call2 : rhs) {
-        assertTrue(predicate.test(call1, call2) || !call1.overlaps(call2));
-      }
-    }
-  }
 
   public static TestCall create(
       String contig,
@@ -104,7 +87,7 @@ public class TestCall implements Call {
       int numberOfCalls,
       Supplier<Optional<Phaseset>> phaseset) {
     try {
-      ImmutableSortedSet.Builder<Call> calls = ImmutableSortedSet.naturalOrder();
+      Set<Call> calls = new HashSet<>();
       for (int i = 0; i < numberOfCalls; ++i) {
         int length = 1 == maxCallLength ? 1 : random.nextInt(maxCallLength - 1) + 1,
             max = contigLength - length,
@@ -118,7 +101,9 @@ public class TestCall implements Call {
             Arrays.asList(0, 0),
             phaseset.get()));
       }
-      return Lists.newArrayList(calls.build());
+      List<Call> list = Lists.newArrayList(calls);
+      Collections.sort(list, Comparator.comparing(Call::position));
+      return list;
     } catch (IOException e) {
       throw Throwables.propagate(e);
     }
