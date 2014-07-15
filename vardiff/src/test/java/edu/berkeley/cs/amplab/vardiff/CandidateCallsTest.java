@@ -28,9 +28,9 @@ public class CandidateCallsTest {
       Random random = new Random();
       for (int i = 1; i < 40; ++i) {
         final int maxCallLen = i;
-        for (int j = 1; j < 9; ++j) {
+        for (int j = 1; j < 10; ++j) {
           final int lhsNumCalls = j;
-          for (int k = 1; k < 9; ++k) {
+          for (int k = 1; k < 10; ++k) {
             final int rhsNumCalls = k;
               List<Call>
                   lhs = TestCall.randomCalls(random, contig, contigLen, maxCallLen, lhsNumCalls),

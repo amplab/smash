@@ -1,5 +1,6 @@
 package edu.berkeley.cs.amplab.vardiff;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
@@ -7,7 +8,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -30,22 +30,13 @@ public class CandidateCalls {
     List<Call>
         lhsWindow = window.lhs(),
         rhsWindow = window.rhs();
-    Comparator<Call>
-        lhsComparator = Comparator.comparing(lhsWindow.stream().collect(Indexer.create())::get),
-        rhsComparator = Comparator.comparing(rhsWindow.stream().collect(Indexer.create())::get);
-    List<Set<Call>>
+    List<List<Call>>
         lhsPowerSet = nonOverlappingSubsets(lhsWindow),
         rhsPowerSet = nonOverlappingSubsets(rhsWindow);
     List<CandidateCalls>
         candidates = new ArrayList<>(lhsPowerSet.size() * rhsPowerSet.size());
-    for (Set<Call> lhsSet : lhsPowerSet) {
-      List<Call> lhs = new ArrayList<>(lhsSet.size());
-      lhs.addAll(lhsSet);
-      Collections.sort(lhs, lhsComparator);
-      for (Set<Call> rhsSet : rhsPowerSet) {
-        List<Call> rhs = new ArrayList<>(rhsSet.size());
-        rhs.addAll(rhsSet);
-        Collections.sort(rhs, rhsComparator);
+    for (List<Call> lhs : lhsPowerSet) {
+      for (List<Call> rhs : rhsPowerSet) {
         candidates.add(create(window.contig(), window.start(), window.end(), lhs, rhs));
       }
     }
@@ -53,13 +44,13 @@ public class CandidateCalls {
     return candidates.stream();
   }
 
-  private static List<Set<Call>> nonOverlappingSubsets(List<Call> list) {
-    return Sets.powerSet(Sets.newHashSet(list))
+  private static List<List<Call>> nonOverlappingSubsets(List<Call> calls) {
+    return Sets.powerSet(Sets.newLinkedHashSet(calls))
         .stream()
         .filter(
-            calls -> {
-              for (Call lhs : calls) {
-                for (Call rhs : calls) {
+            set -> {
+              for (Call lhs : set) {
+                for (Call rhs : set) {
                   if (lhs != rhs && lhs.overlaps(rhs)) {
                     return false;
                   }
@@ -67,6 +58,7 @@ public class CandidateCalls {
               }
               return true;
             })
+        .map(Lists::newArrayList)
         .collect(Collectors.toList());
   }
 

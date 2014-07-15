@@ -1,5 +1,6 @@
 package edu.berkeley.cs.amplab.vardiff;
 
+import static edu.berkeley.cs.amplab.vardiff.TestCall.randomCalls;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Iterators;
@@ -23,19 +24,17 @@ public class WindowTest {
       Random random = new Random();
       for (int i = 1; i < 40; ++i) {
         final int maxCallLen = i;
-        for (int j = 1; j < 9; ++j) {
+        for (int j = 1; j < 10; ++j) {
           final int lhsNumCalls = j;
-          for (int k = 1; k < 9; ++k) {
+          for (int k = 1; k < 10; ++k) {
             final int rhsNumCalls = k;
               for (
                   PeekingIterator<Window> iterator = Iterators
                       .peekingIterator(Window
                           .partition(
-                              TestCall
-                                  .randomCalls(random, contig, contigLen, maxCallLen, lhsNumCalls)
+                              randomCalls(random, contig, contigLen, maxCallLen, lhsNumCalls)
                                   .stream(),
-                              TestCall
-                                  .randomCalls(random, contig, contigLen, maxCallLen, rhsNumCalls)
+                              randomCalls(random, contig, contigLen, maxCallLen, rhsNumCalls)
                                   .stream())
                           .collect(Collectors.toList())
                       .iterator());
