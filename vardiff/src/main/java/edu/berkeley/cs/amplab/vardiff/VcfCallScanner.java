@@ -2,7 +2,6 @@ package edu.berkeley.cs.amplab.vardiff;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
 import java.io.BufferedReader;
@@ -14,57 +13,18 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.function.BiConsumer;
-import java.util.function.BinaryOperator;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class VcfCallScanner implements CallScanner {
-
-  private static class Indexer<X> implements Collector<X, Indexer<X>, Map<X, Integer>> {
-
-    static <X> Indexer<X> create() {
-      return new Indexer<>();
-    }
-
-    private final ImmutableMap.Builder<X, Integer> builder = ImmutableMap.builder();
-    private int index = 0;
-
-    private Indexer() {}
-
-    @Override public BiConsumer<Indexer<X>, X> accumulator() {
-      return (indexer, object) -> indexer.builder.put(object, index++);
-    }
-
-    @Override public Set<java.util.stream.Collector.Characteristics> characteristics() {
-      return Collections.emptySet();
-    }
-
-    @Override public BinaryOperator<Indexer<X>> combiner() {
-      return (lhs, rhs) -> {
-        throw new UnsupportedOperationException();
-      };
-    }
-
-    @Override public Function<Indexer<X>, Map<X, Integer>> finisher() {
-      return indexer -> indexer.builder.build();
-    }
-
-    @Override public Supplier<Indexer<X>> supplier() {
-      return Indexer::new;
-    }
-  }
 
   private static final Pattern
       HEADER_PATTERN = Pattern.compile(
@@ -81,7 +41,7 @@ public class VcfCallScanner implements CallScanner {
           .collect(Collectors.joining("\t"))),
       ALT_PATTERN = Pattern.compile("([^,]+)(?:,|$)"),
       FORMAT_PATTERN = Pattern.compile("([^:]+)(?::|$)"),
-      GENOTYPE_PATTERN = Pattern.compile("(\\p{Digit}+)([|/]|$)");
+      GENOTYPE_PATTERN = Pattern.compile("(\\p{Digit}+|\\.)([|/]|$)");
 
   public static VcfCallScanner create(File vcf) {
     return new VcfCallScanner(vcf, Optional.empty());
@@ -121,7 +81,8 @@ public class VcfCallScanner implements CallScanner {
             iterator = stream(GENOTYPE_PATTERN.matcher(call.get(format.get("GT")))).iterator();
         iterator.hasNext();) {
       MatchResult next = iterator.next();
-      genotype.add(Integer.parseInt(next.group(1)));
+      String allele = next.group(1);
+      genotype.add(Objects.equals(".", allele) ? -1 : Integer.parseInt(allele));
       switch (next.group(2)) {
         case "|":
           phased = true;

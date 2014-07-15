@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.function.BiPredicate;
@@ -30,7 +29,7 @@ public class TestCall implements Call {
       BiPredicate<Call, Call> predicate) {
     for (Call call1 : lhs) {
       for (Call call2 : rhs) {
-        assertTrue(predicate.test(call1, call2) || !overlaps(call1, call2));
+        assertTrue(predicate.test(call1, call2) || !call1.overlaps(call2));
       }
     }
   }
@@ -82,14 +81,6 @@ public class TestCall implements Call {
         Optional.of(phaseset));
   }
 
-  public static boolean overlaps(Call call1, Call call2) {
-    int start1 = call1.position(),
-        start2 = call2.position();
-    return Objects.equals(call1.contig(), call2.contig())
-        && start1 < start2 + call2.reference().length()
-        && start2 < start1 + call1.reference().length();
-  }
-
   public static List<Call> randomCalls(
       Random random,
       String contig,
@@ -113,7 +104,7 @@ public class TestCall implements Call {
       int numberOfCalls,
       Supplier<Optional<Phaseset>> phaseset) {
     try {
-      ImmutableSortedSet.Builder<Call> calls = ImmutableSortedSet.orderedBy(Call.START_COMPARATOR);
+      ImmutableSortedSet.Builder<Call> calls = ImmutableSortedSet.naturalOrder();
       for (int i = 0; i < numberOfCalls; ++i) {
         int length = 1 == maxCallLength ? 1 : random.nextInt(maxCallLength - 1) + 1,
             max = contigLength - length,

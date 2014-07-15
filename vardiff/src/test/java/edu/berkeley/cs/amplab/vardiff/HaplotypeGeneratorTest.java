@@ -1,21 +1,31 @@
 package edu.berkeley.cs.amplab.vardiff;
 
+import static edu.berkeley.cs.amplab.vardiff.Call.Phaseset.DEFAULT;
+import static edu.berkeley.cs.amplab.vardiff.HaplotypeGenerator.generateHaplotypes;
+import static edu.berkeley.cs.amplab.vardiff.HaplotypeGenerator.partitionByPhaseset;
+import static edu.berkeley.cs.amplab.vardiff.TestCall.create;
+import static edu.berkeley.cs.amplab.vardiff.TestCall.randomCalls;
+import static edu.berkeley.cs.amplab.vardiff.TestReference.reference;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+
+import com.google.common.collect.ImmutableMap;
 
 import org.junit.Test;
 
 import edu.berkeley.cs.amplab.vardiff.Call.Phaseset;
-import edu.berkeley.cs.amplab.vardiff.HaplotypeGenerator.Haplotype;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class HaplotypeGeneratorTest {
 
@@ -27,12 +37,12 @@ public class HaplotypeGeneratorTest {
       Random random = new Random();
       List<Optional<Call.Phaseset>> phasesets = Arrays.asList(
           Optional.empty(),
-          Optional.of(Call.Phaseset.DEFAULT),
+          Optional.of(DEFAULT),
           Optional.of(Call.Phaseset.create(1)),
           Optional.of(Call.Phaseset.create(2)));
       int numberOfPhasesets = phasesets.size();
-      for (List<Call> calls : HaplotypeGenerator.partitionByPhaseset(
-          TestCall.randomCalls(
+      for (List<Call> calls : partitionByPhaseset(
+          randomCalls(
               random,
               contig,
               contigLength,
@@ -56,12 +66,18 @@ public class HaplotypeGeneratorTest {
   }
 
   @Test
-  public void testContig_apply() {
-    Haplotype.create("ACGTACGT", 5000)
-        .apply(Arrays.asList(
-            TestCall.create("chr1", 5002, "GT", Collections.singletonList("C"), Arrays.asList(0, 1), Call.Phaseset.DEFAULT),
-            TestCall.create("chr1", 5006, "G", Collections.singletonList("A"), Arrays.asList(0, 1), Call.Phaseset.DEFAULT)))
-        .map(Object::toString)
-        .forEach(System.out::println);
+  public void testGenerateHaplotypes() {
+    String contig = "chr1";
+    assertEquals(
+        Stream.of("AGGTACTT", "ACGTCCGT", "ACGTACGT", "AGGTCCTT").collect(Collectors.toSet()),
+        generateHaplotypes(
+            reference(ImmutableMap.of(contig, "ACGTACGT")),
+            contig,
+            asList(
+                create(contig, 2, "C", singletonList("G"), asList(0, 1), DEFAULT),
+                create(contig, 5, "A", singletonList("C"), asList(0, 1)),
+                create(contig, 7, "G", singletonList("T"), asList(0, 1), DEFAULT)),
+            1,
+            9));
   }
 }

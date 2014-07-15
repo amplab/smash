@@ -18,9 +18,6 @@ public class HaplotypeGenerator {
 
   static class Haplotype {
 
-    private static final Function<Call, Integer> NUMBER_OF_ALLELES = call -> call.genotype().size();
-    private static final Function<Call, Optional<Call.Phaseset>> PHASESET = Call::phaseset;
-
     static Haplotype create(String string, int genomeCoordinate) {
       NavigableMap<Integer, Integer> offsets = new TreeMap<>();
       offsets.put(genomeCoordinate, 0);
@@ -35,23 +32,23 @@ public class HaplotypeGenerator {
       this.offsets = offsets;
     }
 
-    private static <X> X
-        getProperty(List<Call> calls, Function<? super Call, ? extends X> accessor, String message) {
+    private static <X> X getProperty(List<Call> calls, Function<? super Call, ? extends X> accessor,
+        String message) {
       List<X> list = calls.stream().map(accessor).distinct().collect(Collectors.toList());
       Preconditions.checkState(1 == list.size(), message);
       return Iterables.getOnlyElement(list);
     }
 
     Stream<Haplotype> apply(List<Call> calls) {
-      getProperty(calls, PHASESET, "All calls must belong to the same phaseset").orElseGet(() -> {
-        Preconditions.checkState(1 == calls.size(), "Only 1 unphased call allowed");
-        return null;
-      });
+      getProperty(calls, Call::phaseset, "All calls must belong to the same phaseset").orElseGet(
+          () -> {
+            Preconditions.checkState(1 == calls.size(), "Only 1 unphased call allowed");
+            return null;
+          });
       Stream.Builder<Haplotype> haplotypes = Stream.builder();
-      for (
-          int numAlleles = getProperty(calls, NUMBER_OF_ALLELES, "Different numbers of alleles on calls"), allele = 0;
-          allele < numAlleles;
-          ++allele) {
+      for (int numAlleles = getProperty(calls, call -> call.genotype().size(),
+          "Calls in same phaseset has different number of alleles"), allele = 0;
+          allele < numAlleles; ++allele) {
         StringBuilder newString = new StringBuilder(string);
         NavigableMap<Integer, Integer> newOffsets = new TreeMap<>();
         newOffsets.putAll(offsets);
@@ -72,13 +69,17 @@ public class HaplotypeGenerator {
               newEnd = newStart + referenceLength;
           assert newString.substring(newStart, newEnd).equals(reference);
           newString.replace(newStart, newEnd, replacement);
-          newOffsets.put(end, newStart + replacementLength);
-          for (
-              Map.Entry<Integer, Integer> entry = newOffsets.ceilingEntry(end + 1);
-              null != entry;
-              entry = newOffsets.higherEntry(entry.getKey())) {
-            entry.setValue(entry.getValue() + delta);
-          }
+          NavigableMap<Integer, Integer> offsetsCopy = new TreeMap<>();
+          newOffsets.subMap(Integer.MIN_VALUE, true, end, false)
+              .entrySet()
+              .stream()
+              .forEach(entry -> offsetsCopy.put(entry.getKey(), entry.getValue()));
+          offsetsCopy.put(end, newStart + replacementLength);
+          newOffsets.subMap(end, false, Integer.MAX_VALUE, true)
+              .entrySet()
+              .stream()
+              .forEach(entry -> offsetsCopy.put(entry.getKey(), entry.getValue() + delta));
+          newOffsets = offsetsCopy;
         }
         haplotypes.add(new Haplotype(newString.toString(), newOffsets));
       }
@@ -91,31 +92,35 @@ public class HaplotypeGenerator {
     }
   }
 
-  public static Set<String> generateHaplotypes(
-      FastaReader.FastaFile reference,
-      List<Call> calls,
-      int beginning,
-      int end) {
-    List<List<Call>> partition = partitionByPhaseset(calls);
-    throw new UnsupportedOperationException();
+  public static Set<String> generateHaplotypes(FastaReader.FastaFile reference, String contig,
+      List<Call> calls, int beginning, int end) {
+    Stream<Haplotype> haplotypes =
+        Stream.of(Haplotype.create(reference.get(contig, beginning - 1, end - 1), beginning));
+    for (List<Call> phaseset : partitionByPhaseset(calls)) {
+      haplotypes = haplotypes.flatMap(haplotype -> haplotype.apply(phaseset));
+    }
+    return haplotypes.map(Object::toString)
+        .collect(Collectors.toSet());
   }
 
   static List<List<Call>> partitionByPhaseset(List<Call> calls) {
     Stream.Builder<Stream.Builder<Call>> partition = Stream.builder();
     Map<Call.Phaseset, Stream.Builder<Call>> bucketCache = new HashMap<>();
-    calls.stream().forEach(call -> {
-      call.phaseset()
-          .map(phaseset -> Optional.ofNullable(bucketCache.get(phaseset))
-              .orElseGet(() -> {
-                Stream.Builder<Call> bucket = Stream.builder();
-                bucketCache.put(phaseset, bucket);
-                return bucket;
-              }))
-          .orElse(Stream.builder())
-          .add(call);
-    });
+    calls.stream().forEach(call -> call.phaseset()
+        .map(phaseset -> Optional.ofNullable(bucketCache.get(phaseset)).orElseGet(() -> {
+              Stream.Builder<Call> bucket = Stream.builder();
+              partition.add(bucket);
+              bucketCache.put(phaseset, bucket);
+              return bucket;
+            }))
+        .orElseGet(() -> {
+              Stream.Builder<Call> bucket = Stream.builder();
+              partition.add(bucket);
+              return bucket;
+            })
+        .add(call));
     return partition.build()
-        .map(bucket -> bucket.build().collect(Collectors.toList()))
+        .map(stream -> stream.build().collect(Collectors.toList()))
         .collect(Collectors.toList());
   }
 }

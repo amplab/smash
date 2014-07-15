@@ -1,12 +1,12 @@
 package edu.berkeley.cs.amplab.vardiff;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public interface Call extends Comparable<Call> {
 
@@ -49,9 +49,7 @@ public interface Call extends Comparable<Call> {
   }
 
   final Comparator<Call>
-      COMPARATOR = Comparator.comparing(Call::contig).thenComparing(Call::position),
-      START_COMPARATOR = Comparator.comparing(Call::position),
-      END_COMPARATOR = Comparator.comparing(call -> call.position() + call.reference().length());
+      COMPARATOR = Comparator.comparing(Call::contig).thenComparing(Call::position);
 
   final HashCodeAndEquals<Call> HASH_CODE_AND_EQUALS = HashCodeAndEquals.create(
       Call.class,
@@ -62,18 +60,15 @@ public interface Call extends Comparable<Call> {
       Call::position,
       Call::reference);
 
-  final Function<Call, String> TO_STRING = call -> ImmutableMap
-      .builder()
-      .put("contig", call.contig())
-      .put("position", call.position())
-      .put("reference", call.reference())
-      .put("alternates", call.alternates())
-      .put("genotype", call.genotype())
-      .put("phaseset", call.phaseset())
-      .build()
-      .entrySet()
-      .stream()
-      .map(entry -> String.format("%s: %s", entry.getKey(), entry.getValue()))
+  final Function<Call, String> TO_STRING = call -> Stream
+      .of(
+          Stream.of("contig", call.contig()),
+          Stream.of("position", call.position()),
+          Stream.of("reference", call.reference()),
+          Stream.of("alternates", call.alternates()),
+          Stream.of("genotype", call.genotype()),
+          Stream.of("phaseset", call.phaseset()))
+      .map(stream -> stream.map(Object::toString).collect(Collectors.joining(" = ")))
       .collect(Collectors.joining(", "));
 
   List<String> alternates();
@@ -85,7 +80,17 @@ public interface Call extends Comparable<Call> {
 
   String contig();
 
+  default int end() {
+    return position() + reference().length();
+  }
+
   List<Integer> genotype();
+
+  default boolean overlaps(Call rhs) {
+    return Objects.equals(contig(), rhs.contig())
+        && end() < rhs.position()
+        && position() < rhs.end();
+  }
 
   Optional<Phaseset> phaseset();
 

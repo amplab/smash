@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Stream;
 
 public class CandidateCallsTest {
 
@@ -26,13 +27,28 @@ public class CandidateCallsTest {
             String contig = reference.contigs().iterator().next();
             int contigLength = reference.contigLength(contig);
             Random random = new Random();
+            List<Call>
+                lhs = TestCall.randomCalls(
+                    random, contig, contigLength, maxCallLength, lhsNumberOfCalls),
+                rhs = TestCall.randomCalls(
+                    random, contig, contigLength, maxCallLength, rhsNumberOfCalls);
             for (
                 PeekingIterator<CandidateCalls> iterator = Iterators.peekingIterator(CandidateCalls
                     .createCandidates(
-                        TestCall.randomCalls(
-                            random, contig, contigLength, maxCallLength, lhsNumberOfCalls),
-                        TestCall.randomCalls(
-                            random, contig, contigLength, maxCallLength, rhsNumberOfCalls))
+                        Stream.concat(lhs.stream(), rhs.stream()).collect(
+                            () -> Window.create(
+                                contig,
+                                Integer.MAX_VALUE,
+                                Integer.MIN_VALUE,
+                                lhs,
+                                rhs),
+                            (window, call) -> Window.create(
+                                window.contig(),
+                                Math.min(window.start(), call.position()),
+                                Math.max(window.end(), call.end()),
+                                window.lhs(),
+                                window.rhs()),
+                            (l, r) -> { throw new UnsupportedOperationException(); }))
                     .iterator());
                 iterator.hasNext();) {
               CandidateCalls next = iterator.next();

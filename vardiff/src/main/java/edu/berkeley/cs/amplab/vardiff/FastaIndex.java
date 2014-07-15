@@ -26,6 +26,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class FastaIndex {
 
@@ -96,7 +97,7 @@ public class FastaIndex {
 
     @Override
     public int hashCode() {
-      return Objects.hash(name(), length(), offset(), bases(), bytes());
+      return Objects.hash(fields().toArray());
     }
 
     public long length() {
@@ -113,7 +114,11 @@ public class FastaIndex {
 
     @Override
     public String toString() {
-      return String.format("%s\t%d\t%d\t%d\t%d", name(), length(), offset(), bases(), bytes());
+      return fields().map(Object::toString).collect(Collectors.joining("\t"));
+    }
+
+    private Stream<Object> fields() {
+      return Stream.of(name(), length(), offset(), bases(), bytes());
     }
   }
 

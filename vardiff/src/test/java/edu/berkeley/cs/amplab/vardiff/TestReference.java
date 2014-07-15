@@ -10,7 +10,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 public class TestReference {
 
@@ -56,5 +58,22 @@ public class TestReference {
 
   public static FastaReader reader() {
     return READER.get();
+  }
+
+  public static FastaReader.FastaFile reference(final Map<String, String> map) {
+    return new FastaReader.FastaFile() {
+
+          @Override public int contigLength(String contig) {
+            return map.get(contig).length();
+          }
+
+          @Override public Set<String> contigs() {
+            return map.keySet();
+          }
+
+          @Override public String get(String contig, int beginIndex, int endIndex) {
+            return map.get(contig).substring(beginIndex, endIndex);
+          }
+        };
   }
 }
