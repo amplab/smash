@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -146,16 +147,16 @@ public class Window {
                   CallWithSource next = iterator.next();
                   Call call = next.call();
                   String contig = call.contig();
-                  Window.Builder builder = Window.builder(contig);
-                  for (addToWindow(builder, next, call);
+                  Window.Builder window = Window.builder(contig);
+                  for (addToWindow(window, next, call);
                       iterator.hasNext()
                           && Objects.equals(
                               contig,
                               (call = (next = iterator.peek()).call()).contig())
-                          && call.position() < builder.end();) {
-                    addToWindow(builder, iterator.next(), call);
+                          && call.position() < window.end();) {
+                    addToWindow(window, iterator.next(), call);
                   }
-                  return builder.build();
+                  return window.build();
                 }
                 return endOfData();
               }
@@ -260,6 +261,14 @@ public class Window {
 
   @Override
   public String toString() {
-    return String.format("[\"%s\", %d, %d]: %d", contig(), start(), end(), size());
+    return Stream
+        .of(
+            Stream.of("contig", contig()),
+            Stream.of("start", start()),
+            Stream.of("end", end()),
+            Stream.of("lhs", lhs()),
+            Stream.of("rhs", rhs()))
+        .map(stream -> stream.map(Object::toString).collect(Collectors.joining("=")))
+        .collect(Collectors.joining(", "));
   }
 }

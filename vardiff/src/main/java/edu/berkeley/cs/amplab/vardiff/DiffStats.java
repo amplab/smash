@@ -138,12 +138,12 @@ public class DiffStats {
                 .concat(
                     Stream.of(Stream.of(
                         "TYPE",
-                        "MATCHING LHS",
-                        "MATCHING RHS",
-                        "NOT MATCHING LHS",
-                        "NOT MATCHING RHS")),
+                        "RESCUED LHS",
+                        "RESCUED RHS",
+                        "UNRESCUED LHS",
+                        "UNRESCUED RHS")),
                     Stream.of(Call.Type.values()).map(type -> Stream.of(
-                        type,
+                        type.name().toLowerCase(),
                         matchingLhs.count(type),
                         matchingRhs.count(type),
                         notMatchingLhs.count(type),
