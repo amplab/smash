@@ -38,6 +38,7 @@ class Enum(set):
 
 VARIANT_TYPE = Enum(["SNP","INDEL_DEL","INDEL_INS","INDEL_OTH","SV_DEL","SV_INS","SV_OTH","INDEL_INV"])
 GENOTYPE_TYPE = Enum(["HOM_REF","HET","HOM_VAR","NO_CALL","UNAVAILABLE"])
+# UNAVAILABLE is not currently used.
 
 # this maps the PyVCF representation to this enum representation
 GENOTYPE_TYPE_MAP = { 0 : GENOTYPE_TYPE.HOM_REF, 1 : GENOTYPE_TYPE.HET, 2 : GENOTYPE_TYPE.HOM_VAR,
@@ -45,7 +46,7 @@ GENOTYPE_TYPE_MAP = { 0 : GENOTYPE_TYPE.HOM_REF, 1 : GENOTYPE_TYPE.HET, 2 : GENO
 
 def _lacks_alt_alleles(record):
   alt = map(str, record.ALT)
-  return alt[0] == 'None' or not alt[0]
+  return alt[0] == 'NONE' or not alt[0]
 
 
 def is_pass(record):
@@ -76,8 +77,11 @@ def is_sv(record,maxSize):
     return symbolic
 
 def is_inversion(record,maxSize):
+    # inversions may have a leading base
     return (len(record.REF) > 1 or len(record.ALT[0]) > 1) \
-        and not is_sv(record,maxSize) and record.REF == str(record.ALT[0])[::-1] # this is crazy python for reversing a string
+        and not is_sv(record,maxSize) and (record.REF == str(record.ALT[0])[::-1] or \
+        (record.REF[0] == str(record.ALT[0])[0] and record.REF[1:] == str(record.ALT[0])[1:][::-1])) 
+        # [::=1] is crazy python for reversing a string
 
 class ChromVariants:
 
@@ -177,17 +181,18 @@ class ChromVariants:
     assert record.CHROM == self.chrom
     if not is_pass(record) and not self._args.get('knownFP',None): # if this is a known FP object, let it past the filter
       return
-    ref = record.REF
-    if ( record.REF != record.REF.upper() ):
-      raise AssertionError("VCF contains lower-case bases in the reference: " + record.REF+ " at "+str(record.POS))
+    ref = record.REF.upper()
 
-    alt = map(str, record.ALT)
+    alt = map(lambda a: str(a).upper(), record.ALT)
     if _lacks_alt_alleles(record) and not self._args.get('knownFP',None):
       raise Exception("Monomorphic records (no alt allele) are not supported.")
 
     len_ref = len(ref)
-    assert len(record.samples) == 1 # We expect vcfs to correspond to a
-                                    # single sample.
+    try:
+        assert len(record.samples) == 1 # We expect vcfs to correspond to a single sample.
+    except AssertionError:
+        print("%s lacks sample data and will not be evaluated." % str(record), file=sys.stderr)
+        return
     # Possible TODO: filter on desired sample? Or at least document that this is our convention.
     # given that there's a single sample, get the genotype type
     # note that PyVCF's gt_type only represents hom ref, het, hom var, None

@@ -101,13 +101,23 @@ chr19   30  .       AAAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCACAGGCACACTGC
         self.assertEqual(newChromVar.indel_pos_dict[10].var_type, VARIANT_TYPE.INDEL_INS)
         newChromVar.add_record(pred_vcf.next())
         self.assertTrue(20 in newChromVar.all_locations)
-        self.assertEqual(newChromVar.indel_pos_dict[20].var_type, VARIANT_TYPE.INDEL_OTH)
+        self.assertEqual(newChromVar.indel_pos_dict[20].var_type, VARIANT_TYPE.INDEL_INV)
         newChromVar.add_record(pred_vcf.next())
         self.assertTrue(30 in newChromVar.all_locations)
         self.assertEqual(newChromVar.sv_pos_dict[30].var_type, VARIANT_TYPE.SV_DEL)
         #all indels/sv (del,ins,oth) live in one bucket
         self.assertEqual(len(newChromVar._var_dict(VARIANT_TYPE.INDEL_DEL)),len(newChromVar._var_dict(VARIANT_TYPE.INDEL_INS)))
         self.assertEqual(len(newChromVar._var_dict(VARIANT_TYPE.SV_DEL)),len(newChromVar._var_dict(VARIANT_TYPE.SV_INS)))
+
+    def testAddRecordNoSample(self):
+        vcf_str = """##fileformat=VCFv4.0\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    \n
+chr19   2       .       A       T       20      PASS    .       \n
+"""
+        newChromVar = ChromVariants('chr19',MAX_INDEL_LEN)
+        test_vcf = vcf.Reader(StringIO.StringIO(vcf_str))
+        newChromVar.add_record(test_vcf.next())
+        self.assertEqual(newChromVar.all_locations,[])
 
     def testRemoveRecord(self):
         pred_str = """##fileformat=VCFv4.0\n
@@ -162,7 +172,7 @@ chr1    7       .       G       .       20      PASS    .       GT       0/0\n
         self.assertEqual(newChromVar.all_locations,[7])
         var = newChromVar.all_variants[7]
         self.assertEqual(var.ref,'G')
-        self.assertEqual(var.alt[0], 'None')
+        self.assertEqual(var.alt[0], 'NONE')
 
 #test rando helper methods
 class ChromVariantHelperMethodsTestCase(unittest.TestCase):
@@ -240,6 +250,19 @@ chr19   22   .       ATT       A         20      PASS    .       GT      0/1\n
         self.assertFalse(any(map(lambda x: x.pos == 16, paths[0])))
         self.assertFalse(any(map(lambda x: x.pos == 15, paths[1])))
         self.assertTrue(any(map(lambda x: x.pos == 16, paths[1])))
+
+    def testIsInversion(self):
+        pred_str = """##fileformat=VCFv4.0\n
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr19   11      .       ACT     TCA       20      PASS    .       GT      1/1\n
+chr19   15      .       ACGATT  ATTAGC      20      PASS    .       GT      1/1\n
+chr19   16      .       ACG     A       20      PASS    .       GT      1/1\n
+"""
+        vcfr = vcf_file = vcf.Reader(StringIO.StringIO(pred_str))
+        self.assertTrue(is_inversion(vcfr.next(),MAX_INDEL_LEN)) # inversion with no leading base
+        self.assertTrue(is_inversion(vcfr.next(),MAX_INDEL_LEN)) # inversion with leading base
+        self.assertFalse(is_inversion(vcfr.next(),MAX_INDEL_LEN)) # deletions are not inversions
 
 
 if __name__ == '__main__':
