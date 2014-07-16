@@ -1,9 +1,12 @@
 package edu.berkeley.cs.amplab.vardiff;
 
+import com.google.common.collect.Iterables;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -44,6 +47,40 @@ public interface Call {
 
     public Optional<Integer> value() {
       return value;
+    }
+  }
+
+  public enum Type {
+
+    DELETION,
+    HOMOZYGOUS_REFERENCE,
+    INSERTION,
+    INVERSION,
+    OTHER,
+    SNP;
+
+    public static Type classify(Call call) {
+      if (!call.genotype().stream().allMatch(Predicate.isEqual(0))) {
+        List<String> alternates = call.alternates();
+        if (1 == alternates.size()) {
+          String
+              reference = call.reference(),
+              alternate = Iterables.getOnlyElement(alternates);
+          int referenceSize = reference.length(),
+              alternateSize = alternate.length();
+          return 1 == referenceSize
+              ? 1 == alternateSize
+                  ? SNP
+                  : INSERTION
+              : 1 == alternateSize
+                  ? DELETION
+                  : Objects.equals(reference, new StringBuilder(alternate).reverse().toString())
+                      ? INVERSION
+                      : OTHER;
+        }
+        return OTHER;
+      }
+      return HOMOZYGOUS_REFERENCE;
     }
   }
 
@@ -88,4 +125,8 @@ public interface Call {
   int position();
 
   String reference();
+
+  default Type type() {
+    return Type.classify(this);
+  }
 }

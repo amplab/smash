@@ -27,6 +27,9 @@ public class CandidateCalls {
   }
 
   public static Stream<CandidateCalls> createCandidates(Window window) {
+    if (window.isTooLarge()) {
+      return Stream.empty();
+    }
     List<Call>
         lhsWindow = window.lhs(),
         rhsWindow = window.rhs();

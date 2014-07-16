@@ -168,13 +168,14 @@ public class VcfCallScanner implements CallScanner {
   @Override
   public <X> X scan(Callback<? extends X> callback) throws IOException {
     try (BufferedReader in = new BufferedReader(new FileReader(vcf))) {
-      List<String> header = new ArrayList<>();
+      List<String> headerList = new ArrayList<>();
       Stream<String> lines = in.lines().filter(line -> !(line.isEmpty() || line.startsWith("##")));
       Spliterator<String> spliterator = lines.spliterator();
-      spliterator.tryAdvance(header::add);
+      spliterator.tryAdvance(headerList::add);
       lines = StreamSupport.stream(spliterator, lines.isParallel());
-      Matcher matcher = HEADER_PATTERN.matcher(Iterables.getOnlyElement(header));
-      Preconditions.checkState(matcher.lookingAt());
+      String header = Iterables.getOnlyElement(headerList);
+      Matcher matcher = HEADER_PATTERN.matcher(header);
+      Preconditions.checkState(matcher.lookingAt(), "Unparsable header line: %s", header);
       Map<String, Integer> index1 = stream(matcher.usePattern(SAMPLE_PATTERN))
           .map(result -> result.group(1))
           .collect(Indexer.create());
@@ -188,6 +189,12 @@ public class VcfCallScanner implements CallScanner {
             throw new IllegalStateException("Sample ID required for multi-sample VCF file");
           });
       return callback.scan(lines.map(line -> call(line, index)));
+    } catch (IllegalStateException e) {
+      IllegalStateException newException = new IllegalStateException(Stream
+          .of(vcf.getAbsolutePath(), Optional.ofNullable(e.getMessage()).orElse(""))
+          .collect(Collectors.joining(" ")));
+      newException.setStackTrace(e.getStackTrace());
+      throw newException;
     }
   }
 }

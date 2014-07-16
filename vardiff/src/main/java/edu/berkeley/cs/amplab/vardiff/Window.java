@@ -1,15 +1,21 @@
 package edu.berkeley.cs.amplab.vardiff;
 
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
+import com.google.common.collect.Sets;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
@@ -20,9 +26,9 @@ public class Window {
   public static class Builder {
 
     private final String contig;
-    private ImmutableList.Builder<Call>
-        lhs = ImmutableList.builder(),
-        rhs = ImmutableList.builder();
+    private List<Call>
+        lhs = new ArrayList<>(),
+        rhs = new ArrayList<>();
     private int
         start = Integer.MAX_VALUE,
         end = Integer.MIN_VALUE;
@@ -42,7 +48,7 @@ public class Window {
     }
 
     public Window build() {
-      return new Window(contig, start, end, lhs.build(), rhs.build());
+      return new Window(contig, start, end, lhs, rhs);
     }
 
     int end() {
@@ -98,8 +104,14 @@ public class Window {
           Window::lhs,
           Window::rhs);
 
+  private static final int MAX_WINDOW_SIZE = 10;
+
   public static Builder builder(String contig) {
     return new Builder(contig);
+  }
+
+  private static <X> Comparator<X> comparator(Collection<? extends X> collection) {
+    return Comparator.comparing(collection.stream().collect(Indexer.create())::get);
   }
 
   public static Window create(String contig, int start, int end, List<Call> lhs, List<Call> rhs) {
@@ -116,7 +128,7 @@ public class Window {
                       Arrays.asList(Source.LHS.iterator(lhs), Source.RHS.iterator(rhs)),
                       CallWithSource.COMPARATOR));
 
-              private Window.Builder addToWindow(Window.Builder window, CallWithSource next, Call call) {
+              private void addToWindow(Window.Builder window, CallWithSource next, Call call) {
                 switch (next.source()) {
                   case LHS:
                     window.addLhs(call);
@@ -127,7 +139,6 @@ public class Window {
                   default:
                     throw new IllegalStateException();
                 }
-                return window;
               }
 
               @Override protected Window computeNext() {
@@ -135,22 +146,38 @@ public class Window {
                   CallWithSource next = iterator.next();
                   Call call = next.call();
                   String contig = call.contig();
-                  Window.Builder window = addToWindow(Window.builder(contig), next, call);
-                  while (iterator.hasNext()) {
-                    next = iterator.peek();
-                    call = next.call();
-                    if (!Objects.equals(contig, call.contig()) || window.end() <= call.position()) {
-                      break;
-                    }
-                    addToWindow(window, iterator.next(), call);
+                  Window.Builder builder = Window.builder(contig);
+                  for (addToWindow(builder, next, call);
+                      iterator.hasNext()
+                          && Objects.equals(
+                              contig,
+                              (call = (next = iterator.peek()).call()).contig())
+                          && call.position() < builder.end();) {
+                    addToWindow(builder, iterator.next(), call);
                   }
-                  return window.build();
+                  return builder.build();
                 }
                 return endOfData();
               }
             },
             Spliterator.DISTINCT | Spliterator.IMMUTABLE | Spliterator.NONNULL),
         false);
+  }
+
+  private static <X> Set<X> set(Iterable<? extends X> iterable) {
+    Set<X> set = new HashSet<>();
+    for (X object : iterable) {
+      set.add(object);
+    }
+    return set;
+  }
+
+  private static <X> List<X> sort(Collection<? extends X> collection,
+      Comparator<? super X> comparator) {
+    List<X> list = new ArrayList<>(collection.size());
+    list.addAll(collection);
+    Collections.sort(list, comparator);
+    return list;
   }
 
   private final String contig;
@@ -173,6 +200,30 @@ public class Window {
     return contig;
   }
 
+  public OutputTuple createOutputTuple(Optional<CandidateCalls> optional) {
+    OutputTuple.Builder tuple = OutputTuple.builder(this);
+    if (optional.isPresent()) {
+      CandidateCalls calls = optional.get();
+      List<Call>
+          windowLhs = lhs(),
+          windowRhs = rhs();
+      Comparator<Call>
+          lhsComparator = comparator(windowLhs),
+          rhsComparator = comparator(windowRhs);
+      Set<Call>
+          windowLhsSet = set(windowLhs),
+          windowRhsSet = set(windowRhs),
+          callsLhsSet = set(calls.lhs()),
+          callsRhsSet = set(calls.rhs());
+      tuple
+          .addMatchingLhs(sort(Sets.intersection(windowLhsSet, callsLhsSet), lhsComparator))
+          .addMatchingRhs(sort(Sets.intersection(windowRhsSet, callsRhsSet), rhsComparator))
+          .addNotMatchingLhs(sort(Sets.difference(windowLhsSet, callsLhsSet), lhsComparator))
+          .addNotMatchingRhs(sort(Sets.difference(windowRhsSet, callsRhsSet), rhsComparator));
+    }
+    return tuple.build();
+  }
+
   public int end() {
     return end;
   }
@@ -187,6 +238,10 @@ public class Window {
     return HASH_CODE_AND_EQUALS.hashCode(this);
   }
 
+  public boolean isTooLarge() {
+    return MAX_WINDOW_SIZE < size();
+  }
+
   public List<Call> lhs() {
     return lhs;
   }
@@ -195,7 +250,16 @@ public class Window {
     return rhs;
   }
 
+  public int size() {
+    return Math.max(lhs().size(), rhs.size());
+  }
+
   public int start() {
     return start;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("[\"%s\", %d, %d]: %d", contig(), start(), end(), size());
   }
 }
