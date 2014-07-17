@@ -53,6 +53,7 @@ from parsers.genome import Genome
 from vcf_eval.chrom_variants import is_sv
 
 info_norm_tag = "OP"
+info_norm_header_line = """##INFO=<ID=""" + info_norm_tag + """,Number=1,Type=Integer,Description="Original position before normalization">"""
 
 normalize_header = """##fileformat=VCFv4.0
 ##source=VCFWriter
@@ -289,12 +290,15 @@ def main():
     if len(sys.argv) > 4:
         max_indel_length = sys.argv[4]
     cleanOnly = len(sys.argv) > 5 and sys.argv[5] == "cleanonly"
-    if cleanOnly:
-        vcf_writer = parsers.vcfwriter.VCFWriter(ref, person, sys.stdout)
-    else:
-        vcf_writer = parsers.vcfwriter.VCFWriter(ref,person,sys.stdout,normalize_header)
+    # TODO: add INFO line for slide field in normalized header
+    # if cleanOnly:
+    #     vcf_writer = vcf.Writer(sys.stdout,vcf_reader)
+    # else:
+    #     vcf_writer = vcf.Writer(sys.stdout,vcf_reader)
+    # using PyVCF's writer preserves all other info in the record
+    vcf_writer = vcf.Writer(sys.stdout,vcf_reader)
     normiter = normalize(Genome(ref,lambda t: t.split()[0]), vcf_reader, max_indel_length, cleanOnly)
-    map(lambda r: write(r,vcf_writer), normiter)
+    map(lambda r: vcf_writer.write_record(r), normiter)
     if not cleanOnly:
         show_slides(left_slides)
 
