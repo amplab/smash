@@ -1,14 +1,10 @@
 package edu.berkeley.cs.amplab.vardiff;
 
-import com.google.common.base.Throwables;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Parameters(separators = "=")
 public class CommandLine {
@@ -21,6 +17,7 @@ public class CommandLine {
     private String referenceFasta;
     private String rhsSampleId;
     private String rhsVcf;
+    private boolean presorted;
 
     public CommandLine build() {
       return new CommandLine(
@@ -29,7 +26,8 @@ public class CommandLine {
           referenceFai,
           referenceFasta,
           rhsSampleId,
-          rhsVcf);
+          rhsVcf,
+          presorted);
     }
 
     public Builder setLhsSampleId(String lhsSampleId) {
@@ -39,6 +37,11 @@ public class CommandLine {
 
     public Builder setLhsVcf(String lhsVcf) {
       this.lhsVcf = lhsVcf;
+      return this;
+    }
+
+    public Builder setPresorted(boolean presorted) {
+      this.presorted = presorted;
       return this;
     }
 
@@ -71,7 +74,8 @@ public class CommandLine {
           CommandLine::referenceFai,
           CommandLine::referenceFasta,
           CommandLine::rhsSampleId,
-          CommandLine::rhsVcf);
+          CommandLine::rhsVcf,
+          CommandLine::presorted);
 
   public static Builder builder() {
     return new Builder();
@@ -101,8 +105,11 @@ public class CommandLine {
   @Parameter(names = { "--rhs_vcf" })
   private String rhsVcf;
 
+  @Parameter(names = { "--presorted" })
+  private boolean presorted;
+
   private CommandLine() {
-    this(null, null, null, null, null, null);
+    this(null, null, null, null, null, null, false);
   }
 
   private CommandLine(
@@ -111,13 +118,15 @@ public class CommandLine {
       String referenceFai,
       String referenceFasta,
       String rhsSampleId,
-      String rhsVcf) {
+      String rhsVcf,
+      boolean presorted) {
     this.lhsSampleId = lhsSampleId;
     this.lhsVcf = lhsVcf;
     this.referenceFai = referenceFai;
     this.referenceFasta = referenceFasta;
     this.rhsSampleId = rhsSampleId;
     this.rhsVcf = rhsVcf;
+    this.presorted = presorted;
   }
 
   @Override
@@ -138,6 +147,10 @@ public class CommandLine {
     return Optional.ofNullable(lhsVcf);
   }
 
+  public boolean presorted() {
+    return presorted;
+  }
+
   public Optional<String> referenceFai() {
     return Optional.ofNullable(referenceFai);
   }
@@ -152,24 +165,5 @@ public class CommandLine {
 
   public Optional<String> rhsVcf() {
     return Optional.ofNullable(rhsVcf);
-  }
-
-  @Override
-  public String toString() {
-    return Stream.of(CommandLine.class.getDeclaredFields())
-        .flatMap(field -> Optional.ofNullable(field.getAnnotation(Parameter.class))
-            .map(parameter -> {
-                  try {
-                    return Optional.ofNullable(field.get(CommandLine.this))
-                        .map(value -> Stream.of(
-                            Stream.of(parameter.names()[0], value.toString())
-                                .collect(Collectors.joining("="))))
-                        .orElse(Stream.empty());
-                  } catch (Exception e) {
-                    throw Throwables.propagate(e);
-                  }
-                })
-            .orElse(Stream.empty()))
-        .collect(Collectors.joining(" "));
   }
 }

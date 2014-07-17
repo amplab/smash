@@ -37,8 +37,13 @@ public class Main {
                   return callScanner("lhs", commandLine.lhsVcf(), commandLine.lhsSampleId())
                       .scan(lhs -> {
                         try {
+                          boolean presorted = commandLine.presorted();
                           return callScanner("rhs", commandLine.rhsVcf(), commandLine.rhsSampleId())
-                              .scan(rhs -> OutputTuple.vardiff(reference, sort(lhs), sort(rhs))
+                              .scan(rhs -> OutputTuple
+                                  .vardiff(
+                                      reference,
+                                      presorted ? lhs : sort(lhs),
+                                      presorted ? rhs : sort(rhs))
                                   .collect(DiffStats.builder()));
                         } catch (IOException e) {
                           throw new ExceptionWrapper(e);

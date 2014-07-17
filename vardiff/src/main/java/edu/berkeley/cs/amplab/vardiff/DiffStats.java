@@ -82,8 +82,6 @@ public class DiffStats {
       DiffStats::notMatchingLhs,
       DiffStats::notMatchingRhs);
 
-  private static final String NEWLINE = String.format("%n");
-
   public static Builder builder() {
     return new Builder();
   }
@@ -133,29 +131,44 @@ public class DiffStats {
   @Override
   public String toString() {
     return Stream
-        .of(
+        .concat(
             Stream
                 .concat(
                     Stream.of(Stream.of(
-                        "TYPE",
-                        "RESCUED LHS",
-                        "RESCUED RHS",
-                        "UNRESCUED LHS",
-                        "UNRESCUED RHS")),
-                    Stream.of(Call.Type.values()).map(type -> Stream.of(
-                        type.name().toLowerCase(),
-                        matchingLhs.count(type),
-                        matchingRhs.count(type),
-                        notMatchingLhs.count(type),
-                        notMatchingRhs.count(type))))
-                .map(stream -> stream.map(Object::toString).collect(Collectors.joining("\t")))
-                .collect(Collectors.joining(NEWLINE)),
-            String.format(
-                "Unprocessed windows: %s",
-                unprocessedWindows.stream()
-                    .map(Object::toString)
-                    .collect(Collectors.joining(", "))))
-        .collect(Collectors.joining(NEWLINE));
+                        String.format("%-10s", "CALL TYPE"),
+                        String.format("%30s", "LEFT HAND SIDE"),
+                        String.format("%30s", "RIGHT HAND SIDE"))),
+                    Stream.of(Call.Type.values()).map(type -> {
+                          int matchingLhs = this.matchingLhs.count(type),
+                              matchingRhs = this.matchingRhs.count(type),
+                              totalLhs = matchingLhs + notMatchingLhs.count(type),
+                              totalRhs = matchingRhs + notMatchingRhs.count(type);
+                          return Stream.of(
+                              type.name().toLowerCase(),
+                              String.format(
+                                  "%30s",
+                                  String.format(
+                                      "%d/%d%s",
+                                      matchingLhs,
+                                      totalLhs,
+                                      0 == totalLhs ? "" : String.format(
+                                          "=%.3f%%", ((double) 100 * matchingLhs) / totalLhs))),
+                              String.format(
+                                  "%30s",
+                                  String.format(
+                                      "%d/%d%s",
+                                      matchingRhs,
+                                      totalRhs,
+                                      0 == totalRhs ? "" : String.format(
+                                          "=%.3f%%", ((double) 100 * matchingRhs) / totalRhs))));
+                        }))
+                .map(stream -> stream.map(Object::toString).collect(Collectors.joining("\t"))),
+            unprocessedWindows.isEmpty()
+                ? Stream.empty()
+                : Stream.concat(
+                    Stream.of("Unprocessed windows:"),
+                    unprocessedWindows.stream().map(Object::toString)))
+        .collect(Collectors.joining(String.format("%n")));
   }
 
   public List<Window> unprocessedWindows() {

@@ -53,10 +53,10 @@ public interface Call {
   public enum Type {
 
     DELETION,
-    HOMOZYGOUS_REFERENCE,
+    HOM_REF,
     INSERTION,
     INVERSION,
-    OTHER,
+    INDEL_OTHER,
     SNP;
 
     public static Type classify(Call call) {
@@ -76,11 +76,11 @@ public interface Call {
                   ? DELETION
                   : Objects.equals(reference, new StringBuilder(alternate).reverse().toString())
                       ? INVERSION
-                      : OTHER;
+                      : INDEL_OTHER;
         }
-        return OTHER;
+        return INDEL_OTHER;
       }
-      return HOMOZYGOUS_REFERENCE;
+      return HOM_REF;
     }
   }
 
