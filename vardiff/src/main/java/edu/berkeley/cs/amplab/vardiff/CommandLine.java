@@ -11,23 +11,54 @@ public class CommandLine {
 
   public static class Builder {
 
+    private String apiKey;
+    private String clientSecretsFile;
+    private String lhsCallsetId;
     private String lhsSampleId;
     private String lhsVcf;
+    private String p12File;
+    private boolean presorted;
     private String referenceFai;
     private String referenceFasta;
+    private String rhsCallsetId;
     private String rhsSampleId;
     private String rhsVcf;
-    private boolean presorted;
+    private String rootUrl;
+    private String serviceAccountId;
+    private Integer timeout;
 
     public CommandLine build() {
       return new CommandLine(
+          apiKey,
+          clientSecretsFile,
+          lhsCallsetId,
           lhsSampleId,
           lhsVcf,
+          p12File,
+          presorted,
           referenceFai,
           referenceFasta,
+          rhsCallsetId,
           rhsSampleId,
           rhsVcf,
-          presorted);
+          rootUrl,
+          serviceAccountId,
+          timeout);
+    }
+
+    public Builder setApiKey(String apiKey) {
+      this.apiKey = apiKey;
+      return this;
+    }
+
+    public Builder setClientSecretsFile(String clientSecretsFile) {
+      this.clientSecretsFile = clientSecretsFile;
+      return this;
+    }
+
+    public Builder setLhsCallsetId(String lhsCallsetId) {
+      this.lhsCallsetId = lhsCallsetId;
+      return this;
     }
 
     public Builder setLhsSampleId(String lhsSampleId) {
@@ -37,6 +68,11 @@ public class CommandLine {
 
     public Builder setLhsVcf(String lhsVcf) {
       this.lhsVcf = lhsVcf;
+      return this;
+    }
+
+    public Builder setP12File(String p12File) {
+      this.p12File = p12File;
       return this;
     }
 
@@ -55,6 +91,11 @@ public class CommandLine {
       return this;
     }
 
+    public Builder setRhsCallsetId(String rhsCallsetId) {
+      this.rhsCallsetId = rhsCallsetId;
+      return this;
+    }
+
     public Builder setRhsSampleId(String rhsSampleId) {
       this.rhsSampleId = rhsSampleId;
       return this;
@@ -64,18 +105,41 @@ public class CommandLine {
       this.rhsVcf = rhsVcf;
       return this;
     }
+
+    public Builder setRootUrl(String rootUrl) {
+      this.rootUrl = rootUrl;
+      return this;
+    }
+
+    public Builder setServiceAccountId(String serviceAccountId) {
+      this.serviceAccountId = serviceAccountId;
+      return this;
+    }
+
+    public Builder setTimeout(Integer timeout) {
+      this.timeout = timeout;
+      return this;
+    }
   }
 
   private static final HashCodeAndEquals<CommandLine>
       HASH_CODE_AND_EQUALS = HashCodeAndEquals.create(
           CommandLine.class,
+          CommandLine::apiKey,
+          CommandLine::clientSecretsFile,
+          CommandLine::lhsCallsetId,
           CommandLine::lhsSampleId,
           CommandLine::lhsVcf,
+          CommandLine::p12File,
+          CommandLine::presorted,
           CommandLine::referenceFai,
           CommandLine::referenceFasta,
+          CommandLine::rhsCallsetId,
           CommandLine::rhsSampleId,
           CommandLine::rhsVcf,
-          CommandLine::presorted);
+          CommandLine::rootUrl,
+          CommandLine::serviceAccountId,
+          CommandLine::timeout);
 
   public static Builder builder() {
     return new Builder();
@@ -87,11 +151,26 @@ public class CommandLine {
     return commandLine;
   }
 
+  @Parameter(names = { "--api_key" })
+  private String apiKey;
+
+  @Parameter(names = { "--client_secrets_file" })
+  private String clientSecretsFile;
+
+  @Parameter(names = { "--lhs_callset_id" })
+  private String lhsCallsetId;
+
   @Parameter(names = { "--lhs_sample_id" })
   private String lhsSampleId;
 
   @Parameter(names = { "--lhs_vcf" })
   private String lhsVcf;
+
+  @Parameter(names = { "--p12_file" })
+  private String p12File;
+
+  @Parameter(names = { "--presorted" })
+  private boolean presorted;
 
   @Parameter(names = { "--reference_fai" })
   private String referenceFai;
@@ -99,34 +178,67 @@ public class CommandLine {
   @Parameter(names = { "--reference_fasta" })
   private String referenceFasta;
 
+  @Parameter(names = { "--rhs_callset_id" })
+  private String rhsCallsetId;
+
   @Parameter(names = { "--rhs_sample_id" })
   private String rhsSampleId;
 
   @Parameter(names = { "--rhs_vcf" })
   private String rhsVcf;
 
-  @Parameter(names = { "--presorted" })
-  private boolean presorted;
+  @Parameter(names = { "--root_url" })
+  private String rootUrl;
 
-  private CommandLine() {
-    this(null, null, null, null, null, null, false);
+  @Parameter(names = { "--service_account_id" })
+  private String serviceAccountId;
+
+  @Parameter(names = { "--timeout" })
+  private Integer timeout;
+
+  public CommandLine() {
+    this(null, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
   }
 
   private CommandLine(
+      String apiKey,
+      String clientSecretsFile,
+      String lhsCallsetId,
       String lhsSampleId,
       String lhsVcf,
+      String p12File,
+      boolean presorted,
       String referenceFai,
       String referenceFasta,
+      String rhsCallsetId,
       String rhsSampleId,
       String rhsVcf,
-      boolean presorted) {
+      String rootUrl,
+      String serviceAccountId,
+      Integer timeout) {
+    this.apiKey = apiKey;
+    this.clientSecretsFile = clientSecretsFile;
+    this.lhsCallsetId = lhsCallsetId;
     this.lhsSampleId = lhsSampleId;
     this.lhsVcf = lhsVcf;
+    this.p12File = p12File;
+    this.presorted = presorted;
     this.referenceFai = referenceFai;
     this.referenceFasta = referenceFasta;
+    this.rhsCallsetId = rhsCallsetId;
     this.rhsSampleId = rhsSampleId;
     this.rhsVcf = rhsVcf;
-    this.presorted = presorted;
+    this.rootUrl = rootUrl;
+    this.serviceAccountId = serviceAccountId;
+    this.timeout = timeout;
+  }
+
+  public Optional<String> apiKey() {
+    return Optional.ofNullable(apiKey);
+  }
+
+  public Optional<String> clientSecretsFile() {
+    return Optional.ofNullable(clientSecretsFile);
   }
 
   @Override
@@ -139,12 +251,20 @@ public class CommandLine {
     return HASH_CODE_AND_EQUALS.hashCode(this);
   }
 
+  public Optional<String> lhsCallsetId() {
+    return Optional.ofNullable(lhsCallsetId);
+  }
+
   public Optional<String> lhsSampleId() {
     return Optional.ofNullable(lhsSampleId);
   }
 
   public Optional<String> lhsVcf() {
     return Optional.ofNullable(lhsVcf);
+  }
+
+  public Optional<String> p12File() {
+    return Optional.ofNullable(p12File);
   }
 
   public boolean presorted() {
@@ -159,11 +279,27 @@ public class CommandLine {
     return Optional.ofNullable(referenceFasta);
   }
 
+  public Optional<String> rhsCallsetId() {
+    return Optional.ofNullable(rhsCallsetId);
+  }
+
   public Optional<String> rhsSampleId() {
     return Optional.ofNullable(rhsSampleId);
   }
 
   public Optional<String> rhsVcf() {
     return Optional.ofNullable(rhsVcf);
+  }
+
+  public Optional<String> rootUrl() {
+    return Optional.ofNullable(rootUrl);
+  }
+
+  public Optional<String> serviceAccountId() {
+    return Optional.ofNullable(serviceAccountId);
+  }
+
+  public Optional<Integer> timeout() {
+    return Optional.ofNullable(timeout);
   }
 }
