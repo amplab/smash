@@ -41,47 +41,49 @@ TODO: include merging in this script rather than a separate script.
 
 from __future__ import print_function
 
-import sys
-
-from numpy import mean,histogram
-from collections import OrderedDict
-
+import sys,os
+import argparse
 import vcf
+from itertools import groupby
 
-import parsers.vcfwriter
 from parsers.genome import Genome
+from parsers.util import infoToStr,addInfoEntry,strToAlts
 from vcf_eval.chrom_variants import is_sv
+
+# TODO
+# two iterators should become one
+# better organization of these methods
+# check asserts/exceptions to fail gracefully
 
 info_norm_tag = "OP"
 info_norm_header_line = """##INFO=<ID=""" + info_norm_tag + """,Number=1,Type=Integer,Description="Original position before normalization">"""
 
-normalize_header = """##fileformat=VCFv4.0
-##source=VCFWriter
-##INFO=<ID=""" + info_norm_tag + """,Number=1,Type=Integer,Description="Original position before normalization">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-#CHROM  POS ID  REF ALT QUAL    FILTER  INFO    FORMAT  """
+left_slides = []
+same_position_discards = 0
 
-#TODO: probably move info methods to parsers.util?
-def infoToStr(info):
-    if len(info) == 0:
-        return '.'
-    else:
-        return ";".join(map(lambda (k,v): str(k)+"="+str(v), info.iteritems()))
-
-def addInfoEntry(info,key,value):
-    if type(info) == dict:
-        return OrderedDict({key:value})
-    else:
-        return info.update({key:value})
-
-def add_var(variant, var_dict):
-    if var_dict.has_key(variant.CHROM):
-        if var_dict[variant.CHROM].has_key(variant.POS):
-            var_dict[variant.CHROM][variant.POS].append(variant)
+def add_chrom_var(record, var_dict,ref_genome,verbose=False):
+    # in case of position conflict, resolve
+    while var_dict.has_key(record.POS):
+        # if var in dict has slid and variant has not, switch them
+        if not record.INFO.has_key(info_norm_tag) and var_dict[record.POS].INFO.has_key(info_norm_tag):
+            var_temp = var_dict[record.POS]
+            var_dict[record.POS] = record
+            record = var_temp
+        elif record.INFO.has_key(info_norm_tag):
+            try:
+                record = shift_until_not_overlapping(var_dict[record.POS],record,ref_genome)
+            except AssertionError:
+                print("failed denorm at %s %d" % (record.CHROM, record.POS), file=sys.stderr)
+                return
         else:
-            var_dict[variant.CHROM][variant.POS] = [variant]
-    else:
-        var_dict[variant.CHROM] = {variant.POS:[variant]}
+            global same_position_discards 
+            same_position_discards += 1
+            if verbose:
+                print("Variant already exists at %d; variant %d %s:%s will not be evaluated" % \
+                    (record.POS,record.POS,record.REF,str(record.ALT)), file=sys.stderr)
+            # same_position_discards.append(1)
+            return # original VCF had variants at same position, discard all but first variant
+    var_dict[record.POS] = record
 
 def find_redundancy(strings):
     """Return the length of the longest common proper suffix.
@@ -99,23 +101,18 @@ def find_redundancy(strings):
             break
     return redundancy
 
-def genotype(vcfrecord):
-    if not vcfrecord.samples:
+def genotype(record):
+    if not record.samples:
         return "."
     # return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
     # PyVCF's gt_type field only contains the values above. Pass the actual gt string through
     # to avoid converting other values, e.g. "2/1" to "0/1"
-    if vcfrecord.samples[0].gt_type == 1:
-        return vcfrecord.samples[0].gt_nums
-    return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[vcfrecord.samples[0].gt_type]
+    if record.samples[0].gt_type == 1:
+        return record.samples[0].gt_nums
+    return {0 : "0/0", 1 : "0/1", 2: "1/1", None : "."}[record.samples[0].gt_type]
 
-def write(record, writer):
-    return writer.write_record(record.CHROM, record.POS, '.',
-                               record.REF, ','.join(map(lambda a: str(a),record.ALT)), record.samples[0].gt_nums,infoToStr(record.INFO)) # TODO: more gtypes.
-
-
-left_slides = []
-
+def mean(l):
+    return float(sum(l))/len(l) if len(l) > 0 else float('nan')
 
 def show_slides(slides):
     nonzero_slides = filter(lambda s: s != 0, slides)
@@ -129,7 +126,7 @@ def show_slides(slides):
     if nonzero_slides:
         print("Average nontrivial slides:", mean(nonzero_slides),
               file=sys.stderr)
-
+    print("Variants discarded because of position collisions: %d" % (same_position_discards),file=sys.stderr)
 
 def left_normalize(ref_genome, chrom, pos, ref_allele, alts):
     """Slide left until the last base of all alleles isn't the same.
@@ -180,17 +177,21 @@ def shift_until_not_overlapping(var_one,var_two,ref_genome):
 
 # this should be the only method anything outside this file deals with
 # returns an iterator over the normalized VCF records
-def normalize(ref_genome, reader, maxIndelLen = 50, cleanOnly = False):
+def normalize(ref_genome, reader, maxIndelLen = 50, cleanOnly = False, verbose=False):
     norm_iter = NormalizeStepOneIterator(ref_genome,reader,maxIndelLen,cleanOnly)
     if cleanOnly:
         return norm_iter
     else:
-        var_dict = {}
-        # iterate over to build chrom:pos dict
-        for record in norm_iter:
-            add_var(record,var_dict)
         # resolve any chrom/pos collisions and output
-        return normalize_generator(ref_genome,var_dict)
+        return normalize_generator(ref_genome,norm_iter,verbose)
+
+def normalize_generator(genome,norm_iter,verbose=False):
+    for key, chrom_group in groupby(norm_iter,lambda r: r.POS):
+        var_dict = {}
+        for record in chrom_group:
+            add_chrom_var(record,var_dict,genome,verbose)
+        for pos in sorted(var_dict):
+            yield var_dict[pos]
 
 def keep_variant(record,maxIndelLen=50):
     if ( record.FILTER != [] and record.FILTER != "." and record.FILTER != "PASS" and record.FILTER != None or genotype(record) == "0/0"):
@@ -208,6 +209,7 @@ def normalize_variant(record,ref_genome,cleanOnly=False):
     record.REF = str(record.REF.upper())
     record.ALT = map(lambda a: str(a).upper(), record.ALT)
     if cleanOnly:
+        record.ALT = strToAlts(record.ALT)
         return record
     ref = record.REF
     alts = record.ALT
@@ -221,7 +223,7 @@ def normalize_variant(record,ref_genome,cleanOnly=False):
     pos,ref,alts = left_normalize(ref_genome,contig,pos,ref,alts)
     record.POS = pos + 1 # restore to 1-based coord
     record.REF = ref # string
-    record.ALT = map(lambda a: vcf.model._Substitution(a),alts) # for some reason alts are not strings in PyVCF?
+    record.ALT = strToAlts(alts)
     if orig_pos != record.POS:
         record.INFO = addInfoEntry({},info_norm_tag,orig_pos)
     return record
@@ -242,54 +244,38 @@ class NormalizeStepOneIterator:
             record = self.vcfiter.next()
         return normalize_variant(record,self.genome,self.cleanOnly)
 
+def parse_args(params):
 
-def normalize_generator(genome,var_dict):
-    for chrom in sorted(var_dict):
-        for pos in sorted(var_dict[chrom]):
-            if len(var_dict[chrom][pos]) == 1:
-                yield var_dict[chrom][pos][0]
-            else:
-                resolved_vars = handle_position_collisions(var_dict[chrom][pos],genome)
-                for v in resolved_vars:
-                    yield v
-
-def handle_position_collisions(variants,ref_genome):
-    normed = []
-    notnormed = []
-    final_vars = []
-    for r in variants:
-        if r.INFO.has_key(info_norm_tag):
-            normed.append(r)
+    def is_valid_file(parser, arg):
+        if not os.path.exists(arg):
+            parser.error('The file {} does not exist!'.format(arg))
         else:
-            notnormed.append(r)
-    # choose one of the not normed and throw the rest away
-    if len(notnormed) != 0:
-        basevar = notnormed[0]
-        for v in notnormed[1:]:
-            print("Variant already exists on %s at %d; discarding variant %s %d %s/%s" % (v.CHROM, v.POS, v.CHROM, v.POS, v.REF, str(v.ALT)),file=sys.stderr)
-    # if no not normed, arbitrarily choose one to keep in initial position
-    else:
-        basevar = normed[0]
-        normed = normed[1:]
-    # then, place normed variants back after initial variant
-    for r in normed:
-        try:
-            shiftedvar = shift_until_not_overlapping(basevar,r,ref_genome)
-            final_vars.append(basevar)
-            basevar = shiftedvar
-        except AssertionError:
-            print("failed denorm at %s %d" % (normed[0].CHROM, normed[0].POS), file=sys.stderr)
-    final_vars.append(basevar)
-    return final_vars
+            return arg
+
+    parser = argparse.ArgumentParser(description="""
+        SMaSH benchmark tool for normalizing VCF files.
+        See smash.cs.berkeley.edu for more information, including usage
+        """)
+
+    parser.add_argument('vcf', type=lambda fn: is_valid_file(parser, fn))
+    parser.add_argument('reference', type=lambda fn: is_valid_file(parser, fn))
+    parser.add_argument('max_indel',default=50,nargs="?")
+    parser.add_argument('--cleanonly',dest="cleanonly",default=False,action="store_true",help="""
+        Filter and standardize variants without left-normalization.
+        """)
+    parser.add_argument('--verbose',dest="verbose",action="store_true",default=False,help="""
+        Emit warnings when filtering by position collision, etc.
+        """)
+    args = parser.parse_args(params)
+    return args
 
 def main():
-    vcf_reader = vcf.Reader(open(sys.argv[1]))
-    ref = sys.argv[2]
-    person = sys.argv[3]
-    max_indel_length = 50
-    if len(sys.argv) > 4:
-        max_indel_length = sys.argv[4]
-    cleanOnly = len(sys.argv) > 5 and sys.argv[5] == "cleanonly"
+    args = parse_args(sys.argv[1:])
+    vcf_reader = vcf.Reader(open(args.vcf))
+    ref = args.reference
+    max_indel_length = args.max_indel
+    cleanOnly = args.cleanonly
+    verbose = args.verbose
     # TODO: add INFO line for slide field in normalized header
     # if cleanOnly:
     #     vcf_writer = vcf.Writer(sys.stdout,vcf_reader)
@@ -297,11 +283,10 @@ def main():
     #     vcf_writer = vcf.Writer(sys.stdout,vcf_reader)
     # using PyVCF's writer preserves all other info in the record
     vcf_writer = vcf.Writer(sys.stdout,vcf_reader)
-    normiter = normalize(Genome(ref,lambda t: t.split()[0]), vcf_reader, max_indel_length, cleanOnly)
+    normiter = normalize(Genome(ref,lambda t: t.split()[0]), vcf_reader, max_indel_length, cleanOnly, verbose)
     map(lambda r: vcf_writer.write_record(r), normiter)
     if not cleanOnly:
         show_slides(left_slides)
-
 
 if __name__ == '__main__':
     main()

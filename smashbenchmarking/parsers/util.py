@@ -30,10 +30,29 @@ TODO: Reduce code duplication with 'dbsnp/util.py'.
 
 import csv
 import random
+import vcf
+from collections import OrderedDict
 
 
 _BASES = frozenset(['A', 'T', 'C', 'G'])
 
+# info field on PyVCF record
+def infoToStr(info):
+    if len(info) == 0:
+        return '.'
+    else:
+        return ";".join(map(lambda (k,v): str(k)+"="+str(v), info.iteritems()))
+
+# info field on PyVCF record
+def addInfoEntry(info,key,value):
+    if type(info) == dict:
+        return OrderedDict({key:value})
+    else:
+        return info.update({key:value})
+
+# cast list of strings to PyVCF alt format
+def strToAlts(alts):
+  return map(lambda a: vcf.model._Substitution(a),alts)
 
 def forall(pred, collection):
    for item in collection:
