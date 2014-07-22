@@ -4,10 +4,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,28 +29,18 @@ public class CandidateCalls {
   }
 
   public static Stream<CandidateCalls> createCandidates(Window window) {
-    if (window.isTooLarge()) {
-      return Stream.empty();
-    }
-    List<Call>
-        lhsWindow = window.lhs(),
-        rhsWindow = window.rhs();
-    List<List<Call>>
-        lhsPowerSet = nonOverlappingSubsets(lhsWindow),
-        rhsPowerSet = nonOverlappingSubsets(rhsWindow);
-    List<CandidateCalls>
-        candidates = new ArrayList<>(lhsPowerSet.size() * rhsPowerSet.size());
-    for (List<Call> lhs : lhsPowerSet) {
-      for (List<Call> rhs : rhsPowerSet) {
-        candidates.add(create(window.contig(), window.start(), window.end(), lhs, rhs));
-      }
-    }
-    Collections.sort(candidates, Comparator.comparing(CandidateCalls::size).reversed());
-    return candidates.stream();
+    return window.isTooLarge()
+        ? Stream.empty()
+        : BimonotonicAStarSearcher.<List<Call>, List<Call>, CandidateCalls>builder()
+            .setBiFunction(
+                (lhs, rhs) -> create(window.contig(), window.start(), window.end(), lhs, rhs))
+            .setComparator(Comparator.comparing(CandidateCalls::size).reversed())
+            .build()
+            .search(nonOverlappingSubsets(window.lhs()), nonOverlappingSubsets(window.rhs()));
   }
 
-  private static List<List<Call>> nonOverlappingSubsets(List<Call> calls) {
-    return Sets.powerSet(Sets.newLinkedHashSet(calls))
+  private static ArrayList<List<Call>> nonOverlappingSubsets(List<Call> calls) {
+    ArrayList<List<Call>> list = Sets.powerSet(Sets.newLinkedHashSet(calls))
         .stream()
         .filter(
             set -> {
@@ -62,7 +54,11 @@ public class CandidateCalls {
               return true;
             })
         .map(Lists::newArrayList)
-        .collect(Collectors.toList());
+        .collect(Collectors.toCollection(ArrayList::new));
+    Collections.sort(
+        list,
+        Comparator.comparing((Function<Collection<?>, Integer>) Collection::size).reversed());
+    return list;
   }
 
   private final String contig;
