@@ -3,7 +3,6 @@ package edu.berkeley.cs.amplab.vardiff;
 import static java.util.Spliterator.IMMUTABLE;
 import static java.util.Spliterator.NONNULL;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.AbstractIterator;
@@ -172,7 +171,6 @@ public class BimonotonicAStarSearcher<X, Y, Z> {
   public <L extends List<? extends X> & RandomAccess, R extends List<? extends Y> & RandomAccess>
       Stream<Z> search(L lhs, R rhs) {
     int lhsSize = lhs.size(), rhsSize = rhs.size();
-    Preconditions.checkArgument(0 < lhsSize && 0 < rhsSize);
     class PairWithValue {
 
       private final Pair pair;
@@ -198,12 +196,14 @@ public class BimonotonicAStarSearcher<X, Y, Z> {
         return value.get();
       }
     }
-    return AStar.<PairWithValue, Pair>builder()
-        .setComparator(Comparator.comparing(PairWithValue::value, this.comparator))
-        .setIdFunction(PairWithValue::pair)
-        .setNeighborsFunction(PairWithValue::neighbors)
-        .build()
-        .search(new PairWithValue(0, 0))
-        .map(PairWithValue::value);
+    return 0 == lhsSize || 0 == rhsSize
+        ? Stream.empty()
+        : AStar.<PairWithValue, Pair>builder()
+            .setComparator(Comparator.comparing(PairWithValue::value, this.comparator))
+            .setIdFunction(PairWithValue::pair)
+            .setNeighborsFunction(PairWithValue::neighbors)
+            .build()
+            .search(new PairWithValue(0, 0))
+            .map(PairWithValue::value);
   }
 }

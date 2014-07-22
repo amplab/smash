@@ -2,9 +2,8 @@ package edu.berkeley.cs.amplab.vardiff;
 
 import com.google.common.base.Throwables;
 
-import com.beust.jcommander.internal.Lists;
-
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -64,7 +63,7 @@ public class TestCall implements Call {
         Optional.of(phaseset));
   }
 
-  public static List<Call> randomCalls(
+  public static ArrayList<Call> randomCalls(
       Random random,
       String contig,
       int contigLength,
@@ -79,7 +78,7 @@ public class TestCall implements Call {
         () -> Optional.empty());
   }
 
-  public static List<Call> randomCalls(
+  public static ArrayList<Call> randomCalls(
       Random random,
       String contig,
       int contigLength,
@@ -101,7 +100,8 @@ public class TestCall implements Call {
             Arrays.asList(0, 0),
             phaseset.get()));
       }
-      List<Call> list = Lists.newArrayList(calls);
+      ArrayList<Call> list = new ArrayList<>();
+      list.addAll(calls);
       Collections.sort(list, Comparator.comparing(Call::position));
       return list;
     } catch (IOException e) {

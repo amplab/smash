@@ -27,7 +27,7 @@ public class Window {
   public static class Builder {
 
     private final String contig;
-    private List<Call>
+    private ArrayList<Call>
         lhs = new ArrayList<>(),
         rhs = new ArrayList<>();
     private int
@@ -115,7 +115,8 @@ public class Window {
     return Comparator.comparing(collection.stream().collect(Indexer.create())::get);
   }
 
-  public static Window create(String contig, int start, int end, List<Call> lhs, List<Call> rhs) {
+  public static Window
+      create(String contig, int start, int end, ArrayList<Call> lhs, ArrayList<Call> rhs) {
     return new Window(contig, start, end, lhs, rhs);
   }
 
@@ -182,10 +183,10 @@ public class Window {
   }
 
   private final String contig;
-  private final List<Call> lhs, rhs;
+  private final ArrayList<Call> lhs, rhs;
   private final int start, end;
 
-  private Window(String contig, int start, int end, List<Call> lhs, List<Call> rhs) {
+  private Window(String contig, int start, int end, ArrayList<Call> lhs, ArrayList<Call> rhs) {
     this.contig = contig;
     this.start = start;
     this.end = end;
@@ -243,11 +244,11 @@ public class Window {
     return MAX_WINDOW_SIZE < size();
   }
 
-  public List<Call> lhs() {
+  public ArrayList<Call> lhs() {
     return lhs;
   }
 
-  public List<Call> rhs() {
+  public ArrayList<Call> rhs() {
     return rhs;
   }
 
