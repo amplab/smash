@@ -96,13 +96,12 @@ public class Main {
 
   public static void main(String[] args) throws Exception {
     try {
-      CommandLine commandLine = CommandLine.parse(args);
-      System.out.println(
-          fastaReader(commandLine.referenceFasta(), commandLine.referenceFai())
+      CommandLine.parse(args).ifPresent(commandLine -> {
+        try {
+          System.out.println(fastaReader(commandLine.referenceFasta(), commandLine.referenceFai())
               .read(reference -> {
                 try {
-                  return Main
-                      .callScanner(
+                  return callScanner(
                           "lhs",
                           commandLine,
                           commandLine.lhsVcf(),
@@ -111,8 +110,7 @@ public class Main {
                       .scan(lhs -> {
                         try {
                           boolean presorted = commandLine.presorted();
-                          return Main
-                              .callScanner(
+                          return callScanner(
                                   "rhs",
                                   commandLine,
                                   commandLine.rhsVcf(),
@@ -132,6 +130,10 @@ public class Main {
                   throw ExceptionWrapper.wrap(e);
                 }
               }));
+        } catch (Exception e) {
+          throw ExceptionWrapper.wrap(e);
+        }
+      });
     } catch (ExceptionWrapper e) {
       throw e.getCause();
     }

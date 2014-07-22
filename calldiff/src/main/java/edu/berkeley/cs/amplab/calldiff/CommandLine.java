@@ -145,55 +145,101 @@ public class CommandLine {
     return new Builder();
   }
 
-  public static CommandLine parse(String... args) {
+  public static Optional<CommandLine> parse(String... args) {
     CommandLine commandLine = new CommandLine();
-    new JCommander(commandLine, args);
-    return commandLine;
+    JCommander jCommander = new JCommander(commandLine);
+    jCommander.setProgramName("calldiff");
+    jCommander.parse(args);
+    if (commandLine.help) {
+      StringBuilder buffer = new StringBuilder();
+      jCommander.usage(buffer);
+      System.err.print(buffer);
+      return Optional.empty();
+    }
+    return Optional.of(commandLine);
   }
 
-  @Parameter(names = { "--api_key" })
+  @Parameter(
+      names = { "--api_key" },
+      description = "The API key used to authenticate to your Google Cloud project")
   private String apiKey;
 
-  @Parameter(names = { "--client_secrets_file" })
+  @Parameter(
+      names = { "--client_secrets_file" },
+      description = "The client secrets file used to authorize access to your Google Cloud project")
   private String clientSecretsFile;
 
-  @Parameter(names = { "--lhs_callset_id" })
+  @Parameter(
+      names = { "--help" },
+      description = "Print the help message",
+      help = true)
+  private boolean help;
+
+  @Parameter(
+      names = { "--lhs_callset_id" },
+      description = "The callset id to use on the left hand side of the comparison")
   private String lhsCallsetId;
 
-  @Parameter(names = { "--lhs_sample_id" })
+  @Parameter(
+      names = { "--lhs_sample_id" },
+      description = "The sample id to use on the left hand side of the comparison")
   private String lhsSampleId;
 
-  @Parameter(names = { "--lhs_vcf" })
+  @Parameter(
+      names = { "--lhs_vcf" },
+      description = "The path to the VCF file to use on the left hand side of the comparison")
   private String lhsVcf;
 
-  @Parameter(names = { "--p12_file" })
+  @Parameter(
+      names = { "--p12_file" },
+      description = "The P12 file containing the private key that authorizes the service account "
+          + "for your Google Cloud Project")
   private String p12File;
 
-  @Parameter(names = { "--presorted" })
+  @Parameter(
+      names = { "--presorted" },
+      description = "Skip sorting the input because it is already properly sorted")
   private boolean presorted;
 
-  @Parameter(names = { "--reference_fai" })
+  @Parameter(
+      names = { "--reference_fai" },
+      description = "The FASTA index file for the reference sequence")
   private String referenceFai;
 
-  @Parameter(names = { "--reference_fasta" })
+  @Parameter(
+      names = { "--reference_fasta" },
+      description = " The FASTA file for the reference sequence")
   private String referenceFasta;
 
-  @Parameter(names = { "--rhs_callset_id" })
+  @Parameter(
+      names = { "--rhs_callset_id" },
+      description = "The callset id to use on the right hand side of the comparison")
   private String rhsCallsetId;
 
-  @Parameter(names = { "--rhs_sample_id" })
+  @Parameter(
+      names = { "--rhs_sample_id" },
+      description = "The sample id to use on the right hand side of the comparison")
   private String rhsSampleId;
 
-  @Parameter(names = { "--rhs_vcf" })
+  @Parameter(
+      names = { "--rhs_vcf" },
+      description = "The path to the VCF file to use on the right hand side of the comparison")
   private String rhsVcf;
 
-  @Parameter(names = { "--root_url" })
+  @Parameter(
+      names = { "--root_url" },
+      description = "The URL to communicate with to fetch variants from the cloud")
   private String rootUrl;
 
-  @Parameter(names = { "--service_account_id" })
+  @Parameter(
+      names = { "--service_account_id" },
+      description = "The email address for the service account used to authorize your Google "
+          + "Cloud project")
   private String serviceAccountId;
 
-  @Parameter(names = { "--timeout" })
+  @Parameter(
+      names = { "--timeout" },
+      description = "The connect and read timeouts to use when making requests to the cloud")
   private Integer timeout;
 
   public CommandLine() {
