@@ -14,6 +14,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * The algorithm for generating all the possible haplotypes over a genomic window. The calls are
+ * assumed to all be non-overlapping. First, the calls are partitioned into phasesets
+ * (unphased calls are singleton phasesets). Then, for each allele, we iterate down the haplotype
+ * and insert the appropriate replacement. One complicating factor is that since all call
+ * coordinates are relative to the original reference sequence, for each haplotype generated we
+ * need to maintain a mapping between the genomic coordinate space and the haplotype string
+ * coordinate space.
+ */
 public class HaplotypeGenerator {
 
   static class Haplotype {

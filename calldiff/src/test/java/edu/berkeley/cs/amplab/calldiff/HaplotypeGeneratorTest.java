@@ -28,6 +28,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Unit test for {@link HaplotypeGenerator}
+ */
 public class HaplotypeGeneratorTest {
 
   @Test

@@ -20,6 +20,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * An implementation of the
+ * <a href="http://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm">Bron-Kerbosch</a>
+ * algorithm used for finding maximal independent sets in the
+ * <a href="http://en.wikipedia.org/wiki/Interval_graph">interval graph</a> described by a set of
+ * variant calls.
+ */
 public class BronKerbosch<V> {
 
   private static class DepthFirstSearch<X> {
@@ -71,12 +78,6 @@ public class BronKerbosch<V> {
     }
   }
 
-  private static <X> Stream<X> stream(Iterator<X> iterator) {
-    return StreamSupport.stream(
-        Spliterators.spliteratorUnknownSize(iterator, DISTINCT | IMMUTABLE | NONNULL),
-        false);
-  }
-
   public static <V> Stream<Set<V>> search(SetMultimap<V, V> graph) {
     class Frame {
 
@@ -100,10 +101,6 @@ public class BronKerbosch<V> {
 
                   private final Iterator<V> iterator = p.iterator();
 
-                  private <X> Set<X> copy(Stream<? extends X> stream) {
-                    return stream.collect(Collectors.toCollection(LinkedHashSet::new));
-                  }
-
                   @Override protected Frame computeNext() {
                     if (iterator.hasNext()) {
                       V vertex = iterator.next();
@@ -117,6 +114,10 @@ public class BronKerbosch<V> {
                       return next;
                     }
                     return endOfData();
+                  }
+
+                  private <X> Set<X> copy(Stream<? extends X> stream) {
+                    return stream.collect(Collectors.toCollection(LinkedHashSet::new));
                   }
                 });
       }
@@ -134,5 +135,11 @@ public class BronKerbosch<V> {
             new LinkedHashSet<>()))
         .filter(Frame::isMaximal)
         .map(Frame::r);
+  }
+
+  private static <X> Stream<X> stream(Iterator<X> iterator) {
+    return StreamSupport.stream(
+        Spliterators.spliteratorUnknownSize(iterator, DISTINCT | IMMUTABLE | NONNULL),
+        false);
   }
 }

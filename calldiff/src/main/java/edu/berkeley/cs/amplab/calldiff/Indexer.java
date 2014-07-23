@@ -10,7 +10,12 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
+import java.util.stream.Stream;
 
+/**
+ * A {@link Collector} that knows how to create a {@link Map} that remembers the index of each
+ * object in the {@link Stream} that it encounters.
+ */
 public class Indexer<X> implements Collector<X, Indexer<X>, Map<X, Integer>> {
 
   public static <X> Indexer<X> create() {

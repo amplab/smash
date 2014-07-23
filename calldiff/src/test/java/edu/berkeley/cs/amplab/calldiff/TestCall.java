@@ -16,6 +16,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Supplier;
 
+/**
+ * A helper class for the unit tests that allows for creating {@link Call} instances, from either
+ * explicitly provided data, or randomly based on the information in {@link TestReference}.
+ */
 public class TestCall implements Call {
 
   public static TestCall create(

@@ -26,6 +26,9 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Stream;
 
+/**
+ * Unit test for {@link CandidateCalls}
+ */
 public class CandidateCallsTest {
 
   private static final Comparator<Call> COMPARATOR = Comparator.comparing(Call::position);
@@ -53,10 +56,15 @@ public class CandidateCallsTest {
       String contig = reference.contigs().iterator().next();
       int contigLen = reference.contigLength(contig);
       Random random = new Random();
+      // Create random instances where the maximum length of calls is maxCallLen
       for (int i = 1; i < 40; ++i) {
         final int maxCallLen = i;
+        // Create random instances where there are lhsNumCalls number of calls on the left hand
+        // side
         for (int j = 1; j < 10; ++j) {
           final int lhsNumCalls = j;
+          // Create random instances where there are rhsNumCalls number of calls on the right hand
+          // side
           for (int k = 1; k < 10; ++k) {
             final int rhsNumCalls = k;
               ArrayList<Call>
@@ -77,8 +85,12 @@ public class CandidateCallsTest {
                       .iterator());
                   iterator.hasNext();) {
                 CandidateCalls next = iterator.next();
+                // Assert that the candidate calls on the left and right side are both sorted
+                // appropriately
                 for (List<Call> calls :
                     Arrays.asList(assertSorted(next.lhs()), assertSorted(next.rhs()))) {
+                  // Assert that the no pair of calls from either the left hand side or right hand
+                  // side overlap.
                   for (Call call1 : calls) {
                     for (Call call2 : calls) {
                       if (call1 != call2 && call1.overlaps(call2)) {
@@ -87,6 +99,7 @@ public class CandidateCallsTest {
                     }
                   }
                 }
+                // Assert that we consider subsets in monotonically nonincreasing order.
                 if (iterator.hasNext()) {
                   assertTrue(iterator.peek().size() <= next.size());
                 }

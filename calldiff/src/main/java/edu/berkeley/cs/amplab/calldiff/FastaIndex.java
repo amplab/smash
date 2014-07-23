@@ -28,6 +28,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * An abstraction for parsing and making use of FASTA index files.
+ */
 public class FastaIndex {
 
   public static final class Entry implements Comparable<Entry> {

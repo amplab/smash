@@ -17,6 +17,9 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Unit test for {@link Window}
+ */
 public class WindowTest {
 
   @Test
@@ -43,6 +46,7 @@ public class WindowTest {
                       .iterator());
                   iterator.hasNext();) {
                 List<Call> window = allCalls(iterator.next());
+                // Assert that at least one other call on the window overlaps.
                 OUTER: for (Call call1 : window) {
                   for (Call call2 : window) {
                     if (call1 == call2 || call1.overlaps(call2)) {
@@ -51,6 +55,7 @@ public class WindowTest {
                   }
                   fail();
                 }
+                // Assert no overlapping calls between adjacent windows.
                 if (iterator.hasNext()) {
                   List<Call> peek = allCalls(iterator.peek());
                   for (Call call1 : window) {

@@ -4,6 +4,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Contains the output results for a single genomic window. It has four fields:
+ *
+ * <ul>
+ *   <li>The calls from the left hand side that had equivalents on the right hand side</li>
+ *   <li>The calls from the left hand side that did not have equivalents on the right hand side</li>
+ *   <li>The calls from the right hand side that had equivalents on the left hand side</li>
+ *   <li>The calls from the right hand side that did not have equivalents on the left hand side</li>
+ * </ul>
+ */
 public class OutputTuple {
 
   public static class Builder {

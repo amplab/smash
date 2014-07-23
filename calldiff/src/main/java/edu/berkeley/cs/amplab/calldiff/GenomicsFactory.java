@@ -25,6 +25,16 @@ import java.security.GeneralSecurityException;
 import java.util.Collection;
 import java.util.Optional;
 
+/**
+ * Code required to manufacture instances of a {@link Genomics} stub. Right now, there are 3
+ * supported methods of obtaining a stub:
+ *
+ * <ul>
+ *   <li>Using an <a href="https://developers.google.com/api-client-library/python/guide/aaa_apikeys">API key</a></li>
+ *   <li>Using <a href="https://developers.google.com/api-client-library/python/guide/aaa_client_secrets">client secrets</a></li>
+ *   <li>Using a <a href="https://developers.google.com/accounts/docs/OAuth2ServiceAccount">service account</a></li>
+ * </ul>
+ */
 public class GenomicsFactory {
 
   public final static class Builder {

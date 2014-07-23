@@ -5,6 +5,11 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+/**
+ * A class encapsulating all the logic for {@link Object#hashCode} and {@link Object#equals}
+ * methods. The client class should create a constant instance of this class and delegate the
+ * {@code hashCode()} and {@code equals()} methods to it.
+ */
 public class HashCodeAndEquals<X> {
 
   @SafeVarargs

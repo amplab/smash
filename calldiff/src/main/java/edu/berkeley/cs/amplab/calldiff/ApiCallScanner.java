@@ -10,6 +10,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * An implementation of {@link CallScanner} that retrieves calls from the cloud rather than from
+ * a VCF file.
+ */
 public class ApiCallScanner implements CallScanner {
 
   public static ApiCallScanner create(Genomics genomics, String callsetId) {
@@ -18,6 +22,7 @@ public class ApiCallScanner implements CallScanner {
 
   private final Genomics genomics;
   private final String callsetId;
+
   private final Pager<SearchVariantsRequest, SearchVariantsResponse> pager =
       new Pager<SearchVariantsRequest, SearchVariantsResponse>() {
 

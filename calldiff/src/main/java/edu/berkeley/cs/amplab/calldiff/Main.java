@@ -13,6 +13,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * The {@link Main#main} method for the program.
+ */
 public class Main {
 
   private static final Comparator<Call> COMPARATOR = Comparator

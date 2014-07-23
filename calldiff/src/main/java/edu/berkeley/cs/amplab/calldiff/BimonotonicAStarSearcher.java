@@ -20,6 +20,16 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * A {@code BimonotonicAStarSearcher} is parameterized with 3 types: {@code X}, {@code Y}, and
+ * {@code Z}, and is initialized with a {@link BiFunction} from {@code X} and {@code Y} to {@code Z}
+ * and a {@link Comparator} on {@code Z}. The {@link #search} method accepts two
+ * {@link RandomAccess} {@link List}s, one containing elements of type {@code X}, the other
+ * containing elements of type {@code Y}. Each list is assumed to be in monotonically nondecreasing
+ * order. The {@code BimonotonicAStarSearcher} will perform an A* search over the Cartesian product
+ * of the two lists, using the {@code BiFunction} and {@code Comparator} to determine which element
+ * to return next.
+ */
 public class BimonotonicAStarSearcher<X, Y, Z> {
 
   private static class AStar<X, Y> {

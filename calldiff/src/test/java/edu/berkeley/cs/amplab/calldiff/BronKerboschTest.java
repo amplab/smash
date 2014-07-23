@@ -14,8 +14,15 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Unit test for {@link BronKerbosch}.
+ */
 public class BronKerboschTest {
 
+  /**
+   * Example taken from
+   * <a href="http://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm#Example">Wikipedia</a>
+   */
   @Test
   public void testSearch() {
     Set<Set<Integer>> expected = new HashSet<>();

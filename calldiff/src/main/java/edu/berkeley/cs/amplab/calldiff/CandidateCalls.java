@@ -18,6 +18,19 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * A {@code CandidateCalls} object is a 5-tuple containing the following information:
+ *
+ * <ul>
+ *   <li>The contig name that the calls are taken from</li>
+ *   <li>The start position of the window (the infimum of all the call positions on both the left
+ *       and right hand side)</li>
+ *   <li>The end position of the window (the supremum of all the call ends on both the left and
+ *       right hand side)</li>
+ *   <li>The calls on the window from the left hand side</li>
+ *   <li>The calls on the window from the right hand side</li>
+ * </ul>
+ */
 public class CandidateCalls {
 
   private static final HashCodeAndEquals<CandidateCalls> HASH_CODE_AND_EQUALS =

@@ -17,6 +17,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
 
+/**
+ * Unit test for {@link VcfCallScanner}
+ */
 public class VcfCallScannerTest {
 
   private static File makeTempFile(String resource, String prefix, String suffix)

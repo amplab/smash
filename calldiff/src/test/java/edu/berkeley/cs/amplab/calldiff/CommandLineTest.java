@@ -6,6 +6,9 @@ import org.junit.Test;
 
 import edu.berkeley.cs.amplab.calldiff.CommandLine;
 
+/**
+ * Unit test for {@link CommandLine}
+ */
 public class CommandLineTest {
 
   @Test

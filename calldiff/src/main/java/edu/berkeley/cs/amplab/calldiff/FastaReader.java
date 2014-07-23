@@ -12,6 +12,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * An abstraction for memory-mapping FASTA files. It is intended to be used in a manner similar to a
+ * <a href="https://hackage.haskell.org/package/mtl-1.1.0.2/docs/Control-Monad-Reader.html">reader
+ * monad</a>. The {@link Callback} interface provides a {@link FastaFile} object that can be used
+ * to retrieve subsequences from the FASTA file.
+ */
 public class FastaReader {
 
   @FunctionalInterface

@@ -22,6 +22,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * A genomic window from a single contig. It contains overlapping calls from the left hand and
+ * right hand sides that need to be considered together for equivalence.
+ */
 public class Window {
 
   public static class Builder {

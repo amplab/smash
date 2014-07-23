@@ -24,6 +24,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * An implementation of {@link CallScanner} that retrieves variant calls from a single column of
+ * a VCF file.
+ */
 public class VcfCallScanner implements CallScanner {
 
   private static final Pattern

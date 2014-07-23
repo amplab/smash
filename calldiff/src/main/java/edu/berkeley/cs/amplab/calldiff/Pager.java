@@ -8,6 +8,10 @@ import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * Generic code that understands the {@code pageToken} - {@code nextPageToken} pagination protocol
+ * that the genomics API uses.
+ */
 public abstract class Pager<Q, A> {
 
   private class Pair {

@@ -10,6 +10,9 @@ import edu.berkeley.cs.amplab.calldiff.Indexer;
 
 import java.util.stream.Stream;
 
+/**
+ * Unit test for {@link Indexer}
+ */
 public class IndexerTest {
 
   @Test

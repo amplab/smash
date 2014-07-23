@@ -15,6 +15,9 @@ import java.util.Iterator;
 import java.util.Random;
 import java.util.function.BiFunction;
 
+/**
+ * Unit test for {@link BimonotonicAStarSearcher}.
+ */
 public class BimonotonicAStarSearcherTest {
 
   private static ArrayList<Integer> randomList(Random random, int n, int m) {
@@ -50,10 +53,13 @@ public class BimonotonicAStarSearcherTest {
         iterator.hasNext();) {
       Integer next = iterator.next();
       if (null != previous) {
+        // Assert that the output is monotonically nondecreasing.
         assertTrue(previous.compareTo(next) <= 0);
       }
+      // Assert that the output was in the Cartesian product.
       assertTrue(multiset.remove(previous = next));
     }
+    // Assert that the entire Cartesian product was covered.
     assertTrue(multiset.isEmpty());
   }
 }

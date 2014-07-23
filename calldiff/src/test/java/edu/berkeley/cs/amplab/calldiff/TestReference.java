@@ -16,6 +16,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+/**
+ * A helper class for the unit tests that randomly generates reference sequence information.
+ */
 public class TestReference {
 
   private static final Supplier<FastaReader> READER = Suppliers.memoize(() -> {

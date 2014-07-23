@@ -6,6 +6,9 @@ import com.beust.jcommander.Parameters;
 
 import java.util.Optional;
 
+/**
+ * The class responsible for parsing and storing the command line used to invoke the program.
+ */
 @Parameters(separators = "=")
 public class CommandLine {
 

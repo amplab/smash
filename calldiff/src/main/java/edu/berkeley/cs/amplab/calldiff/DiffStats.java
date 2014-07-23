@@ -16,6 +16,10 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * A statistical summarizer that consumes the stream of {@link OutputTuple}, and counts how many
+ * of each type of call had equivalent calls on the other call stream.
+ */
 public class DiffStats {
 
   public static class Builder implements Collector<OutputTuple, Builder, DiffStats> {

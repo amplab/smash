@@ -17,6 +17,9 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Unit test for {@link FastaReader}
+ */
 public class FastaReaderTest {
 
   private static class Random {
@@ -48,6 +51,10 @@ public class FastaReaderTest {
   private static final java.util.Random
       RANDOM = new java.util.Random();
 
+  /**
+   * Create a random FASTA file, perform some random queries against it, and assert that what we
+   * get back from the queries was what we expected.
+   */
   @Test
   public void testFastaReader() throws Exception {
     final Map<String, String> fasta = randomFasta();
