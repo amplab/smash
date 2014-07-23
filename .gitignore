@@ -5,6 +5,5 @@ smashbenchmarking.egg-info/
 *.suo
 *.flat
 *.gdx
-smash4j/target
 calldiff/target
 
