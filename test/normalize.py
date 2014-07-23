@@ -30,7 +30,7 @@ import StringIO
 from test_helper import get_reference, vcf_to_ChromVariants, MAX_INDEL_LEN
 
 sys.path.insert(0,'..')
-from smashbenchmarking.normalize_vcf import normalize,write,find_redundancy, left_normalize
+from smashbenchmarking.normalize_vcf import normalize,find_redundancy, left_normalize
 from smashbenchmarking.parsers.vcfwriter import VCFWriter
 
 class NormalizeTestCase(unittest.TestCase):
@@ -50,16 +50,6 @@ class NormalizeTestCase(unittest.TestCase):
     def getVcf(self,str):
         vcf_io = StringIO.StringIO(str)
         return vcf.Reader(vcf_io)
-
-    def normalizeStringToWriter(self,vcf_str):
-        vcf_io = StringIO.StringIO(vcf_str)
-        test_vcf = vcf.Reader(vcf_io)
-        output_io = StringIO.StringIO()
-        output_writer = VCFWriter('ref.fasta','name',output_io)
-        map(lambda r: write(r,output_writer),normalize(get_reference(),test_vcf))
-        outputStr = output_io.getvalue()
-        outputStr = outputStr.replace('\n','\n\n')
-        return vcf.Reader(StringIO.StringIO(outputStr))
 
     def testFindRedundancy(self):
         alleles = ['acc','gcc','tcc']
@@ -217,18 +207,6 @@ chr2    6       .       G       CG,C       20      PASS    .       GT      0/1\n
         self.assertEqual(record.POS,6)
         self.assertEqual(record.REF,'G')
         self.assertEqual(record.ALT[0],'CG')
-
-    def testNormalizerWriter(self):
-        vcf_str = """##fileformat=VCFv4.0
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
-#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
-chr1   2   .       a     c       20      PASS    .       GT      0/1\n
-chr1   4   .      A      G       20      PASS     .      GT      1/1\n
-"""
-        output_vcf = self.normalizeStringToWriter(vcf_str)
-        r1 = output_vcf.next()
-        self.assertEqual(r1.POS,2)
-
 
     def testCollidingVariants(self):
         vcf_str = """##fileformat=VCFv4.0
