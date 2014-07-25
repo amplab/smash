@@ -217,6 +217,7 @@ def parse_args(params):
     parser.add_argument('predicted_vcf', type=lambda fn: is_valid_file(parser, fn))
     parser.add_argument('reference', type=lambda fn: is_valid_file(parser, fn),
             nargs='?')
+    parser.add_argument('refindex', type=lambda fn: is_valid_file(parser,fn))
 
     parser.add_argument("--fp",dest="knownFP",action="store",
             help="An optional VCF of known false-positives")
@@ -250,6 +251,13 @@ def get_text_header(params):
 def get_vcf_header_lines(params):
     return ["##SMaSH version %s" % SMASHVERSION, "##Date run %s" % date_run, "##cmdline args: %s" % " ".join(params)]
 
+def get_contig_lookup(fai):
+    contig_list = []
+    with open(fai,'r') as f:
+        for line in f:
+            contig_list.append(line.split('\t')[0])
+    return {contig:index for index,contig in enumerate(contig_list)}
+
 def main(params):
     args = parse_args(params)
     if args.normalize and not args.reference:
@@ -261,6 +269,8 @@ def main(params):
     else:
         ref = None
         window = None
+
+    contig_lookup = get_contig_lookup(args.refindex)
 
     true_vcf = vcf.Reader(open(args.true_vcf))
     if args.normalize:
@@ -291,6 +301,7 @@ def main(params):
         ref,
         window,
         MAX_INDEL_LEN,
+        contig_lookup,
         outVCF,
         known_fp_vars
         )

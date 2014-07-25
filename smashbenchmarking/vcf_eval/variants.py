@@ -144,11 +144,13 @@ def evaluate_variants(true_variants,pred_variants,eps,eps_bp,ref,window,known_fp
       return chrom_evaluate_variants(true,pred,eps,eps_bp,ref,window,known_fp)
     return _eval_aggregate(true_variants,pred_variants,known_fp,evaluate)
 
+# we assume that contigs are in the order provided in the .fai index
+# but that contigs may be missing
 def record_by_chrom(vcf_iter):
   for chrom,chrom_group in groupby(vcf_iter, lambda r: r.CHROM):
     yield chrom,chrom_group
 
-def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,writer=None,known_fp=None):
+def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,contig_lookup,writer=None,known_fp=None):
   genome_stats = chrom_var_stats_dict()
   def evaluate_low_memory_chrom(chrom_name,true_chrom,pred_chrom,known_fp=None):
     trueChromVariants = ChromVariants(chrom_name,max_indel_len)
@@ -192,7 +194,7 @@ def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,
       for (tchrom,tchrom_records) in true_generator:
         evaluate_low_memory_chrom(tchrom,tchrom_records,[])
       break
-    elif tchrom > pchrom:
+    elif contig_lookup[tchrom] > contig_lookup[pchrom]:
       evaluate_low_memory_chrom(pchrom,[],pchrom_records)
       (pchrom,pchrom_records) = next(pred_generator,(None,None))
     else: # tchrom must be smaller than pchrom
