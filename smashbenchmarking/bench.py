@@ -41,7 +41,7 @@ import argparse
 import datetime
 
 from parsers.genome import Genome
-from vcf_eval.variants import Variants,evaluate_variants,output_annotated_variants
+from vcf_eval.variants import Variants,evaluate_variants,output_annotated_variants,evaluate_low_memory
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
 from normalize_vcf import normalize
@@ -262,36 +262,36 @@ def main(params):
         ref = None
         window = None
 
-    with open(args.true_vcf) as f:
-        true_vcf = vcf.Reader(f)
-        if args.normalize:
-            true_vcf = normalize(ref,true_vcf)
-        true_vars = Variants(true_vcf, MAX_INDEL_LEN)
-    with open(args.predicted_vcf) as f:
-        pred_vcf = vcf.Reader(f)
-        if args.normalize:
-            pred_vcf = normalize(ref,pred_vcf)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-
-
-
-    if args.knownFP:
-        with open(args.knownFP) as f:
-            known_fp_vcf = vcf.Reader(f)
-            known_fp_vars = Variants(known_fp_vcf,
-                    MAX_INDEL_LEN, knownFP=True)
-    else:
-        known_fp_vars = None
+    true_vcf = vcf.Reader(open(args.true_vcf))
+    if args.normalize:
+        true_vcf = normalize(ref, true_vcf)
+    pred_vcf = vcf.Reader(open(args.predicted_vcf))
+    if args.normalize:
+        pred_vcf = normalize(ref,pred_vcf)
+    known_fp_vars = None # punting on known fp support for now
 
     sv_eps = args.sv_eps
 
-    stat_reporter, annotated_vars = evaluate_variants(
-        true_vars,
-        pred_vars,
-        sv_eps, # tolerance for SV len
-        sv_eps, # tolerance for SV breakpoints
+    if args.output_vcf:
+        outVCF = open(args.output_vcf,'w')
+        outVCF.write("##fileformat=VCFv4.1\n")
+        for s in get_vcf_header_lines(params):
+            outVCF.write(s + "\n")
+        outVCF.write("##INFO=<ID=smash_type,Type=String,Description=\"classify variant as TP,FP,FN,or rescued\">\n")
+        outVCF.write("##INFO=<ID=source_file,Type=Integer,Description=\"variant originally in first or second vcf passed to SMaSH\">\n")
+        outVCF.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
+    else:
+        outVCF = None
+
+    stat_reporter = evaluate_low_memory(
+        true_vcf,
+        pred_vcf,
+        sv_eps,
+        sv_eps,
         ref,
         window,
+        MAX_INDEL_LEN,
+        outVCF,
         known_fp_vars
         )
 
@@ -326,9 +326,6 @@ def main(params):
         print_sv(VARIANT_TYPE.SV_DEL, 'SV DELETION',args),
         print_sv(VARIANT_TYPE.SV_INS, 'SV INSERTION',args),
         print_oth(VARIANT_TYPE.SV_OTH, 'SV OTHER')
-
-    if args.output_vcf :
-        output_annotated_variants(annotated_vars,ref.keys() if ref != None else None, open(args.output_vcf,'w'),get_vcf_header_lines(params))
 
 if __name__ == '__main__':
     main(params=sys.argv[1:])

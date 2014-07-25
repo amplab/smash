@@ -229,6 +229,12 @@ class ChromVariantStats:
         stats['known_fp'] = self.known_fp[var_type] if self.calls_at_known_fp else 0
         return stats
 
+def chrom_var_stats_dict():
+    def var_type_dict():
+        return {k:0 for k in ['num_true','num_pred','false_positives','false_negatives','good_predictions','intersect_bad', \
+            'nrd_wrong','nrd_total','known_fp_calls','known_fp']}
+    return {vt : var_type_dict() for vt in VARIANT_TYPE}
+
 def chrom_evaluate_variants(true_var,pred_var,sv_eps,sv_eps_bp,ref,window,known_fp=None):
     true_loc = set(true_var.all_locations)
     pred_loc = set(pred_var.all_locations)
