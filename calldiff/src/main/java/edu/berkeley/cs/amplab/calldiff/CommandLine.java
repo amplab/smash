@@ -151,7 +151,7 @@ public class CommandLine {
   public static Optional<CommandLine> parse(String... args) {
     CommandLine commandLine = new CommandLine();
     JCommander jCommander = new JCommander(commandLine);
-    jCommander.setProgramName("calldiff");
+    jCommander.setProgramName("java -jar calldiff-jar-with-dependencies.jar");
     jCommander.parse(args);
     if (commandLine.help) {
       StringBuilder buffer = new StringBuilder();
