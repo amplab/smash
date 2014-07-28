@@ -256,7 +256,10 @@ def get_contig_lookup(fai):
     with open(fai,'r') as f:
         for line in f:
             contig_list.append(line.split('\t')[0])
-    return {contig:index for index,contig in enumerate(contig_list)}
+    contig_lookup = {contig:index for index,contig in enumerate(contig_list)}
+    max_index = max(contig_lookup.values())
+    contig_lookup[None] = max_index + 100
+    return contig_lookup
 
 def main(params):
     args = parse_args(params)

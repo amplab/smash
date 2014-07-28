@@ -144,13 +144,35 @@ def evaluate_variants(true_variants,pred_variants,eps,eps_bp,ref,window,known_fp
       return chrom_evaluate_variants(true,pred,eps,eps_bp,ref,window,known_fp)
     return _eval_aggregate(true_variants,pred_variants,known_fp,evaluate)
 
-# we assume that contigs are in the order provided in the .fai index
-# but that contigs may be missing
-def record_by_chrom(vcf_iter):
-  for chrom,chrom_group in groupby(vcf_iter, lambda r: r.CHROM):
-    yield chrom,chrom_group
+class RecordGenerators:
+  def __init__(self,contig_lookup,true_iter,pred_iter,known_fp_iter=None):
+    self.contig_lookup = contig_lookup
+    self.true_generator = self.record_by_chrom(true_iter)
+    self.pred_generator = self.record_by_chrom(pred_iter)
+    if known_fp_iter:
+      self.known_fp_generator = self.record_by_chrom(known_fp_iter)
+    else:
+      self.known_fp_generator = self.empty_gen()
+    # prime the pump
+    (self.tchrom,self.tchrom_records) = next(self.true_generator,(None,None))
+    (self.pchrom,self.pchrom_records) = next(self.pred_generator,(None,None))
+    (self.kfpchrom,self.kfpchrom_records) = next(self.known_fp_generator,(None,None))
+  def record_by_chrom(self,vcf_iter):
+    for chrom,chrom_group in groupby(vcf_iter, lambda r: r.CHROM):
+      yield chrom,chrom_group
+  def empty_gen(self):
+    while True:
+      yield (None,[])
+  def advance_generators(self):
+    min_chrom = min([self.tchrom,self.pchrom,self.kfpchrom],key=lambda t: self.contig_lookup[t])
+    if self.tchrom == min_chrom:
+      (self.tchrom,self.tchrom_records) = next(self.true_generator,(None,None))
+    if self.pchrom == min_chrom:
+      (self.pchrom,self.pchrom_records) = next(self.pred_generator,(None,None))
+    if self.kfpchrom == min_chrom:
+      (self.kfpchrom,self.kfpchrom_records) = next(self.known_fp_generator,(None,None))
 
-def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,contig_lookup,writer=None,known_fp=None):
+def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,contig_lookup,writer=None,known_fp_iter=None):
   genome_stats = chrom_var_stats_dict()
   def evaluate_low_memory_chrom(chrom_name,true_chrom,pred_chrom,known_fp=None):
     trueChromVariants = ChromVariants(chrom_name,max_indel_len)
@@ -159,19 +181,17 @@ def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,
     predChromVariants = ChromVariants(chrom_name,max_indel_len)
     for r in pred_chrom:
       predChromVariants.add_record(r)
+    knownFpChromVariants = ChromVariants(chrom_name,max_indel_len)
+
     cvs = chrom_evaluate_variants(trueChromVariants,predChromVariants,eps,eps_bp,ref,window,known_fp)
     aggregate_stats(genome_stats,cvs) # side effects, sorry
     if writer:
       write_annotated_var(writer,cvs)
 
-  # i already hate this code.
-  true_generator = record_by_chrom(true_iter)
-  pred_generator = record_by_chrom(pred_iter)
-  (tchrom,tchrom_records) = next(true_generator,(None,None))
-  (pchrom,pchrom_records) = next(pred_generator,(None,None))
+  records = RecordGenerators(contig_lookup,true_iter,pred_iter,known_fp_iter)
 
-  def eval_unequal_chrom(true_tuple,pred_tuple,known_fp_tuple):
-    min_chrom = [true_tuple[0],pred_tuple[0],known_fp_tuple[0]]
+  def eval_unequal_chrom(contig_lookup,true_tuple,pred_tuple,known_fp_tuple):
+    min_chrom = min([true_tuple[0],pred_tuple[0],known_fp_tuple[0]],key=lambda t: contig_lookup[t])
     def min_or_empty(t):
       if t[0] == min_chrom:
         return t[1]
@@ -179,27 +199,9 @@ def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,
         return []
     evaluate_low_memory_chrom(min_chrom,*map(min_or_empty,[true_tuple,pred_tuple,known_fp_tuple]))
 
-  while (tchrom is not None) or (pchrom is not None):
-    if tchrom == pchrom:
-      evaluate_low_memory_chrom(tchrom,tchrom_records,pchrom_records)
-      (tchrom,tchrom_records) = next(true_generator,(None,None))
-      (pchrom,pchrom_records) = next(pred_generator,(None,None))
-    elif tchrom is None:
-      evaluate_low_memory_chrom(pchrom,[],pchrom_records)
-      for (pchrom,pchrom_records) in pred_generator:
-        evaluate_low_memory_chrom(pchrom,[],pchrom_records)
-      break
-    elif pchrom is None:
-      evaluate_low_memory_chrom(tchrom,tchrom_records,[])
-      for (tchrom,tchrom_records) in true_generator:
-        evaluate_low_memory_chrom(tchrom,tchrom_records,[])
-      break
-    elif contig_lookup[tchrom] > contig_lookup[pchrom]:
-      evaluate_low_memory_chrom(pchrom,[],pchrom_records)
-      (pchrom,pchrom_records) = next(pred_generator,(None,None))
-    else: # tchrom must be smaller than pchrom
-      evaluate_low_memory_chrom(tchrom,tchrom_records,[])
-      (tchrom,tchrom_records) = next(true_generator,(None,None))
+  while (records.tchrom is not None) or (records.pchrom is not None):
+    eval_unequal_chrom(records.contig_lookup,(records.tchrom,records.tchrom_records),(records.pchrom,records.pchrom_records),(records.kfpchrom,records.kfpchrom_records))
+    records.advance_generators()
 
   def get_var_stats(vartype):
     return genome_stats[vartype]
