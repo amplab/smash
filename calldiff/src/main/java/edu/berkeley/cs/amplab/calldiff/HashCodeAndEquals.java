@@ -1,7 +1,9 @@
 package edu.berkeley.cs.amplab.calldiff;
 
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -16,7 +18,14 @@ public class HashCodeAndEquals<X> {
   public static <X> HashCodeAndEquals<X>
       create(Class<X> type, Function<? super X, ?>... accessors) {
     return new HashCodeAndEquals<>(
-        obj -> Objects.hash(Stream.of(accessors).map(accessor -> accessor.apply(obj)).toArray()),
+        obj -> Objects.hash(Stream.of(accessors)
+            .map(
+                new Function<Function<? super X, ?>, Object>() {
+                  @Override public Object apply(Function<? super X, ?> accessor) {
+                    return accessor.apply(obj);
+                  }
+                })
+            .toArray()),
         (lhs, obj) -> {
           boolean same = lhs == obj;
           if (!same && type.isInstance(obj)) {

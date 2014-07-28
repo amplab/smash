@@ -184,11 +184,12 @@ public class BimonotonicAStarSearcher<X, Y, Z> {
     class PairWithValue {
 
       private final Pair pair;
-      private final Supplier<Z> value = Suppliers.memoize(
-          () -> biFunction.apply(lhs.get(pair.i()), rhs.get(pair.j())));
+      private final Supplier<Z> value;
 
       PairWithValue(int i, int j) {
         this.pair = new Pair(i, j);
+        this.value = Suppliers.memoize(
+            () -> biFunction.apply(lhs.get(pair.i()), rhs.get(pair.j())));
       }
 
       Stream<PairWithValue> neighbors() {

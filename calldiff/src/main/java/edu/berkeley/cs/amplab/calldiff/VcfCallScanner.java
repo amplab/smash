@@ -180,19 +180,22 @@ public class VcfCallScanner implements CallScanner {
       String header = Iterables.getOnlyElement(headerList);
       Matcher matcher = HEADER_PATTERN.matcher(header);
       Preconditions.checkState(matcher.lookingAt(), "Unparsable header line: %s", header);
-      Map<String, Integer> index1 = stream(matcher.usePattern(SAMPLE_PATTERN))
+      Map<String, Integer> index = stream(matcher.usePattern(SAMPLE_PATTERN))
           .map(result -> result.group(1))
           .collect(Indexer.create());
-      int index = sampleId
-          .map(id -> Optional.ofNullable(index1.get(id))
-              .orElseThrow(() -> new IllegalStateException("Sample ID not present on header line")))
-          .orElseGet(() -> {
-            if (1 == index1.size()) {
-              return 0;
-            }
-            throw new IllegalStateException("Sample ID required for multi-sample VCF file");
-          });
-      return callback.scan(lines.map(line -> call(line, index)));
+      final int i;
+      if (sampleId.isPresent()) {
+        Integer j = index.get(sampleId.get());
+        if (null == j) {
+          throw new IllegalStateException("Sample ID not present on header line");
+        }
+        i = j;
+      } else if (1 == index.size()) {
+        i = 0;
+      } else {
+        throw new IllegalStateException("Sample ID required for multi-sample VCF file");
+      }
+      return callback.scan(lines.map(line -> call(line, i)));
     } catch (IllegalStateException e) {
       IllegalStateException newException = new IllegalStateException(Stream
           .of(vcf.getAbsolutePath(), Optional.ofNullable(e.getMessage()).orElse(""))
