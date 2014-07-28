@@ -81,6 +81,11 @@
       <artifactId>google-oauth-client-jetty</artifactId>
       <version>1.18.0-rc</version>
     </dependency>
+    <dependency>
+      <groupId>com.google.cloud.genomics</groupId>
+      <artifactId>google-genomics-utils</artifactId>
+      <version>0.7-SNAPSHOT</version>
+    </dependency>
   </dependencies>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

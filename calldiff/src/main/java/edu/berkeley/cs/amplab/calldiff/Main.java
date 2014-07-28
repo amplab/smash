@@ -1,6 +1,7 @@
 package edu.berkeley.cs.amplab.calldiff;
 
 import com.google.api.services.genomics.Genomics;
+import com.google.cloud.genomics.utils.GenomicsFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,7 +55,7 @@ public class Main {
     boolean useApiKey = apiKey.isPresent(),
         useClientSecrets = clientSecretsFile.isPresent(),
         useServiceAccount = serviceAccountId.isPresent() && p12File.isPresent();
-    GenomicsFactory.Builder builder = GenomicsFactory.builder();
+    GenomicsFactory.Builder builder = GenomicsFactory.builder("calldiff");
     rootUrl.ifPresent(url -> builder.setRootUrl(url));
     timeout.ifPresent(ms -> builder.setConnectTimeout(ms).setReadTimeout(ms));
     GenomicsFactory factory = builder.build();
