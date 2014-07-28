@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+import java.util.Optional;
+
 import edu.berkeley.cs.amplab.calldiff.CommandLine;
 
 /**
@@ -14,7 +16,7 @@ public class CommandLineTest {
   @Test
   public void testCommandLine() {
     assertEquals(
-        CommandLine.builder()
+        Optional.of(CommandLine.builder()
             .setLhsSampleId("lhs_sample_id")
             .setLhsVcf("lhs_vcf")
             .setPresorted(true)
@@ -22,7 +24,7 @@ public class CommandLineTest {
             .setReferenceFasta("reference_fasta")
             .setRhsSampleId("rhs_sample_id")
             .setRhsVcf("rhs_vcf")
-            .build(),
+            .build()),
         CommandLine.parse(
             "--lhs_sample_id=lhs_sample_id",
             "--lhs_vcf=lhs_vcf",
