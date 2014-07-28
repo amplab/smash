@@ -172,7 +172,7 @@ chr1    7       .       G       .       20      PASS    .       GT       0/0\n
         self.assertEqual(newChromVar.all_locations,[7])
         var = newChromVar.all_variants[7]
         self.assertEqual(var.ref,'G')
-        self.assertEqual(var.alt[0], 'NONE')
+        self.assertEqual(var.alt[0], None)
 
 #test rando helper methods
 class ChromVariantHelperMethodsTestCase(unittest.TestCase):

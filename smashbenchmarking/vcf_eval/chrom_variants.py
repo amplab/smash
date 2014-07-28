@@ -177,13 +177,17 @@ class ChromVariants:
     Assumes only one 'indel_or_sv' at each location,
     but doesn't check if we also have a variant of the other two kinds.
     """
-
     assert record.CHROM == self.chrom
     if not is_pass(record) and not self._args.get('knownFP',None): # if this is a known FP object, let it past the filter
       return
-    ref = record.REF.upper()
+    record.REF = record.REF.upper()
+    ref = record.REF
 
-    alt = map(lambda a: str(a).upper(), record.ALT)
+    if any(record.ALT):
+        record.ALT = map(lambda a: vcf.model._Substitution(str(a).upper()), record.ALT)
+        alt = map(lambda a: str(a).upper(), record.ALT)
+    else:
+        alt = record.ALT
     if _lacks_alt_alleles(record) and not self._args.get('knownFP',None):
       raise Exception("Monomorphic records (no alt allele) are not supported.")
 
