@@ -10,7 +10,7 @@ tmp_dir=`mktemp -d /tmp/systest.XXXX`
 # Run the benchmarker
 /usr/bin/env python $smashbenchmarking_dir/bench.py \
     $test_dir/system_test_true.vcf \
-    $test_dir/system_test_pred.vcf $test_dir/ref.fasta --snp_err 0.0 \
+    $test_dir/system_test_pred.vcf $test_dir/ref.fasta $test_dir/ref.fasta.fai --snp_err 0.0 \
     --indel_err 0.0 --sv_err 0.0 --sv_bp 100 -w 50 --normalize 1> $tmp_dir/output \
     2> /dev/null
 
