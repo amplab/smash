@@ -32,11 +32,11 @@ public class Main {
     if (!useVcfFile && !useCallset) {
       throw new IllegalStateException(
           String.format("Specify one of --%s_vcf or --%s_callset_id", name, name));
-    } else if (!useVcfFile && !useCallset) {
+    } else if (useVcfFile && !useCallset) {
       File file = new File(vcfFile.get());
       return sampleId.map(sample -> VcfCallScanner.create(file, sample))
           .orElse(VcfCallScanner.create(file));
-    } else if (!useVcfFile && !useCallset) {
+    } else if (!useVcfFile && useCallset) {
       return ApiCallScanner.create(createGenomics(commandLine.apiKey(),
           commandLine.clientSecretsFile(), commandLine.serviceAccountId(), commandLine.p12File(),
           commandLine.rootUrl(), commandLine.timeout()), callsetId.get());
