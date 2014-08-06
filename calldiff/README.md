@@ -1,3 +1,8 @@
+NOTE
+================
+The Java version of SMaSH is not yet officially supported and should be considered experimental.
+
+
 BEFORE YOU BUILD
 ================
 

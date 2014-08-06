@@ -43,3 +43,7 @@ SMaSH also includes a normalization script which first cleans the VCF by upper-c
 * At present SMaSH does not evaluate phasing.
 * SMaSH does not handle compound heterozygous variants.
 
+## Java version
+
+A Java version of SMaSH is under development; see the README under the calldiff directory for more details.
+
