@@ -3,19 +3,19 @@ NOTE
 The Java version of SMaSH is not yet officially supported and should be considered experimental.
 
 
-BEFORE YOU BUILD
+Before you build
 ================
 
 You need to have [JDK 1.8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 and [Apache Maven](http://maven.apache.org/download.cgi) installed in order to build the code.
 
-HOW TO BUILD
+How to build
 ============
 
 To build the code, just run `mvn assembly:assembly` from within the `calldiff` directory.
 This should produce the fat jar file `target/calldiff-jar-with-dependencies.jar`.
 
-COMMAND LINE USAGE
+Command line usage
 ===================
 
 Run `java -jar target/calldiff-jar-with-dependencies.jar --help`. You should see output
