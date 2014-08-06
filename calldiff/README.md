@@ -77,3 +77,9 @@ are 3 supported ways to authenticate: Using an API Key (the `--api_key` flag),
 using client secrets (The `--client_secrets_file` flag) or using a service
 account (The `--service_account_id` and `--p12_file` flags).
 
+
+The code
+========
+
+See [this doc](https://docs.google.com/document/d/1gEpZVsNgkZAjbgudI-KsRILXi7TSD459a4LMAP9s1LQ/edit?usp=sharing)
+for more details on the methodology behind this code.
