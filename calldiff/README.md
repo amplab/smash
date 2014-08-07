@@ -3,19 +3,19 @@ NOTE
 The Java version of SMaSH is not yet officially supported and should be considered experimental.
 
 
-BEFORE YOU BUILD
+Before you build
 ================
 
 You need to have [JDK 1.8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 and [Apache Maven](http://maven.apache.org/download.cgi) installed in order to build the code.
 
-HOW TO BUILD
+How to build
 ============
 
 To build the code, just run `mvn assembly:assembly` from within the `calldiff` directory.
 This should produce the fat jar file `target/calldiff-jar-with-dependencies.jar`.
 
-COMMAND LINE USAGE
+Command line usage
 ===================
 
 Run `java -jar target/calldiff-jar-with-dependencies.jar --help`. You should see output
@@ -77,3 +77,9 @@ are 3 supported ways to authenticate: Using an API Key (the `--api_key` flag),
 using client secrets (The `--client_secrets_file` flag) or using a service
 account (The `--service_account_id` and `--p12_file` flags).
 
+
+The code
+========
+
+See [this doc](https://docs.google.com/document/d/1gEpZVsNgkZAjbgudI-KsRILXi7TSD459a4LMAP9s1LQ/edit?usp=sharing)
+for more details on the methodology behind this code.
