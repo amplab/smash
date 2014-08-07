@@ -1,0 +1,17 @@
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO
+chr1    2       .       A       C       .       .       source_file=1;smash_type=TP
+chr1    3       .       A       T       .       .       source_file=1;smash_type=FN
+chr1    4       .       G       C       .       .       source_file=2;smash_type=FP
+chr1    5       .       C       A       .       .       source_file=1;smash_type=FN
+chr1    5       .       C       T       .       .       source_file=2;smash_type=FP
+chr1    6       .       C       T       .       .       source_file=1;smash_type=TP
+chr2    2       .       T       TAA     .       .       source_file=1;smash_type=TP
+chr2    3       .       G       GCGC    .       .       source_file=2;smash_type=FP
+chr2    4       .       C       CAAA    .       .       source_file=1;smash_type=FN
+chr2    5       .       C       CATG    .       .       source_file=1;smash_type=FN
+chr2    5       .       C       CGGG    .       .       source_file=2;smash_type=FP
+chr2    6       .       GGA     G       .       .       source_file=1;smash_type=TP
+chr3    1       .       ATCG    A       .       .       source_file=1;smash_type=FN
+chr3    2       .       TCGA    T       .       .       source_file=2;smash_type=FP
+chr3    5       .       ATC     A       .       .       source_file=1;smash_type=FN
+chr3    5       .       ATCG    A       .       .       source_file=2;smash_type=FP

@@ -1,0 +1,9 @@
+VariantType #True #Pred Precision Recall  TP  FP  FN  NonReferenceDiscrepancy
+SNP 4 4 50.0 +/- 0.0000 50.0 +/- 0.0000 2 2 2 0.0
+Indel Deletions 3 3 33.3 +/- 0.0000 33.3 +/- 0.0000 1 2 2 0.0
+Indel Insertions  3 3 33.3 +/- 0.0000 33.3 +/- 0.0000 1 2 2 0.0
+Indel Inversions  0 0 0.0 +/- 0.0000  0.0 +/- 0.0000  0 0 0 0.0
+Indel Other 0 0 0.0 +/- 0.0000  0.0 +/- 0.0000  0 0 0 0.0
+SV Deletions  0 0 0.0 +/- 0.0000  0.0 +/- 0.0000  0 0 0 0.0
+SV Insertions 0 0 0.0 +/- 0.0000  0.0 +/- 0.0000  0 0 0 0.0
+SV Other  0 0 0.0 +/- 0.0000  0.0 +/- 0.0000  0 0 0 0.0

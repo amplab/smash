@@ -1,0 +1,23 @@
+##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001
+-- true positive snp --
+chr1    2       .       A       C       20      PASS    .       GT      0/1
+-- false positive snp --
+chr1    4       .       G       C       20      PASS    .       GT      1/1
+-- false negative + false pos snp (correct pos, wrong alt allele) --
+chr1    5       .       C       T       20      PASS    .       GT      0/1
+-- true bases are in lower case, pred bases are upper --
+chr1    6       .       c       t       20      PASS    .       GT      1/1
+-- true positive indel insertion --
+chr2    2       .       T       TAA     20      PASS    .       GT      0/1
+-- false positive indel insertion --
+chr2    3       .       G       GCGC    20      PASS    .       GT      1/1
+-- indel insertion right pos, wrong allele --
+chr2   5        .       C       CGGG    20      PASS    .       GT      0/1
+-- true positive indel deletion --
+chr2   6        .       GGA     G       20      PASS    .       GT      1/1
+-- false positive indel deletion --
+chr3   2        .       TCGA    T       20      PASS    .       GT      0/1
+-- indel deletion right pos, wrong allele --
+chr3   5        .       ATCG    A       20      PASS    .       GT      0/1

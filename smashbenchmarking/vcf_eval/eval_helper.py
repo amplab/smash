@@ -95,7 +95,7 @@ def var_match_at_loc(true_variants,pred_variants,loc):
         return true_var.var_type == pred_var.var_type
     if ( true_var.var_type != pred_var.var_type ):
         return False
-    return true_var.alt == pred_var.alt
+    return true_var.ref == pred_var.ref and true_var.alt == pred_var.alt
 
 def any_var_match_at_loc(fp_variants,pred_variants,loc):
     def get_var(variants):

@@ -170,6 +170,24 @@ chr1    9       .       A       G       20      PASS     .      GT      1|1\n
         self.assertEqual(cvs.genotype_concordance[VARIANT_TYPE.SNP][GENOTYPE_TYPE.HOM_VAR][GENOTYPE_TYPE.HOM_VAR],1)
         self.assertEqual(cvs._nrd_counts(VARIANT_TYPE.SNP),(0,2))
 
+    def testIndelDeletionMismatchedAllele(self):
+        true_str = """##fileformat=VCFv4.0\n
+        ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr3   5        .       ATC     A       20      PASS    .       GT      0/1\n
+        """
+        pred_str = """##fileformat=VCFv4.0\n
+        ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA00001\n
+chr3   5        .       ATCG    A       20      PASS    .       GT      0/1
+        """
+        true_vars = vcf_to_ChromVariants(true_str,'chr3')
+        pred_vars = vcf_to_ChromVariants(pred_str, 'chr3')
+        cvs = chrom_evaluate_variants(true_vars,pred_vars,100,100,get_reference(),50)
+        self.assertEqual(cvs.num_tp[VARIANT_TYPE.INDEL_DEL],0)
+        self.assertEqual(cvs.num_fn[VARIANT_TYPE.INDEL_DEL],1)
+        self.assertEqual(cvs.num_fp[VARIANT_TYPE.INDEL_DEL],1)
+
     def testChromEvaluateVariantsKnownFP(self):
         # one known true variant
         true_str = """##fileformat=VCFv4.0\n
