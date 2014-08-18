@@ -39,6 +39,7 @@ import csv
 import sys
 import argparse
 import datetime
+import json
 
 from parsers.genome import Genome
 from vcf_eval.variants import Variants,evaluate_variants,output_annotated_variants,evaluate_low_memory
@@ -88,6 +89,24 @@ def tsv_row(variant_name,stats,err_rate,knownFP=False,hideFP=False):
         stats['false_negatives'],
         get_nrd(stats)
         ]
+
+def json_dict(stats,err_rate,knownFP=False,hideFP=False):
+    err = err_rate * stats['num_true']
+    # should this be ordered dict?
+    json_dict = {}
+    if not knownFP:
+        if hideFP:
+            json_dict['precision'] = "--"
+            json_dict['false_positives'] = "--"
+        else:
+            json_dict['precision'] = interval(*bound_precision(stats['good_predictions'],stats['false_positives'],err))
+            json_dict['false_positives'] = stats['false_positives']
+    json_dict['true'] = stats['num_true']
+    json_dict['predicted'] = stats['num_pred']
+    json_dict['true_positives'] = stats['good_predictions']
+    json_dict['false_negatives'] = stats['false_negatives']
+    json_dict['non_reference_discrepancy'] = get_nrd(stats)
+    return json_dict
 
 def get_nrd(stats):
     if stats['num_true'] > 0:
@@ -239,7 +258,7 @@ def parse_args(params):
     parser.add_argument("--normalize",action="store_true",
             help="Optionally normalize variants before evaluating them; requires reference file")
     parser.add_argument("--output",action="store",
-            help="Specify output type: plain text or TSV", default="text")
+            help="Specify output type: plain text, TSV or JSON", default="text")
     parser.add_argument("--hide_fp",dest="hideFP",action="store_true",
             help="Don't show FP-related stats (for non-comprehensive ground truth files")
     args = parser.parse_args(params)
@@ -247,6 +266,12 @@ def parse_args(params):
 
 def get_text_header(params):
     return "# SMaSH version %s, run %s\n# cmdline args: %s" % (SMASHVERSION,date_run," ".join(params))
+
+def add_json_header(params, output_dict):
+    output_dict["SMaSH version"] = SMASHVERSION
+    output_dict["Date run"] = date_run
+    output_dict["cmdline args"] = " ".join(params)
+    return output_dict
 
 def get_vcf_header_lines(params):
     return ["##SMaSH version %s" % SMASHVERSION, "##Date run %s" % date_run, "##cmdline args: %s" % " ".join(params)]
@@ -321,6 +346,16 @@ def main(params):
         tsvwriter.writerow(tsv_row("SV Deletions",stat_reporter(VARIANT_TYPE.SV_DEL),args.sv_err_rate,args.knownFP,args.hideFP))
         tsvwriter.writerow(tsv_row("SV Insertions",stat_reporter(VARIANT_TYPE.SV_INS),args.sv_err_rate,args.knownFP,args.hideFP))
         tsvwriter.writerow(tsv_row("SV Other",stat_reporter(VARIANT_TYPE.SV_OTH),args.sv_err_rate,args.knownFP,args.hideFP))
+    elif args.output == "json":
+        output_dict = add_json_header(params,{})
+        output_dict["SNP"] = json_dict(stat_reporter(VARIANT_TYPE.SNP),args.snp_err_rate,args.knownFP,args.hideFP)
+        output_dict["Indel Deletions"] = json_dict(stat_reporter(VARIANT_TYPE.INDEL_DEL),args.indel_err_rate,args.knownFP,args.hideFP)
+        output_dict["Indel Insertions"] = json_dict(stat_reporter(VARIANT_TYPE.INDEL_INS),args.indel_err_rate,args.knownFP,args.hideFP)
+        output_dict["Indel Inversions"] = json_dict(stat_reporter(VARIANT_TYPE.INDEL_INV),args.indel_err_rate,args.knownFP,args.hideFP)
+        output_dict["Indel Other"] = json_dict(stat_reporter(VARIANT_TYPE.INDEL_OTH),args.indel_err_rate,args.knownFP,args.hideFP)
+        output_dict["SV Deleitions"] = json_dict(stat_reporter(VARIANT_TYPE.SV_DEL),args.sv_err_rate,args.knownFP,args.hideFP)
+        output_dict["SV Insertions"] = json_dict(stat_reporter(VARIANT_TYPE.SV_INS),args.sv_err_rate,args.knownFP,args.hideFP)
+        json.dump(output_dict,sys.stdout)
     else:
         print(get_text_header(params),file=sys.stdout)
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)

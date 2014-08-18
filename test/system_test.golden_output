@@ -2,8 +2,8 @@
 -----------
 SNP Results
 -----------
-# True = 2; # Predicted = 1
-	# precision = 100.0 +/- 0.0000
+# True = 2; # Predicted = 2
+	# precision = 50.0 +/- 0.0000
 	# recall = 50.0 +/- 0.0000
 	# allele mismatch = 0
 	# correct = 1
@@ -28,13 +28,13 @@ INDEL DELETION Results
 INDEL INSERTION Results
 ------------------------
 # True = 2; # Predicted = 2
-	# precision = 100.0 +/- 0.0000
-	# recall = 100.0 +/- 0.0000
-	# correct = 2
-	# missed = 0
-	# false pos = 0
-	percent correct = 100.0
-	non reference discrepancy = 50.0
+	# precision = 50.0 +/- 0.0000
+	# recall = 50.0 +/- 0.0000
+	# correct = 1
+	# missed = 1
+	# false pos = 1
+	percent correct = 50.0
+	non reference discrepancy = 100.0
 
 
 ------------------------
