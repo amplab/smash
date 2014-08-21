@@ -54,9 +54,9 @@ date_run = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 # this needs to move to another class
 def get_tsv_header(knownFP=False):
     if knownFP:
-        return ['VariantType','#True','#Pred','Precision', 'FP Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
+        return ['VariantType','#True','#Pred','Precision', 'FP Precision','Recall','TP','FP','FN','TPwithMismatchGenotype', 'NonReferenceDiscrepancy']
     else:
-        return ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','NonReferenceDiscrepancy']
+        return ['VariantType','#True','#Pred','Precision','Recall','TP','FP','FN','TPwithMismatchGenotype','NonReferenceDiscrepancy']
 
 def tsv_row(variant_name,stats,err_rate,knownFP=False,hideFP=False):
     err = err_rate * stats['num_true']
@@ -70,6 +70,7 @@ def tsv_row(variant_name,stats,err_rate,knownFP=False,hideFP=False):
         stats['good_predictions'],
         stats['calls_at_known_fp'],
         stats['false_negatives'],
+        stats['nrd_wrong'],
         get_nrd(stats)
         ]
     else:
@@ -87,6 +88,7 @@ def tsv_row(variant_name,stats,err_rate,knownFP=False,hideFP=False):
         stats['good_predictions'],
         false_positives,
         stats['false_negatives'],
+        stats['nrd_wrong'],
         get_nrd(stats)
         ]
 
@@ -105,6 +107,7 @@ def json_dict(stats,err_rate,knownFP=False,hideFP=False):
     json_dict['predicted'] = stats['num_pred']
     json_dict['true_positives'] = stats['good_predictions']
     json_dict['false_negatives'] = stats['false_negatives']
+    json_dict['tp_with_mismatched_genotype'] = stats['nrd_wrong']
     json_dict['non_reference_discrepancy'] = get_nrd(stats)
     return json_dict
 
