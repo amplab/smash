@@ -29,10 +29,10 @@ import vcf
 import unittest
 import StringIO
 
-from test_helper import MAX_INDEL_LEN,vcf_to_Variants,get_reference
+from test_helper import MAX_INDEL_LEN,vcf_to_Variants,get_reference,get_reference_index,str_to_VcfReader
 
 sys.path.insert(0,'..')
-from smashbenchmarking import Variants,evaluate_variants
+from smashbenchmarking import Variants,evaluate_low_memory
 from smashbenchmarking import VARIANT_TYPE
 
 sv_eps = 100
@@ -109,7 +109,7 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 """
         true_io = StringIO.StringIO(true_str)
         true_vcf = vcf.Reader(true_io)
-        self.true_vars = Variants(true_vcf, MAX_INDEL_LEN)
+        self.true_vars = true_vcf #Variants(true_vcf, MAX_INDEL_LEN)
 
     def tearDown(self):
         pass
@@ -126,9 +126,8 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+#def evaluate_low_memory(true_iter,pred_iter,eps,eps_bp,ref,window,max_indel_len,contig_lookup,writer=None,known_fp_iter=None):
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(), 50, 50, {'chr19':0,None:100})
 
         self.truePositive(stat_reporter,VARIANT_TYPE.SNP)
         self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
@@ -147,9 +146,8 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
 
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(),50,50, {'chr19':0,None:100})
 
         self.falseNegative(stat_reporter,VARIANT_TYPE.SNP)
         self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
@@ -169,9 +167,8 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
 
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(), 50,50, {'chr19':0,None:100})
 
         self.badCallAtTrueSite(stat_reporter,VARIANT_TYPE.SNP)
         self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
@@ -190,11 +187,10 @@ chr19   89272   .       C       T       20      PASS    .       GT      0/1
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
 
         sv_eps = 100
 
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter= evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(), 50,50,{'chr19':0,None:100})
 
         self.truePositive(stat_reporter,VARIANT_TYPE.SNP)
         self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
@@ -214,11 +210,9 @@ chr19   269751  .       A       T       20      PASS    .       GT      1/1
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-
         sv_eps = 100
 
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(),50,50, {'chr19':0,None:100})
 
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
 
@@ -254,11 +248,9 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 """
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-
         sv_eps = 100
 
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(),50,50,{'chr19':0,None:100})
 
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
 
@@ -293,9 +285,8 @@ chr19   269751  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
 
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(),50, 50, {'chr19':0,None:100})
 
         self.truePositiveBadGeno(stat_reporter,VARIANT_TYPE.SNP)
         self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
@@ -315,9 +306,8 @@ chr19   269771  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
 
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps,get_reference(), 50, 50, {'chr19':0,None:100})
 
         self.truePositive(stat_reporter,VARIANT_TYPE.SNP)
         self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
@@ -337,9 +327,7 @@ chr19   269852  .       A       AAAAGAAAGGCATGACCTATCCACCCATGCCACCTGGATGGACCTCAC
 
         pred_io = StringIO.StringIO(pred_str)
         pred_vcf = vcf.Reader(pred_io)
-        pred_vars = Variants(pred_vcf, MAX_INDEL_LEN)
-
-        stat_reporter, errors = evaluate_variants(self.true_vars, pred_vars, sv_eps, sv_eps, None, None, None)
+        stat_reporter = evaluate_low_memory(self.true_vars, pred_vcf, sv_eps, sv_eps, get_reference(),50,50, {'chr19':0,None:100})
 
         self.truePositive(stat_reporter,VARIANT_TYPE.SNP)
         self.trueNegative(stat_reporter,VARIANT_TYPE.INDEL_INS)
@@ -381,11 +369,9 @@ chr1    3       .       G       .       20      PASS    .       GT      0/0\n
 chr1    5       .       C       G       20      PASS    .       GT      0/0\n
 chr1    9       .       T       .       20      PASS    .       GT      0/0\n
 """
-        known_fp_io = StringIO.StringIO(known_fp_vcf)
-        known_fp_vars = Variants(vcf.Reader(known_fp_io),MAX_INDEL_LEN,knownFP=True)
 
-        stat_reporter, vcf_output = evaluate_variants(vcf_to_Variants(true_vcf),vcf_to_Variants(pred_vcf),sv_eps,sv_eps, \
-            get_reference(),50,known_fp_vars)
+        stat_reporter= evaluate_low_memory(str_to_VcfReader(true_vcf),str_to_VcfReader(pred_vcf),sv_eps,sv_eps, \
+            get_reference(),50,get_reference_index(),None,str_to_VcfReader(known_fp_vcf))
 
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
 

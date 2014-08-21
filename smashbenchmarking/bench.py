@@ -42,7 +42,7 @@ import datetime
 import json
 
 from parsers.genome import Genome
-from vcf_eval.variants import Variants,evaluate_variants,output_annotated_variants,evaluate_low_memory
+from vcf_eval.variants import Variants,output_annotated_variants,evaluate_low_memory
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
 from normalize_vcf import normalize
@@ -306,18 +306,14 @@ def main(params):
     pred_vcf = vcf.Reader(open(args.predicted_vcf))
     if args.normalize:
         pred_vcf = normalize(ref,pred_vcf)
-    known_fp_vars = None # punting on known fp support for now
+    # if args.knownFP:
+    #    known_fp_vcf = vcf.Reader(open(args.knownFP,'r'))
+    known_fp_vcf = None # punting on known fp support for now
 
     sv_eps = args.sv_eps
 
     if args.output_vcf:
-        outVCF = open(args.output_vcf,'w')
-        outVCF.write("##fileformat=VCFv4.1\n")
-        for s in get_vcf_header_lines(params):
-            outVCF.write(s + "\n")
-        outVCF.write("##INFO=<ID=smash_type,Type=String,Description=\"classify variant as TP,FP,FN,or rescued\">\n")
-        outVCF.write("##INFO=<ID=source_file,Type=Integer,Description=\"variant originally in first or second vcf passed to SMaSH\">\n")
-        outVCF.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
+        outVCF = vcf.Writer(open(args.output_vcf,'w'),true_vcf)
     else:
         outVCF = None
 
@@ -331,7 +327,7 @@ def main(params):
         MAX_INDEL_LEN,
         contig_lookup,
         outVCF,
-        known_fp_vars
+        known_fp_vcf
         )
 
     if args.output == "tsv":

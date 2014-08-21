@@ -26,9 +26,14 @@
 
 from __future__ import print_function
 import vcf
-from collections import defaultdict
+from collections import defaultdict,OrderedDict
 import bisect
 import sys
+
+# copied over from parsers.util
+def strToAlts(alts):
+  return map(lambda a: vcf.model._Substitution(a),alts)
+
 
 class Enum(set):
     def __getattr__(self,name):
@@ -207,7 +212,7 @@ class ChromVariants:
 
     def add_variant(var_type):
       pos = record.POS
-      new_variant = Variant(pos, ref, alt, var_type, genotype_type)
+      new_variant = Variant(pos, ref, alt, var_type, genotype_type,record)
       self._add_variant(new_variant)
       
 
@@ -260,13 +265,14 @@ class ChromVariants:
 
 class Variant:
 
-  def __init__(self, pos, ref, alt, var_type, genotype_type):
+  def __init__(self, pos, ref, alt, var_type, genotype_type,record=None):
     self.__mutable = True
     self.pos = pos 
     self.ref = ref 
     self.alt = alt 
     self.var_type = var_type
     self.genotype_type = genotype_type
+    self.record = record
 
   @property
   def gains(self):
@@ -278,6 +284,21 @@ class Variant:
 
   def __str__(self):
       return "%d %s/%s %s %s" % (self.pos,self.ref,str(self.alt),self.var_type,self.genotype_type)
+
+  def update_record(self,info=None):
+    self.record.POS = self.pos
+    self.record.REF = self.ref
+    self.record.ALT = strToAlts(self.alt)
+    if info:
+      if type(self.record.INFO) == dict:
+        self.record.INFO = OrderedDict(info)
+      else:
+        self.record.INFO.update(info)
+
+# this might go?
+  def write(self,writer):
+    self.update_record()
+    writer.write_record(self.record)
 
   def overlaps_allele(self,pos):
       return any(map(
@@ -297,7 +318,9 @@ class Variant:
         return var.strictly_overlaps(self.pos)
 
   def _vcf_entry(self,contig,info="."):
-      return "%s\t%d\t.\t%s\t%s\t.\t.\t%s" % (contig,self.pos,self.ref,",".join(self.alt),info)
+    self.update_record(info)
+    return self.record
+      # return "%s\t%d\t.\t%s\t%s\t.\t.\t%s" % (contig,self.pos,self.ref,",".join(self.alt),info)
 
 def _getRestOfPath(chosenSoFar,remainingChoices):
     if ( remainingChoices == [] ):

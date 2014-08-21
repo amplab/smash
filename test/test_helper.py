@@ -33,8 +33,13 @@ from smashbenchmarking.vcf_eval.variants import Variants
 from smashbenchmarking.vcf_eval.chrom_variants import ChromVariants
 from smashbenchmarking.parsers.genome import Genome
 from smashbenchmarking.normalize_vcf import normalize
+from smashbenchmarking.bench import get_contig_lookup
 
 MAX_INDEL_LEN = 50
+
+def str_to_VcfReader(vcf_str):
+    str_io = StringIO.StringIO(vcf_str)
+    return vcf.Reader(str_io)
 
 def vcf_to_Variants(vcf_str):
     str_io = StringIO.StringIO(vcf_str)
@@ -59,3 +64,6 @@ def get_empty_ChromVariants(contig):
 
 def get_reference():
     return Genome('ref.fasta',lambda t: t.split()[0])
+
+def get_reference_index():
+    return get_contig_lookup('ref.fasta.fai')
