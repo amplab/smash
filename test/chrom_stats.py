@@ -32,7 +32,7 @@ import StringIO
 from test_helper import MAX_INDEL_LEN,vcf_to_Variants,get_reference,get_reference_index,str_to_VcfReader
 
 sys.path.insert(0,'..')
-from smashbenchmarking import Variants,evaluate_low_memory
+from smashbenchmarking import Variants,evaluate_low_memory,evaluate_variants
 from smashbenchmarking import VARIANT_TYPE
 
 sv_eps = 100
@@ -370,8 +370,11 @@ chr1    5       .       C       G       20      PASS    .       GT      0/0\n
 chr1    9       .       T       .       20      PASS    .       GT      0/0\n
 """
 
-        stat_reporter= evaluate_low_memory(str_to_VcfReader(true_vcf),str_to_VcfReader(pred_vcf),sv_eps,sv_eps, \
-            get_reference(),50,get_reference_index(),None,str_to_VcfReader(known_fp_vcf))
+        known_fp_io = StringIO.StringIO(known_fp_vcf)
+        known_fp_vars = Variants(vcf.Reader(known_fp_io),MAX_INDEL_LEN,knownFP=True)
+
+        stat_reporter, vcf_output = evaluate_variants(vcf_to_Variants(true_vcf),vcf_to_Variants(pred_vcf),sv_eps,sv_eps, \
+            get_reference(),50,known_fp_vars)
 
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
 

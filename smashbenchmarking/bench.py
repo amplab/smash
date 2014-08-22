@@ -42,7 +42,7 @@ import datetime
 import json
 
 from parsers.genome import Genome
-from vcf_eval.variants import Variants,output_annotated_variants,evaluate_low_memory
+from vcf_eval.variants import Variants,output_annotated_variants,evaluate_low_memory,evaluate_variants
 from vcf_eval.chrom_variants import VARIANT_TYPE
 from vcf_eval.callset_helper import MAX_INDEL_LEN
 from normalize_vcf import normalize
@@ -309,29 +309,46 @@ def main(params):
     pred_vcf = vcf.Reader(open(args.predicted_vcf))
     if args.normalize:
         pred_vcf = normalize(ref,pred_vcf)
-    # if args.knownFP:
-    #    known_fp_vcf = vcf.Reader(open(args.knownFP,'r'))
-    known_fp_vcf = None # punting on known fp support for now
 
     sv_eps = args.sv_eps
 
-    if args.output_vcf:
-        outVCF = vcf.Writer(open(args.output_vcf,'w'),true_vcf)
-    else:
-        outVCF = None
+    # if args.knownFP:
+    #     known_fp_vcf = vcf.Reader(open(args.knownFP,'r'))
+    #     known_fp_vars = Variants(known_fp_vcf,MAX_INDEL_LEN,knownFP=True)
+    # else:
+    #     known_fp_vars = None
 
-    stat_reporter = evaluate_low_memory(
-        true_vcf,
-        pred_vcf,
-        sv_eps,
-        sv_eps,
-        ref,
-        window,
-        MAX_INDEL_LEN,
-        contig_lookup,
-        outVCF,
-        known_fp_vcf
-        )
+    if args.knownFP:
+        true_vars = Variants(true_vcf,MAX_INDEL_LEN)
+        pred_vars = Variants(pred_vcf,MAX_INDEL_LEN)
+        known_fp_vcf = vcf.Reader(open(args.knownFP,'r'))
+        known_fp_vars = Variants(known_fp_vcf,MAX_INDEL_LEN,knownFP=True)
+        stat_reporter, annotated_vars = evaluate_variants(
+            true_vars,
+            pred_vars,
+            sv_eps,
+            sv_eps,
+            ref,
+            window,
+            known_fp_vars)
+        if args.output_vcf:
+            output_annotated_variants(annotated_vars,ref.keys() if ref != None else None, open(args.output_vcf,'w'),get_vcf_header_lines(params))
+    else:
+        if args.output_vcf:
+            outVCF = vcf.Writer(open(args.output_vcf,'w'),true_vcf)
+        else:
+            outVCF = None
+        stat_reporter = evaluate_low_memory(
+            true_vcf,
+            pred_vcf,
+            sv_eps,
+            sv_eps,
+            ref,
+            window,
+            MAX_INDEL_LEN,
+            contig_lookup,
+            outVCF
+            )
 
     if args.output == "tsv":
         print(get_text_header(params),file=sys.stdout)
@@ -358,7 +375,7 @@ def main(params):
     else:
         print(get_text_header(params),file=sys.stdout)
         snp_stats = stat_reporter(VARIANT_TYPE.SNP)
-        print_snp_stats(snp_stats, args.snp_err_rate, known_fp_vars,args.hideFP)
+        print_snp_stats(snp_stats, args.snp_err_rate, args.knownFP,args.hideFP)
         def print_sv(var_type, description,args):
             assert 'INDEL' in var_type or 'SV' in var_type
             err_rate = args.indel_err_rate if 'INDEL' in var_type else args.sv_err_rate

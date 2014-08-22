@@ -90,56 +90,57 @@ def write_annotated_var(writer,cv_stats):
   var_iterator = sorted(chain(var_iterator,vcf_by_position([tp_iter,fp_iter,fn_iter,known_fp_iter,rescued_iter])),key=lambda r: int(r.POS))
   map(lambda r: writer.write_record(r),var_iterator)
 
-# the commented-out code below holds all records being eval'ed in memory at once
+# these three methods hold all compared variants in memory at once
+# they should only be called if we get passed a known fp vcf
 
-# def _aggregate(stats_by_chrom):
-#   """Combine dictionaries by summing their values."""
-#   # a bit tricky
-#   # return a function that takes a type and aggregates
-#   # the statistics by chromosome
-#   def aggregator(vartype):
+def _aggregate(stats_by_chrom):
+  """Combine dictionaries by summing their values."""
+  # a bit tricky
+  # return a function that takes a type and aggregates
+  # the statistics by chromosome
+  def aggregator(vartype):
 
-#    aggregate = defaultdict(int)
-#    for cv_stats in stats_by_chrom:
-#      stats = cv_stats.to_dict(vartype)
-#      for attribute in stats:
-#       aggregate[attribute] += stats[attribute]
-#    return dict(aggregate)
+   aggregate = defaultdict(int)
+   for cv_stats in stats_by_chrom:
+     stats = cv_stats.to_dict(vartype)
+     for attribute in stats:
+      aggregate[attribute] += stats[attribute]
+   return dict(aggregate)
 
-#   def annotated_var_iter(chrom_order):
-#    if chrom_order == None:
-#        chrom_order = sorted(map(lambda t: t.chrom, stats_by_chrom))
-#    stats_by_chrom_dict = dict(map(lambda t: [t.chrom,t],stats_by_chrom) )
-#    var_iterator = []
-#    for chrom in filter(lambda t: t in stats_by_chrom_dict.keys(),chrom_order):
-#      cv_stats = stats_by_chrom_dict[chrom]
-#      tp_iter = cv_stats.true_positives._vcf_iterator("source_file=1;smash_type=TP",cv_stats.true_positives.all_locations)
-#      fp_iter = cv_stats.false_positives._vcf_iterator("source_file=2;smash_type=FP",cv_stats.false_positives.all_locations)
-#      fn_iter = cv_stats.false_negatives._vcf_iterator("source_file=1;smash_type=FN",cv_stats.false_negatives.all_locations)
-#      rescued_iter = cv_stats.rescued_vars._vcf_iterator("source_file=2;smash_type=rescued",cv_stats.rescued_vars.all_locations)
-#      if ( cv_stats.known_fp_variants != None ):
-#       known_fp_iter = cv_stats.known_fp_variants._vcf_iterator("err_type=FP_known",cv_stats.known_fp_variants.all_locations)
-#      else:
-#       known_fp_iter = [].__iter__()
-#      var_iterator = sorted(chain(var_iterator,vcf_by_position([tp_iter,fp_iter,fn_iter,known_fp_iter,rescued_iter])),key=lambda rec: int(rec.POS))
-#    return var_iterator
+  def annotated_var_iter(chrom_order):
+   if chrom_order == None:
+       chrom_order = sorted(map(lambda t: t.chrom, stats_by_chrom))
+   stats_by_chrom_dict = dict(map(lambda t: [t.chrom,t],stats_by_chrom) )
+   var_iterator = []
+   for chrom in filter(lambda t: t in stats_by_chrom_dict.keys(),chrom_order):
+     cv_stats = stats_by_chrom_dict[chrom]
+     tp_iter = cv_stats.true_positives._vcf_iterator("source_file=1;smash_type=TP",cv_stats.true_positives.all_locations)
+     fp_iter = cv_stats.false_positives._vcf_iterator("source_file=2;smash_type=FP",cv_stats.false_positives.all_locations)
+     fn_iter = cv_stats.false_negatives._vcf_iterator("source_file=1;smash_type=FN",cv_stats.false_negatives.all_locations)
+     rescued_iter = cv_stats.rescued_vars._vcf_iterator("source_file=2;smash_type=rescued",cv_stats.rescued_vars.all_locations)
+     if ( cv_stats.known_fp_variants != None ):
+      known_fp_iter = cv_stats.known_fp_variants._vcf_iterator("err_type=FP_known",cv_stats.known_fp_variants.all_locations)
+     else:
+      known_fp_iter = [].__iter__()
+     var_iterator = sorted(chain(var_iterator,vcf_by_position([tp_iter,fp_iter,fn_iter,known_fp_iter,rescued_iter])),key=lambda rec: int(rec.POS))
+   return var_iterator
 
-#   return aggregator,annotated_var_iter
+  return aggregator,annotated_var_iter
 
-# def _eval_aggregate(true_variants, pred_variants, known_fp, evaluate):
-#   """Evaluate by chromosome and aggregate the results."""
-#   dicts = []
-#   for chrom in true_variants.chroms.union(pred_variants.chroms):
-#     chrom_true = true_variants.on_chrom(chrom)
-#     chrom_pred = pred_variants.on_chrom(chrom)
-#     chrom_known_fp = known_fp.on_chrom(chrom) if known_fp else None
-#     dicts.append(evaluate(chrom_true, chrom_pred,chrom_known_fp))
-#   return _aggregate(dicts)  
+def _eval_aggregate(true_variants, pred_variants, known_fp, evaluate):
+  """Evaluate by chromosome and aggregate the results."""
+  dicts = []
+  for chrom in true_variants.chroms.union(pred_variants.chroms):
+    chrom_true = true_variants.on_chrom(chrom)
+    chrom_pred = pred_variants.on_chrom(chrom)
+    chrom_known_fp = known_fp.on_chrom(chrom) if known_fp else None
+    dicts.append(evaluate(chrom_true, chrom_pred,chrom_known_fp))
+  return _aggregate(dicts)  
 
-# def evaluate_variants(true_variants,pred_variants,eps,eps_bp,ref,window,known_fp=None):
-#     def evaluate(true,pred,known_fp):
-#       return chrom_evaluate_variants(true,pred,eps,eps_bp,ref,window,known_fp)
-#     return _eval_aggregate(true_variants,pred_variants,known_fp,evaluate)
+def evaluate_variants(true_variants,pred_variants,eps,eps_bp,ref,window,known_fp=None):
+    def evaluate(true,pred,known_fp):
+      return chrom_evaluate_variants(true,pred,eps,eps_bp,ref,window,known_fp)
+    return _eval_aggregate(true_variants,pred_variants,known_fp,evaluate)
 
 class RecordGenerators:
   def __init__(self,contig_lookup,true_iter,pred_iter,known_fp_iter=None):
