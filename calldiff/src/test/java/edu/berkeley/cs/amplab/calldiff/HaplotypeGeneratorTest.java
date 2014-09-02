@@ -78,10 +78,10 @@ public class HaplotypeGeneratorTest {
             reference(ImmutableMap.of(contig, "ACGTACGT")),
             contig,
             asList(
-                create(contig, 2, "C", singletonList("G"), asList(0, 1), DEFAULT),
-                create(contig, 5, "A", singletonList("C"), asList(0, 1)),
-                create(contig, 7, "G", singletonList("T"), asList(0, 1), DEFAULT)),
-            1,
-            9));
+                create(contig, 1, "C", singletonList("G"), asList(0, 1), DEFAULT),
+                create(contig, 4, "A", singletonList("C"), asList(0, 1)),
+                create(contig, 6, "G", singletonList("T"), asList(0, 1), DEFAULT)),
+            0,
+            8));
   }
 }

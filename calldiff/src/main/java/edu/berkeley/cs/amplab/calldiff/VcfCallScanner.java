@@ -136,7 +136,7 @@ public class VcfCallScanner implements CallScanner {
           }
 
           @Override public int position() {
-            return position;
+            return position - 1;
           }
 
           @Override public String reference() {

@@ -104,7 +104,7 @@ public class HaplotypeGenerator {
   public static Set<String> generateHaplotypes(FastaReader.FastaFile reference, String contig,
       List<Call> calls, int beginning, int end) {
     Stream<Haplotype> haplotypes =
-        Stream.of(Haplotype.create(reference.get(contig, beginning - 1, end - 1), beginning));
+        Stream.of(Haplotype.create(reference.get(contig, beginning, end), beginning));
     for (List<Call> phaseset : partitionByPhaseset(calls)) {
       haplotypes = haplotypes.flatMap(haplotype -> haplotype.apply(phaseset));
     }
