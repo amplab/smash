@@ -111,7 +111,7 @@ public class Main {
                           commandLine.lhsVcf(),
                           commandLine.lhsSampleId(),
                           commandLine.lhsCallsetId())
-                      .scan(lhs -> {
+                      .scan((CallScanner.Callback<DiffStats>) lhs -> {
                         try {
                           boolean presorted = commandLine.presorted();
                           return callScanner(

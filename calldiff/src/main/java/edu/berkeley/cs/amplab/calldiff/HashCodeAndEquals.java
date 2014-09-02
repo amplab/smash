@@ -1,9 +1,7 @@
 package edu.berkeley.cs.amplab.calldiff;
 
 import java.util.Objects;
-import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
