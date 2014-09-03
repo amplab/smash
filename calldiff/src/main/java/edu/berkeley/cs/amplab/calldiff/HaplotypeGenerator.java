@@ -66,6 +66,7 @@ public class HaplotypeGenerator {
               reference = call.reference(),
               replacement = Stream
                   .concat(Stream.of(reference), call.alternates().stream())
+                  .map(CaseNormalizer::normalizeCase)
                   .collect(Collectors.toList())
                   .get(call.genotype().get(allele));
           int referenceLength = reference.length(),

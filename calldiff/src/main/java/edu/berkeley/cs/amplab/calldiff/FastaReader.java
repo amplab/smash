@@ -1,5 +1,7 @@
 package edu.berkeley.cs.amplab.calldiff;
 
+import static edu.berkeley.cs.amplab.calldiff.CaseNormalizer.normalizeCase;
+
 import com.google.common.collect.ImmutableMap;
 
 import java.io.File;
@@ -83,7 +85,7 @@ public class FastaReader {
                 i = Math.max(0, accountForNewlines(beginIndex)); i < end; ++i) {
               char c = (char) contig.get(i);
               if (Character.isAlphabetic(c) || '-' == c) {
-                builder.append(c);
+                builder.append(normalizeCase(c));
               } else if ('\n' != c) {
                 throw new IllegalStateException(String.format(
                     "Illegal character %c on contig \"%s\" at position %d", c, contigName, i));
