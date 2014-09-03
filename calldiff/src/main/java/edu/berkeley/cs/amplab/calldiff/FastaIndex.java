@@ -39,6 +39,7 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -141,6 +142,8 @@ public class FastaIndex {
     }
   }
 
+  private static final Logger LOGGER = Logger.getLogger(FastaIndex.class.getName());
+
   private static final int NEWLINE_SIZE_IN_BYTES =
       StandardCharsets.UTF_8.encode(CharBuffer.wrap(String.format("%n"))).limit();
 
@@ -193,7 +196,7 @@ public class FastaIndex {
           } else if (bases != lineLength
               && iterator.hasNext()
               && !iterator.peek().startsWith(">")) {
-            throw new IllegalStateException(String.format(
+            LOGGER.warning(String.format(
                 "Inconsistent line lengths at contig \"%s\", offset %d",
                 name,
                 offset2 - lineLength - NEWLINE_SIZE_IN_BYTES));
