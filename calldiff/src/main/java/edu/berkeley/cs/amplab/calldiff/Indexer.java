@@ -16,9 +16,8 @@
  */
 package edu.berkeley.cs.amplab.calldiff;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -38,13 +37,13 @@ public class Indexer<X> implements Collector<X, Indexer<X>, Map<X, Integer>> {
     return new Indexer<>();
   }
 
-  private final ImmutableMap.Builder<X, Integer> builder = ImmutableMap.builder();
+  private final Map<X, Integer> map = new HashMap<>();
   private int index = 0;
 
   private Indexer() {}
 
   @Override public BiConsumer<Indexer<X>, X> accumulator() {
-    return (indexer, object) -> indexer.builder.put(object, index++);
+    return (indexer, object) -> indexer.map.put(object, index++);
   }
 
   @Override public Set<Collector.Characteristics> characteristics() {
@@ -58,7 +57,7 @@ public class Indexer<X> implements Collector<X, Indexer<X>, Map<X, Integer>> {
   }
 
   @Override public Function<Indexer<X>, Map<X, Integer>> finisher() {
-    return indexer -> indexer.builder.build();
+    return indexer -> indexer.map;
   }
 
   @Override public Supplier<Indexer<X>> supplier() {
