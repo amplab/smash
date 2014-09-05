@@ -116,6 +116,8 @@ public class Window {
     }
   }
 
+  private static final int CALL_SEPERATION_DISTANCE = 50;
+
   private static final HashCodeAndEquals<Window> HASH_CODE_AND_EQUALS =
       HashCodeAndEquals.create(
           Window.class,
@@ -174,7 +176,7 @@ public class Window {
                           && Objects.equals(
                               contig,
                               (call = (next = iterator.peek()).call()).contig())
-                          && call.position() < window.end();) {
+                          && call.position() < window.end() + CALL_SEPERATION_DISTANCE;) {
                     addToWindow(window, iterator.next(), call);
                   }
                   return window.build();
