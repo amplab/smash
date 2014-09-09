@@ -52,18 +52,18 @@ public class ApiCallScanner implements CallScanner {
   @Override
   public <X> X scan(Callback<? extends X> callback) throws IOException {
     try {
-      String datasetId = genomics.callsets().get(callsetId).execute().getDatasetId();
+      String variantsetId = genomics.callsets().get(callsetId).execute().getVariantsetId();
       return callback.scan(
           genomics.variants()
               .getSummary()
-              .setDatasetId(datasetId)
+              .setVariantsetId(variantsetId)
               .execute()
               .getContigBounds()
               .stream()
               .map(bound -> new SearchVariantsRequest()
                   .setCallsetIds(Collections.singletonList(callsetId))
                   .setContig(bound.getContig())
-                  .setDatasetId(datasetId)
+                  .setVariantsetId(variantsetId)
                   .setEndPosition(bound.getUpperBound())
                   .setStartPosition(1L))
               .flatMap(request -> StreamSupport.stream(
