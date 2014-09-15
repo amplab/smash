@@ -36,6 +36,9 @@ public class CaseNormalizer {
       case 'T':
       case 't':
         return 'T';
+      case 'N':
+      case 'n':
+        return 'N';
       default:
         throw new IllegalArgumentException(exceptionMessage(c));
     }
