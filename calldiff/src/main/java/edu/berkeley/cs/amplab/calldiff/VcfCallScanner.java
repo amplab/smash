@@ -72,97 +72,106 @@ public class VcfCallScanner implements CallScanner {
   }
 
   private static Call call(String line, int sampleIndex) {
-    Matcher matcher = RECORD_PATTERN.matcher(line);
-    Preconditions.checkState(matcher.lookingAt());
-    final String contig = matcher.group(1);
-    final int position = Integer.parseInt(matcher.group(2));
-    final String reference = matcher.group(4);
-    List<String> alts = stream(ALT_PATTERN.matcher(matcher.group(5)))
-        .map(result -> result.group(1))
-        .collect(Collectors.toList());
-    final List<String> alternates = Collections.singletonList(".").equals(alts)
-        ? Collections.emptyList()
-        : alts;
-    Map<String, Integer> format = stream(FORMAT_PATTERN.matcher(matcher.group(9)))
-        .map(result -> result.group(1))
-        .collect(Indexer.create());
-    List<String> call = stream(
-            FORMAT_PATTERN.matcher(
-                stream(matcher.usePattern(SAMPLE_PATTERN))
-                    .map(result -> result.group(1))
-                    .collect(Collectors.toList())
-                    .get(sampleIndex)))
-        .map(result -> result.group(1))
-        .collect(Collectors.toList());
-    boolean unphased = false, phased = false;
-    final List<Integer> genotype = new ArrayList<>();
-    for (
-        Iterator<MatchResult>
-            iterator = stream(GENOTYPE_PATTERN.matcher(call.get(format.get("GT")))).iterator();
-        iterator.hasNext();) {
-      MatchResult next = iterator.next();
-      String allele = next.group(1);
-      genotype.add(Objects.equals(".", allele) ? -1 : Integer.parseInt(allele));
-      switch (next.group(2)) {
-        case "|":
-          phased = true;
-          break;
-        case "/":
-          unphased = true;
-          break;
-        case "":
-          break;
-        default:
-          throw new IllegalStateException();
+    try {
+      Matcher matcher = RECORD_PATTERN.matcher(line);
+      Preconditions.checkState(matcher.lookingAt());
+      final String contig = matcher.group(1);
+      final int position = Integer.parseInt(matcher.group(2));
+      final String reference = matcher.group(4);
+      List<String> alts = stream(ALT_PATTERN.matcher(matcher.group(5)))
+          .map(result -> result.group(1))
+          .collect(Collectors.toList());
+      final List<String> alternates = Collections.singletonList(".").equals(alts)
+          ? Collections.emptyList()
+          : alts;
+      Map<String, Integer> format = stream(FORMAT_PATTERN.matcher(matcher.group(9)))
+          .map(result -> result.group(1))
+          .collect(Indexer.create());
+      List<String> call = stream(
+              FORMAT_PATTERN.matcher(
+                  stream(matcher.usePattern(SAMPLE_PATTERN))
+                      .map(result -> result.group(1))
+                      .collect(Collectors.toList())
+                      .get(sampleIndex)))
+          .map(result -> result.group(1))
+          .collect(Collectors.toList());
+      boolean unphased = false, phased = false;
+      final List<Integer> genotype = new ArrayList<>();
+      for (
+          Iterator<MatchResult>
+              iterator = stream(GENOTYPE_PATTERN.matcher(call.get(format.get("GT")))).iterator();
+          iterator.hasNext();) {
+        MatchResult next = iterator.next();
+        String allele = next.group(1);
+        genotype.add(Objects.equals(".", allele) ? -1 : Integer.parseInt(allele));
+        switch (next.group(2)) {
+          case "|":
+            phased = true;
+            break;
+          case "/":
+            unphased = true;
+            break;
+          case "":
+            break;
+          default:
+            throw new IllegalStateException();
+        }
       }
+      if (unphased && phased) {
+        throw new IllegalStateException("Genotypes are either phased or unphased");
+      }
+      final Optional<Call.Phaseset> phaseset = phased
+          ? Optional.of(
+              Optional.ofNullable(format.get("PS"))
+                  .map(index -> Call.Phaseset.create(Integer.parseInt(call.get(index))))
+                  .orElse(Call.Phaseset.DEFAULT))
+          : Optional.empty();
+      return new Call() {
+
+            @Override public List<String> alternates() {
+              return alternates;
+            }
+
+            @Override public String contig() {
+              return contig;
+            }
+
+            @Override public boolean equals(Object obj) {
+              return HASH_CODE_AND_EQUALS.equals(this, obj);
+            }
+
+            @Override public List<Integer> genotype() {
+              return genotype;
+            }
+
+            @Override public int hashCode() {
+              return HASH_CODE_AND_EQUALS.hashCode(this);
+            }
+
+            @Override public Optional<Phaseset> phaseset() {
+              return phaseset;
+            }
+
+            @Override public int position() {
+              return position - 1;
+            }
+
+            @Override public String reference() {
+              return reference;
+            }
+
+            @Override public String toString() {
+              return TO_STRING.apply(this);
+            }
+          };
+    } catch (RuntimeException e) {
+      throw new IllegalStateException(
+          String.format(
+              "Failure to parse VCF record \"%s\" with call at index %d",
+              line,
+              sampleIndex),
+          e);
     }
-    if (unphased && phased) {
-      throw new IllegalStateException("Genotypes are either phased or unphased");
-    }
-    final Optional<Call.Phaseset> phaseset = phased
-        ? Optional.of(
-            Optional.ofNullable(format.get("PS"))
-                .map(index -> Call.Phaseset.create(Integer.parseInt(call.get(index))))
-                .orElse(Call.Phaseset.DEFAULT))
-        : Optional.empty();
-    return new Call() {
-
-          @Override public List<String> alternates() {
-            return alternates;
-          }
-
-          @Override public String contig() {
-            return contig;
-          }
-
-          @Override public boolean equals(Object obj) {
-            return HASH_CODE_AND_EQUALS.equals(this, obj);
-          }
-
-          @Override public List<Integer> genotype() {
-            return genotype;
-          }
-
-          @Override public int hashCode() {
-            return HASH_CODE_AND_EQUALS.hashCode(this);
-          }
-
-          @Override public Optional<Phaseset> phaseset() {
-            return phaseset;
-          }
-
-          @Override public int position() {
-            return position - 1;
-          }
-
-          @Override public String reference() {
-            return reference;
-          }
-
-          @Override public String toString() {
-            return TO_STRING.apply(this);
-          }
-        };
   }
 
   private static Stream<MatchResult> stream(final Matcher matcher) {
