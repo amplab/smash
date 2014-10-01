@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -127,6 +128,8 @@ public class Window {
           Window::lhs,
           Window::rhs);
 
+  private static final Logger LOGGER = Logger.getLogger(Window.class.getName());
+
   private static final int MAX_WINDOW_SIZE = 10;
 
   public static Builder builder(String contig) {
@@ -168,7 +171,7 @@ public class Window {
               @Override protected Window computeNext() {
                 if (iterator.hasNext()) {
                   CallWithSource next = iterator.next();
-                  Call call = next.call();
+                  Call call = next.call(), firstCall = call;
                   String contig = call.contig();
                   Window.Builder window = Window.builder(contig);
                   for (addToWindow(window, next, call);
@@ -179,6 +182,8 @@ public class Window {
                           && call.position() < window.end() + CALL_SEPERATION_DISTANCE;) {
                     addToWindow(window, iterator.next(), call);
                   }
+                  LOGGER.finest(String.format(
+                      "Processing window [%s, %d, %d]", contig, firstCall.position(), call.end()));
                   return window.build();
                 }
                 return endOfData();
