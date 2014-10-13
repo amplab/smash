@@ -49,12 +49,474 @@ public class HaplotypeGenerator {
       return new Haplotype(string, offsets);
     }
 
-    private final String string;
-    private final NavigableMap<Integer, Integer> offsets;
+    private static boolean equals(char lhs, char rhs) {
+      switch (lhs) {
+        case 'A':
+          switch (rhs) {
+            case 'A':
+            case 'R':
+            case 'M':
+            case 'W':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+              return true;
+            case 'C':
+            case 'G':
+            case 'T':
+            case 'U':
+            case 'Y':
+            case 'K':
+            case 'S':
+            case 'B':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'C':
+          switch (rhs) {
+            case 'C':
+            case 'Y':
+            case 'M':
+            case 'S':
+            case 'B':
+            case 'H':
+            case 'V':
+            case 'N':
+              return true;
+            case 'A':
+            case 'G':
+            case 'T':
+            case 'U':
+            case 'R':
+            case 'K':
+            case 'W':
+            case 'D':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'G':
+          switch (rhs) {
+            case 'G':
+            case 'R':
+            case 'K':
+            case 'S':
+            case 'B':
+            case 'D':
+            case 'V':
+            case 'N':
+              return true;
+            case 'A':
+            case 'C':
+            case 'T':
+            case 'U':
+            case 'Y':
+            case 'M':
+            case 'W':
+            case 'H':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'T':
+          switch (rhs) {
+            case 'T':
+            case 'Y':
+            case 'K':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'N':
+              return true;
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'U':
+            case 'R':
+            case 'M':
+            case 'S':
+            case 'V':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'U':
+          switch (rhs) {
+            case 'U':
+            case 'Y':
+            case 'K':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'N':
+              return true;
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'T':
+            case 'R':
+            case 'M':
+            case 'S':
+            case 'V':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'R':
+          switch (rhs) {
+            case 'R':
+            case 'A':
+            case 'G':
+              return true;
+            case 'C':
+            case 'T':
+            case 'U':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'Y':
+          switch (rhs) {
+            case 'Y':
+            case 'C':
+            case 'T':
+            case 'U':
+              return true;
+            case 'A':
+            case 'G':
+            case 'R':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'K':
+          switch (rhs) {
+            case 'K':
+            case 'G':
+            case 'T':
+            case 'U':
+              return true;
+            case 'A':
+            case 'C':
+            case 'R':
+            case 'Y':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'M':
+          switch (rhs) {
+            case 'M':
+            case 'A':
+            case 'C':
+              return true;
+            case 'G':
+            case 'T':
+            case 'U':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'S':
+          switch (rhs) {
+            case 'S':
+            case 'C':
+            case 'G':
+              return true;
+            case 'A':
+            case 'T':
+            case 'U':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'W':
+          switch (rhs) {
+            case 'W':
+            case 'A':
+            case 'T':
+            case 'U':
+              return true;
+            case 'C':
+            case 'G':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'B':
+          switch (rhs) {
+            case 'B':
+            case 'C':
+            case 'G':
+            case 'T':
+            case 'U':
+              return true;
+            case 'A':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'D':
+          switch (rhs) {
+            case 'D':
+            case 'A':
+            case 'G':
+            case 'T':
+            case 'U':
+              return true;
+            case 'C':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'H':
+          switch (rhs) {
+            case 'H':
+            case 'A':
+            case 'C':
+            case 'T':
+            case 'U':
+              return true;
+            case 'G':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'V':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'V':
+          switch (rhs) {
+            case 'V':
+            case 'A':
+            case 'C':
+            case 'G':
+              return true;
+            case 'T':
+            case 'U':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'N':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'N':
+          switch (rhs) {
+            case 'N':
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'T':
+            case 'U':
+              return true;
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'X':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case 'X':
+          switch (rhs) {
+            case 'X':
+              return true;
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'T':
+            case 'U':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case '-':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        case '-':
+          switch (rhs) {
+            case '-':
+              return true;
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'T':
+            case 'U':
+            case 'R':
+            case 'Y':
+            case 'K':
+            case 'M':
+            case 'S':
+            case 'W':
+            case 'B':
+            case 'D':
+            case 'H':
+            case 'V':
+            case 'N':
+            case 'X':
+              return false;
+            default:
+              throw new IllegalStateException(Character.toString(rhs));
+          }
+        default:
+          throw new IllegalStateException(Character.toString(lhs));
+      }
+    }
 
-    private Haplotype(String string, NavigableMap<Integer, Integer> offsets) {
-      this.string = string;
-      this.offsets = offsets;
+    private static boolean equals(String lhs, String rhs) {
+      int length = lhs.length();
+      if (length == rhs.length()) {
+        for (int i = 0; i < length; ++i) {
+          if (!equals(lhs.charAt(i), rhs.charAt(i))) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
     }
 
     private static <X> X getProperty(List<Call> calls, Function<? super Call, ? extends X> accessor,
@@ -62,6 +524,14 @@ public class HaplotypeGenerator {
       List<X> list = calls.stream().map(accessor).distinct().collect(Collectors.toList());
       Preconditions.checkState(1 == list.size(), message);
       return Iterables.getOnlyElement(list);
+    }
+    private final NavigableMap<Integer, Integer> offsets;
+
+    private final String string;
+
+    private Haplotype(String string, NavigableMap<Integer, Integer> offsets) {
+      this.string = string;
+      this.offsets = offsets;
     }
 
     Stream<Haplotype> apply(List<Call> calls) {
@@ -113,6 +583,17 @@ public class HaplotypeGenerator {
     }
 
     @Override
+    public boolean equals(Object obj) {
+      return null != obj && Haplotype.class != obj.getClass()
+          && equals(toString(), ((Haplotype) obj).toString());
+    }
+
+    @Override
+    public int hashCode() {
+      return toString().hashCode();
+    }
+
+    @Override
     public String toString() {
       return string;
     }
@@ -125,7 +606,9 @@ public class HaplotypeGenerator {
     for (List<Call> phaseset : partitionByPhaseset(calls)) {
       haplotypes = haplotypes.flatMap(haplotype -> haplotype.apply(phaseset));
     }
-    return haplotypes.map(Object::toString)
+    return haplotypes.collect(Collectors.toSet())
+        .stream()
+        .map(Object::toString)
         .collect(Collectors.toSet());
   }
 

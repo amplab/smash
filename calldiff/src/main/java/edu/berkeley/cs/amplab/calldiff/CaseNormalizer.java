@@ -36,9 +36,47 @@ public class CaseNormalizer {
       case 'T':
       case 't':
         return 'T';
+      case 'U':
+      case 'u':
+        return 'U';
+      case 'R':
+      case 'r':
+        return 'R';
+      case 'Y':
+      case 'y':
+        return 'Y';
+      case 'K':
+      case 'k':
+        return 'K';
+      case 'M':
+      case 'm':
+        return 'M';
+      case 'S':
+      case 's':
+        return 'S';
+      case 'W':
+      case 'w':
+        return 'W';
+      case 'B':
+      case 'b':
+        return 'B';
+      case 'D':
+      case 'd':
+        return 'D';
+      case 'H':
+      case 'h':
+        return 'H';
+      case 'V':
+      case 'v':
+        return 'V';
       case 'N':
       case 'n':
         return 'N';
+      case 'X':
+      case 'x':
+        return 'X';
+      case '-':
+        return '-';
       default:
         throw new IllegalArgumentException(exceptionMessage(c));
     }

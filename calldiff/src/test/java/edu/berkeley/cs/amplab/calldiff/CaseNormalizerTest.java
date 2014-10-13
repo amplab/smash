@@ -30,7 +30,26 @@ import java.util.stream.Stream;
 
 public class CaseNormalizerTest {
 
-  private static final Set<Character> ALLOWED_CHARS = Stream.of('A', 'C', 'G', 'T', 'N')
+  private static final Set<Character> ALLOWED_CHARS = Stream
+      .of(
+          'A',
+          'C',
+          'G',
+          'T',
+          'U',
+          'R',
+          'Y',
+          'K',
+          'M',
+          'S',
+          'W',
+          'B',
+          'D',
+          'H',
+          'V',
+          'N',
+          'X',
+          '-')
       .flatMap(c -> Stream.of(c, Character.toLowerCase(c)))
       .collect(Collectors.toSet());
 
