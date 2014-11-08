@@ -31,6 +31,7 @@ public class CommandLine {
   public static class Builder {
 
     private String apiKey;
+    private boolean noLocalServer;
     private String clientSecretsFile;
     private String lhsCallsetId;
     private String lhsSampleId;
@@ -49,6 +50,7 @@ public class CommandLine {
     public CommandLine build() {
       return new CommandLine(
           apiKey,
+          noLocalServer,
           clientSecretsFile,
           lhsCallsetId,
           lhsSampleId,
@@ -67,6 +69,11 @@ public class CommandLine {
 
     public Builder setApiKey(String apiKey) {
       this.apiKey = apiKey;
+      return this;
+    }
+
+    public Builder setNoLocalServer(boolean noLocalServer) {
+      this.noLocalServer = noLocalServer;
       return this;
     }
 
@@ -145,6 +152,7 @@ public class CommandLine {
       HASH_CODE_AND_EQUALS = HashCodeAndEquals.create(
           CommandLine.class,
           CommandLine::apiKey,
+          CommandLine::noLocalServer,
           CommandLine::clientSecretsFile,
           CommandLine::lhsCallsetId,
           CommandLine::lhsSampleId,
@@ -182,6 +190,11 @@ public class CommandLine {
       names = { "--api_key" },
       description = "The API key used to authenticate to your Google Cloud project")
   private String apiKey;
+
+  @Parameter(names = "--nolocalserver",
+      description = "Disable the starting up of a local server for the auth flows",
+      hidden = true)
+  public boolean noLocalServer = false;
 
   @Parameter(
       names = { "--client_secrets_file" },
@@ -262,11 +275,12 @@ public class CommandLine {
   private Integer timeout;
 
   public CommandLine() {
-    this(null, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
+    this(null, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
   }
 
   private CommandLine(
       String apiKey,
+      boolean noLocalServer,
       String clientSecretsFile,
       String lhsCallsetId,
       String lhsSampleId,
@@ -282,6 +296,7 @@ public class CommandLine {
       String serviceAccountId,
       Integer timeout) {
     this.apiKey = apiKey;
+    this.noLocalServer = noLocalServer;
     this.clientSecretsFile = clientSecretsFile;
     this.lhsCallsetId = lhsCallsetId;
     this.lhsSampleId = lhsSampleId;
@@ -300,6 +315,10 @@ public class CommandLine {
 
   public Optional<String> apiKey() {
     return Optional.ofNullable(apiKey);
+  }
+
+  public Optional<Boolean> noLocalServer() {
+    return Optional.ofNullable(noLocalServer);
   }
 
   public Optional<String> clientSecretsFile() {

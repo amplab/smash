@@ -17,7 +17,11 @@
 package edu.berkeley.cs.amplab.calldiff;
 
 import com.google.api.services.genomics.Genomics;
+import com.google.api.client.extensions.java6.auth.oauth2.VerificationCodeReceiver;
+import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
+import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver;
 import com.google.cloud.genomics.utils.GenomicsFactory;
+import com.google.common.base.Suppliers;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,6 +58,7 @@ public class Main {
           .orElse(VcfCallScanner.create(file));
     } else if (!useVcfFile && useCallset) {
       return ApiCallScanner.create(createGenomics(commandLine.apiKey(),
+          commandLine.noLocalServer(),
           commandLine.clientSecretsFile(), commandLine.serviceAccountId(), commandLine.p12File(),
           commandLine.rootUrl(), commandLine.timeout()), callsetId.get());
     }
@@ -63,6 +68,7 @@ public class Main {
 
   private static Genomics createGenomics(
       Optional<String> apiKey,
+      Optional<Boolean> noLocalServer,
       Optional<String> clientSecretsFile,
       Optional<String> serviceAccountId,
       Optional<String> p12File,
@@ -71,9 +77,17 @@ public class Main {
     boolean useApiKey = apiKey.isPresent(),
         useClientSecrets = clientSecretsFile.isPresent(),
         useServiceAccount = serviceAccountId.isPresent() && p12File.isPresent();
-    GenomicsFactory.Builder builder = GenomicsFactory.builder("calldiff");
+
+    VerificationCodeReceiver receiver =
+      (noLocalServer.isPresent() && noLocalServer.get() == true) ?
+      new GooglePromptReceiver() : new LocalServerReceiver();
+
+    GenomicsFactory.Builder builder = GenomicsFactory.builder("calldiff")
+      .setVerificationCodeReceiver(Suppliers.ofInstance(receiver));
+
     rootUrl.ifPresent(url -> builder.setRootUrl(url));
     timeout.ifPresent(ms -> builder.setConnectTimeout(ms).setReadTimeout(ms));
+
     GenomicsFactory factory = builder.build();
     if (!useApiKey && !useClientSecrets && !useServiceAccount) {
       throw new IllegalStateException("Specify one of { --api_key, --client_secrets_file, "
