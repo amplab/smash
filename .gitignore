@@ -5,8 +5,10 @@ smashbenchmarking.egg-info/
 *.suo
 *.flat
 *.gdx
+*.iml
 calldiff/.project
 calldiff/.classpath
 calldiff/.settings
+calldiff/.idea
 calldiff/target
 
