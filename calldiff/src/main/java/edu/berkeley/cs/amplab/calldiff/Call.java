@@ -16,7 +16,7 @@
  */
 package edu.berkeley.cs.amplab.calldiff;
 
-import com.google.api.services.genomics.model.Callset;
+import com.google.api.services.genomics.model.CallSet;
 import com.google.common.collect.Iterables;
 
 import java.util.List;
@@ -30,7 +30,7 @@ import java.util.stream.Stream;
 /**
  * An interface describing the information in a variant call used to determine if two sets of
  * calls are equivalent. There are two implementations: {@link VcfCallScanner} for using a sample
- * column from a VCF file as a set of calls, and {@link ApiCallScanner}, for using a {@link Callset}
+ * column from a VCF file as a set of calls, and {@link ApiCallScanner}, for using a {@link CallSet}
  * as a set of calls.
  */
 public interface Call {

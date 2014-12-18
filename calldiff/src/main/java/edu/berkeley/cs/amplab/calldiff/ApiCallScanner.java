@@ -18,11 +18,13 @@ package edu.berkeley.cs.amplab.calldiff;
 
 import com.google.api.services.genomics.Genomics;
 import com.google.api.services.genomics.model.SearchVariantsRequest;
+import com.google.api.services.genomics.model.Variant;
 import com.google.cloud.genomics.utils.Paginator;
 import com.google.common.collect.Iterables;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Spliterator;
@@ -52,23 +54,22 @@ public class ApiCallScanner implements CallScanner {
   @Override
   public <X> X scan(Callback<? extends X> callback) throws IOException {
     try {
-      String variantsetId = genomics.callsets().get(callsetId).execute().getVariantsetId();
+      String variantsetId = genomics.callsets().get(callsetId).execute().getVariantSetIds().get(0);
       return callback.scan(
-          genomics.variants()
-              .getSummary()
-              .setVariantsetId(variantsetId)
+          genomics.variantsets()
+              .get(variantsetId)
               .execute()
-              .getContigBounds()
+              .getReferenceBounds()
               .stream()
               .map(bound -> new SearchVariantsRequest()
-                  .setCallsetIds(Collections.singletonList(callsetId))
-                  .setContig(bound.getContig())
-                  .setVariantsetId(variantsetId)
-                  .setEndPosition(bound.getUpperBound())
-                  .setStartPosition(1L))
+                  .setCallSetIds(Collections.singletonList(callsetId))
+                  .setReferenceName(bound.getReferenceName())
+                  .setVariantSetIds(Collections.singletonList(variantsetId))
+                  .setEnd(bound.getUpperBound())
+                  .setStart(0L))
               .flatMap(request -> StreamSupport.stream(
                   Spliterators.spliteratorUnknownSize(
-                      searchVariants.search(request, search -> {}).iterator(),
+                      searchVariants.search(request).iterator(),
                       Spliterator.DISTINCT | Spliterator.IMMUTABLE | Spliterator.NONNULL),
                   false))
               .<Call>map(variant -> new Call() {
@@ -81,7 +82,7 @@ public class ApiCallScanner implements CallScanner {
                     }
 
                     @Override public String contig() {
-                      return variant.getContig();
+                      return variant.getReferenceName();
                     }
 
                     @Override public boolean equals(Object obj) {
@@ -107,7 +108,7 @@ public class ApiCallScanner implements CallScanner {
                     }
 
                     @Override public int position() {
-                      return variant.getPosition().intValue();
+                      return variant.getStart().intValue();
                     }
 
                     @Override public String reference() {
